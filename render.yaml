@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-18
     region: oregon
-    buildCommand: "npm install && npm --prefix lib/db install && npm --prefix lib/api-zod install && npm --prefix artifacts/api-server install && npm --prefix artifacts/api-server run build"
+    buildCommand: "npm install && npm run build"
     startCommand: "node artifacts/api-server/dist/index.js"
     healthCheckPath: /api/health
     healthCheckInterval: 300
