@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-18
     region: oregon
-    buildCommand: "npm install && npm run build"
+    buildCommand: "npm install --legacy-peer-deps && cd artifacts/api-server && npm install --legacy-peer-deps && npm run build"
     startCommand: "node artifacts/api-server/dist/index.js"
     healthCheckPath: /api/health
     healthCheckInterval: 300
