@@ -37,9 +37,9 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
       number: b.number,
       openTime: b.open_time || "",
       closeTime: b.close_time || "",
-      currentTime: b.current_time?.toISOString() ?? new Date().toISOString(),
+      currentTime: typeof b.current_time === 'string' ? b.current_time : (b.current_time?.toISOString?.() ?? new Date().toISOString()),
       status: b.status,
-      createdAt: b.created_at?.toISOString() ?? new Date().toISOString(),
+      createdAt: typeof b.created_at === 'string' ? b.created_at : (b.created_at?.toISOString?.() ?? new Date().toISOString()),
     }));
 
     res.json({
