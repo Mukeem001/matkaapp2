@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Market } from "@workspace/api-client-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+
 const marketSchema = z.object({
   name: z.string().min(1, "Name is required"),
   openTime: z.string().min(1, "Open time is required"),
@@ -182,46 +184,26 @@ function AutoConfigDialog({ market, open, setOpen }: { market: Market; open: boo
 }
 
 export default function Markets() {
+  // ============================================================================
+  // SECTION 1: ALL HOOKS DECLARED HERE - NO CONDITIONAL LOGIC ABOVE THIS POINT
+  // ============================================================================
+
   const { data: markets, isLoading, error } = useGetMarkets();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteMarket();
 
-  if (error || !Array.isArray(markets)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center p-8 rounded-lg border border-red-200 bg-red-50">
-          <h2 className="text-lg font-semibold text-red-900">Failed to load markets</h2>
-          <p className="text-sm text-red-700 mt-2">{error?.message || "Unable to fetch market data"}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Date state - defaults to today
+  // State Management
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  
-  // Store date-specific results
   const [dateResults, setDateResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  
-  // Store current results (latest from website)
   const [currentResults, setCurrentResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  
-  // Store live results (direct scrape)
   const [liveResults, setLiveResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMarket, setEditingMarket] = useState<Market | null>(null);
   const [autoConfigMarket, setAutoConfigMarket] = useState<Market | null>(null);
   const [fetchingId, setFetchingId] = useState<number | null>(null);
 
-  // Format selected date for display
+  // Memoized values
   const displayDate = useMemo(() => {
     const date = new Date(selectedDate);
     const today = new Date();
@@ -229,10 +211,10 @@ export default function Markets() {
     return `${format(date, "dd MMM, yyyy")}${isCurrentDate ? " (Today)" : ""}`;
   }, [selectedDate]);
 
-  // Fetch results for selected date
+  // Effect 1: Fetch results for selected date
   useEffect(() => {
     const fetchResultsForDate = async () => {
-      if (!markets) return;
+      if (!markets || !Array.isArray(markets)) return;
 
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -242,7 +224,7 @@ export default function Markets() {
       for (const market of markets) {
         try {
           const response = await fetch(
-            `/api/markets/${market.id}/results/${selectedDate}`,
+            `${API_BASE_URL}/api/markets/${market.id}/results/${selectedDate}`,
             {
               headers: {
                 "Authorization": `Bearer ${token}`,
@@ -271,11 +253,10 @@ export default function Markets() {
     fetchResultsForDate();
   }, [selectedDate, markets]);
 
-  // Fetch current results (latest from website)
-  
+  // Effect 2: Fetch current results (latest from website)
   useEffect(() => {
     const fetchCurrentResults = async () => {
-      if (!markets) {
+      if (!markets || !Array.isArray(markets)) {
         console.log("[Markets] No markets available yet");
         return;
       }
@@ -292,9 +273,8 @@ export default function Markets() {
 
       for (const market of markets) {
         try {
-          // Fetch current result without date parameter
           const response = await fetch(
-            `/api/markets/${market.id}/fetch-now`,
+            `${API_BASE_URL}/api/markets/${market.id}/fetch-now`,
             {
               method: "POST",
               headers: {
@@ -334,10 +314,10 @@ export default function Markets() {
     fetchCurrentResults();
   }, [markets]);
 
-  // Fetch live results directly from website
+  // Effect 3: Fetch live results directly from website
   useEffect(() => {
     const fetchLiveResults = async () => {
-      if (!markets) return;
+      if (!markets || !Array.isArray(markets)) return;
 
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -349,7 +329,7 @@ export default function Markets() {
       for (const market of markets) {
         try {
           const response = await fetch(
-            `/api/markets/${market.id}/live-results`,
+            `${API_BASE_URL}/api/markets/${market.id}/live-results`,
             {
               headers: {
                 "Authorization": `Bearer ${token}`,
@@ -387,21 +367,20 @@ export default function Markets() {
     fetchLiveResults();
   }, [markets]);
 
-  // Auto-refresh market data every 2 minutes to update isActive status and results
+  // Effect 4: Auto-refresh market data every 2 minutes
   useEffect(() => {
-    // Interval to refresh markets and results every 2 minutes (120000 ms)
     const autoRefreshInterval = setInterval(() => {
       console.log("[Markets] Auto-refreshing market data...");
       queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
-    }, 120000); // 2 minutes
+    }, 120000);
 
     return () => clearInterval(autoRefreshInterval);
   }, [queryClient]);
 
-  // Auto-refresh current results every 2 minutes
+  // Effect 5: Auto-refresh current results every 2 minutes
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token || !markets || markets.length === 0) return;
+    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
 
     const autoRefreshCurrentResults = setInterval(async () => {
       console.log("[Markets] Auto-refreshing current results...");
@@ -411,7 +390,7 @@ export default function Markets() {
       for (const market of markets) {
         try {
           const response = await fetch(
-            `/api/markets/${market.id}/fetch-now`,
+            `${API_BASE_URL}/api/markets/${market.id}/fetch-now`,
             {
               method: "POST",
               headers: {
@@ -432,20 +411,20 @@ export default function Markets() {
             }
           }
         } catch (error) {
-          console.error(`[Markets Auto-Refresh] Error fetching current results for market ${market.id}:`, error);
+          console.error(`[Markets Auto-Refresh] Error:`, error);
         }
       }
 
       setCurrentResults(results);
-    }, 120000); // 2 minutes
+    }, 120000);
 
     return () => clearInterval(autoRefreshCurrentResults);
   }, [markets]);
 
-  // Auto-refresh live results every 2 minutes
+  // Effect 6: Auto-refresh live results every 2 minutes
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token || !markets || markets.length === 0) return;
+    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
 
     const autoRefreshLiveResults = setInterval(async () => {
       console.log("[Markets] Auto-refreshing live results...");
@@ -455,7 +434,7 @@ export default function Markets() {
       for (const market of markets) {
         try {
           const response = await fetch(
-            `/api/markets/${market.id}/live-results`,
+            `${API_BASE_URL}/api/markets/${market.id}/live-results`,
             {
               headers: {
                 "Authorization": `Bearer ${token}`,
@@ -474,15 +453,40 @@ export default function Markets() {
             }
           }
         } catch (error) {
-          console.error(`[Markets Auto-Refresh] Error fetching live results for market ${market.id}:`, error);
+          console.error(`[Markets Auto-Refresh Live] Error:`, error);
         }
       }
 
       setLiveResults(results);
-    }, 120000); // 2 minutes
+    }, 120000);
 
     return () => clearInterval(autoRefreshLiveResults);
   }, [markets]);
+
+  // ============================================================================
+  // SECTION 2: CONDITIONAL RENDERING - NOW SAFE BECAUSE ALL HOOKS ARE ABOVE
+  // ============================================================================
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 rounded-lg border border-red-200 bg-red-50">
+          <h2 className="text-lg font-semibold text-red-900">Failed to load markets</h2>
+          <p className="text-sm text-red-700 mt-2">{error?.message || "Unable to fetch market data"}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || !Array.isArray(markets)) {
+    return <div className="animate-pulse h-64 bg-muted rounded-2xl" />;
+  }
 
 
   const handleDelete = (id: number) => {
@@ -509,7 +513,7 @@ const handleFetchNow = async (market: Market) => {
   try {
     const token = localStorage.getItem("token");
 
-    const response = await fetch(`/api/markets/${market.id}/fetch-now`, {
+    const response = await fetch(`${API_BASE_URL}/api/markets/${market.id}/fetch-now`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -561,8 +565,6 @@ const handleFetchNow = async (market: Market) => {
     setEditingMarket(null);
     setDialogOpen(true);
   };
-
-  if (isLoading) return <div className="animate-pulse h-64 bg-muted rounded-2xl" />;
 
   return (
     <div className="space-y-6">
@@ -624,7 +626,12 @@ const handleFetchNow = async (market: Market) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {markets?.map((market) => (
+              {markets?.map((market) => {
+                // Ensure isActive and autoUpdate are booleans
+                const isActive = typeof market.isActive === 'string' ? market.isActive === 'true' : market.isActive;
+                const autoUpdate = typeof market.autoUpdate === 'string' ? market.autoUpdate === 'true' : market.autoUpdate;
+                
+                return (
                 <TableRow key={market.id}>
                   <TableCell className="pl-6 font-semibold">{market.name}</TableCell>
                   <TableCell>
@@ -647,15 +654,15 @@ const handleFetchNow = async (market: Market) => {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={market.isActive ? "default" : "secondary"}
-                      className={market.isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
+                      variant={isActive ? "default" : "secondary"}
+                      className={isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
                     >
-                      {market.isActive ? "Active" : "Closed"}
+                      {isActive ? "Active" : "Closed"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {market.autoUpdate ? (
+                      {autoUpdate ? (
                         <Badge className="bg-blue-500 hover:bg-blue-600 gap-1 text-xs">
                           <Wifi className="w-3 h-3" /> ON
                         </Badge>
@@ -750,7 +757,8 @@ const handleFetchNow = async (market: Market) => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
               {(!markets || markets.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">

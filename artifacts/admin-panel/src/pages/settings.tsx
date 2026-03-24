@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Smartphone, Building, QrCode, Download, Trash2, Plus, FileUp } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+
 const settingsSchema = z.object({
   appName: z.string().min(1),
   supportPhone: z.string().optional(),
@@ -68,7 +70,7 @@ export default function Settings() {
     setLoadingUpi(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/upi-methods", {
+      const response = await fetch(`${API_BASE_URL}/api/upi-methods`, {
         method: "GET",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",
@@ -91,7 +93,7 @@ export default function Settings() {
     setLoadingApk(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/apk-files", {
+      const response = await fetch(`${API_BASE_URL}/api/apk-files`, {
         method: "GET",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",
@@ -117,7 +119,7 @@ export default function Settings() {
     }
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/upi-methods", {
+      const response = await fetch(`${API_BASE_URL}/api/upi-methods`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -140,7 +142,7 @@ export default function Settings() {
     if (!confirm("Are you sure you want to delete this UPI method?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/upi-methods/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/upi-methods/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",
@@ -174,7 +176,7 @@ export default function Settings() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/apk-files", {
+      const response = await fetch(`${API_BASE_URL}/api/apk-files`, {
         method: "POST",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",
@@ -200,7 +202,7 @@ export default function Settings() {
     if (!confirm("Are you sure you want to delete this APK file?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/apk-files/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/apk-files/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",
@@ -241,7 +243,7 @@ export default function Settings() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/settings/upload-qr", {
+      const response = await fetch(`${API_BASE_URL}/api/settings/upload-qr`, {
         method: "POST",
         headers: {
           "Authorization": token ? `Bearer ${token}` : "",

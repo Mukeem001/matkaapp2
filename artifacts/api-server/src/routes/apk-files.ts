@@ -63,6 +63,12 @@ router.post("/apk-files", authMiddleware, upload.single("file") as any, async (r
     const filename = typeof req.file.filename === 'string' ? req.file.filename : req.file.filename[0];
     const size = typeof req.file.size === 'number' ? req.file.size : parseInt(req.file.size as unknown as string) || 0;
 
+    // Step 1: Deactivate all previous APKs
+    await db.update(apkFilesTable)
+      .set({ isActive: "false" })
+      .where(eq(apkFilesTable.isActive, "true"));
+
+    // Step 2: Insert new APK as active
     const result = await db
       .insert(apkFilesTable)
       .values({
@@ -75,6 +81,7 @@ router.post("/apk-files", authMiddleware, upload.single("file") as any, async (r
       })
       .returning();
 
+    console.log(`[APK Upload] New version uploaded: v${result[0].versionName} (code: ${result[0].versionCode})`);
     res.status(201).json(result[0]);
   } catch (error) {
     console.error("Error uploading APK file:", error);

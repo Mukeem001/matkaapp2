@@ -201,6 +201,8 @@ function AutoConfigDialog({ market, open, setOpen, onSave }: { market: Market; o
   );
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+
 export default function Markets2() {
   const { toast } = useToast();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -234,7 +236,7 @@ export default function Markets2() {
     }
     console.log("[Markets2] Fetching markets...");
     try {
-      const response = await fetch("/api/markets2", {
+      const response = await fetch(`${API_BASE_URL}/api/markets2`, {
         headers: { "Authorization": `Bearer ${token}` },
       });
       console.log("[Markets2] Fetch response status:", response.status);
@@ -262,7 +264,7 @@ export default function Markets2() {
       const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
       for (const market of markets) {
         try {
-          const response = await fetch(`/api/markets2/${market.id}/results/${selectedDate}`, {
+          const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results/${selectedDate}`, {
             headers: { "Authorization": `Bearer ${token}` },
           });
           if (!response.ok) {
@@ -327,7 +329,7 @@ export default function Markets2() {
 
   const handleSaveMarket = async (data: MarketForm) => {
     try {
-      const url = editingMarket ? `/api/markets2/${editingMarket.id}` : "/api/markets2";
+      const url = editingMarket ? `${API_BASE_URL}/api/markets2/${editingMarket.id}` : `${API_BASE_URL}/api/markets2`;
       const method = editingMarket ? "PUT" : "POST";
       const response = await fetch(url, {
         method,
@@ -353,7 +355,7 @@ export default function Markets2() {
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this market?")) return;
     try {
-      const response = await fetch(`/api/markets2/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/markets2/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -377,7 +379,7 @@ export default function Markets2() {
     setFetchingId(market.id);
 
     try {
-      const response = await fetch(`/api/markets2/${market.id}/fetch-now`, {
+      const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/fetch-now`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -447,7 +449,7 @@ export default function Markets2() {
   const handleAutoConfig = async (data: AutoConfigForm) => {
     if (!autoConfigMarket) return;
     try {
-      const response = await fetch(`/api/markets2/${autoConfigMarket.id}/auto-config`, {
+      const response = await fetch(`${API_BASE_URL}/api/markets2/${autoConfigMarket.id}/auto-config`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -543,7 +545,12 @@ export default function Markets2() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!Array.isArray(markets) ? null : (markets as any[]).map((market) => (
+              {!Array.isArray(markets) ? null : (markets as any[]).map((market) => {
+                // Ensure isActive and autoUpdate are booleans
+                const isActive = typeof market.isActive === 'string' ? market.isActive === 'true' : market.isActive;
+                const autoUpdate = typeof market.autoUpdate === 'string' ? market.autoUpdate === 'true' : market.autoUpdate;
+                
+                return (
                 <TableRow key={market.id}>
                   <TableCell className="pl-6 font-semibold">{market.name}</TableCell>
                   <TableCell>
@@ -580,15 +587,15 @@ export default function Markets2() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={market.isActive ? "default" : "secondary"}
-                      className={market.isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
+                      variant={isActive ? "default" : "secondary"}
+                      className={isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
                     >
-                      {market.isActive ? "Active" : "Closed"}
+                      {isActive ? "Active" : "Closed"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {market.autoUpdate ? (
+                      {autoUpdate ? (
                         <Badge className="bg-blue-500 hover:bg-blue-600 gap-1 text-xs">
                           <Wifi className="w-3 h-3" /> ON
                         </Badge>
@@ -683,7 +690,8 @@ export default function Markets2() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
               {(!Array.isArray(markets) || markets.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
