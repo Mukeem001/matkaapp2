@@ -1,13 +1,22 @@
 services:
   - type: web
-    name: matka-admin-panel
+    name: matka-api-server
     env: node
     plan: free
-    buildCommand: "yarn install --production=false && yarn workspace @workspace/admin-panel run build"
-    startCommand: "npm install -g serve && serve -s artifacts/admin-panel/dist/public -l 3000"
-    healthCheckPath: /
+    runtime: node-18
+    region: oregon
+    buildCommand: "npm install && npm --prefix lib/db install && npm --prefix lib/api-zod install && npm --prefix artifacts/api-server install && npm --prefix artifacts/api-server run build"
+    startCommand: "node artifacts/api-server/dist/index.js"
+    healthCheckPath: /api/health
+    healthCheckInterval: 300
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3000"
+        value: "4000"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        value: https://matka-api-server.onrender.com
+      - key: JWT_SECRET
+        sync: false
