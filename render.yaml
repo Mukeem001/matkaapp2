@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-18
     region: oregon
-    buildCommand: "rm -rf artifacts/api-server/node_modules lib/db/node_modules lib/api-zod/node_modules lib/api-client-react/node_modules artifacts/admin-panel/node_modules && npm ci --legacy-peer-deps"
+    buildCommand: "npm install --legacy-peer-deps && npm run build"
     startCommand: "cd artifacts/api-server && npx tsx ./src/index.ts"
     healthCheckPath: /api/health
     healthCheckInterval: 300

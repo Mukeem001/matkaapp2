@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "cd artifacts/api-server && npm run dev",
     "build": "npm install --prefer-offline --legacy-peer-deps && tsc --build tsconfig.json",
-    "start": "node server.js",
+    "start": "cd artifacts/api-server && npx tsx ./src/index.ts",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
