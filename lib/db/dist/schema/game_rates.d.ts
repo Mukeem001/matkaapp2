@@ -142,7 +142,10 @@ export declare const gameRatesTable: import("drizzle-orm/pg-core").PgTableWithCo
     };
     dialect: "pg";
 }>;
-export declare const insertGameRatesSchema: any;
+export declare const insertGameRatesSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertGameRates = z.infer<typeof insertGameRatesSchema>;
 export type GameRates = typeof gameRatesTable.$inferSelect;
 //# sourceMappingURL=game_rates.d.ts.map

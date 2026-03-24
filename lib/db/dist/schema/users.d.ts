@@ -142,7 +142,10 @@ export declare const usersTable: import("drizzle-orm/pg-core").PgTableWithColumn
     };
     dialect: "pg";
 }>;
-export declare const insertUserSchema: any;
+export declare const insertUserSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;
 //# sourceMappingURL=users.d.ts.map

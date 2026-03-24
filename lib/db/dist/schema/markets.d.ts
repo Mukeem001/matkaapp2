@@ -227,7 +227,10 @@ export declare const marketsTable: import("drizzle-orm/pg-core").PgTableWithColu
     };
     dialect: "pg";
 }>;
-export declare const insertMarketSchema: any;
+export declare const insertMarketSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertMarket = z.infer<typeof insertMarketSchema>;
 export type Market = typeof marketsTable.$inferSelect;
 //# sourceMappingURL=markets.d.ts.map

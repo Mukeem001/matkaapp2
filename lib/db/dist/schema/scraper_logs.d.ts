@@ -176,7 +176,10 @@ export declare const scraperLogsTable: import("drizzle-orm/pg-core").PgTableWith
     };
     dialect: "pg";
 }>;
-export declare const insertScraperLogSchema: any;
+export declare const insertScraperLogSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertScraperLog = z.infer<typeof insertScraperLogSchema>;
 export type ScraperLog = typeof scraperLogsTable.$inferSelect;
 //# sourceMappingURL=scraper_logs.d.ts.map

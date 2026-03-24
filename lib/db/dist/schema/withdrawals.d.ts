@@ -176,7 +176,10 @@ export declare const withdrawalsTable: import("drizzle-orm/pg-core").PgTableWith
     };
     dialect: "pg";
 }>;
-export declare const insertWithdrawalSchema: any;
+export declare const insertWithdrawalSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertWithdrawal = z.infer<typeof insertWithdrawalSchema>;
 export type Withdrawal = typeof withdrawalsTable.$inferSelect;
 //# sourceMappingURL=withdrawals.d.ts.map

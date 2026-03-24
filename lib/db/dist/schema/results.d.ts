@@ -159,7 +159,10 @@ export declare const resultsTable: import("drizzle-orm/pg-core").PgTableWithColu
     };
     dialect: "pg";
 }>;
-export declare const insertResultSchema: any;
+export declare const insertResultSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertResult = z.infer<typeof insertResultSchema>;
 export type Result = typeof resultsTable.$inferSelect;
 //# sourceMappingURL=results.d.ts.map

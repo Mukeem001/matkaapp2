@@ -2,7 +2,7 @@
   "compilerOptions": {
     "isolatedModules": true,
     "lib": ["es2022"],
-    "module": "esnext",
+    "module": "node16",
     "moduleResolution": "node16",
     "noEmitOnError": false,
     "noFallthroughCasesInSwitch": true,

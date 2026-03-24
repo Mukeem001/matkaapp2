@@ -159,7 +159,10 @@ export declare const depositsTable: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
-export declare const insertDepositSchema: any;
+export declare const insertDepositSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertDeposit = z.infer<typeof insertDepositSchema>;
 export type Deposit = typeof depositsTable.$inferSelect;
 //# sourceMappingURL=deposits.d.ts.map

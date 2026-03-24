@@ -91,7 +91,10 @@ export declare const noticesTable: import("drizzle-orm/pg-core").PgTableWithColu
     };
     dialect: "pg";
 }>;
-export declare const insertNoticeSchema: any;
+export declare const insertNoticeSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertNotice = z.infer<typeof insertNoticeSchema>;
 export type Notice = typeof noticesTable.$inferSelect;
 //# sourceMappingURL=notices.d.ts.map

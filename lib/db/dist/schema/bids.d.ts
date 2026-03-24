@@ -210,7 +210,10 @@ export declare const bidsTable: import("drizzle-orm/pg-core").PgTableWithColumns
     };
     dialect: "pg";
 }>;
-export declare const insertBidSchema: any;
+export declare const insertBidSchema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertBid = z.infer<typeof insertBidSchema>;
 export type Bid = typeof bidsTable.$inferSelect;
 //# sourceMappingURL=bids.d.ts.map

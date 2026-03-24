@@ -227,7 +227,10 @@ export declare const bids2Table: import("drizzle-orm/pg-core").PgTableWithColumn
     };
     dialect: "pg";
 }>;
-export declare const insertBids2Schema: any;
+export declare const insertBids2Schema: z.ZodObject<{}, {
+    out: {};
+    in: {};
+}>;
 export type InsertBids2 = z.infer<typeof insertBids2Schema>;
 export type Bids2 = typeof bids2Table.$inferSelect;
 //# sourceMappingURL=bids2.d.ts.map
