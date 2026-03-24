@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "matka-admin-secret-key-2024";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET environment variable is required but was not provided. " +
+    "Set JWT_SECRET in your .env file or environment variables."
+  );
+}
 
 export interface AuthRequest extends Request {
   adminId?: number;

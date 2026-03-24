@@ -10,8 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@workspace/api-zod": "^0.0.0",
-    "@workspace/db": "^0.0.0",
+    "@workspace/api-zod": "file:../../lib/api-zod",
+    "@workspace/db": "file:../../lib/db",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",

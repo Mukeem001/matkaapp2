@@ -4,7 +4,14 @@ import jwt from "jsonwebtoken";
 import { db, usersTable, bidsTable, marketsTable, depositsTable, withdrawalsTable } from "@workspace/db";
 import type { Request, Response, NextFunction } from "express";
 
-const JWT_SECRET = process.env.JWT_SECRET || "matka-admin-secret-key-2024";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET environment variable is required but was not provided. " +
+    "Set JWT_SECRET in your .env file or environment variables."
+  );
+}
 
 interface AuthRequest extends Request {
   adminId?: number;
