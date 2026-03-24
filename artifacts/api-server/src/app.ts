@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import router from "./routes/index.js";
 import { startScheduler } from "./lib/scheduler.js";
+import { db, apkFilesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import path from "path";
 
 const app: Express = express();
@@ -97,14 +99,41 @@ app.use(
 // ✅ API routes
 app.use("/api", router);
 
-// ✅ App update API
-app.get("/api/app/check-update", (_req, res) => {
-  res.json({
-    versionCode: 2,
-    downloadUrl: `${process.env.APP_URL}/downloads/splashapp.apk`,
-    isForceUpdate: true,
-    whatsNew: "• New UI Design\n• Added Delhi Markets\n• Performance Improved",
-  });
+// ✅ App update API - Dynamic version from DB
+app.get("/api/app/check-update", async (_req, res): Promise<void> => {
+  try {
+    // Fetch latest active APK from database
+    const apkFiles = await db
+      .select()
+      .from(apkFilesTable)
+      .where(eq(apkFilesTable.isActive, "true"));
+
+    if (!apkFiles || apkFiles.length === 0) {
+      res.json({
+        hasUpdate: false,
+        message: "No APK available for download",
+      });
+      return;
+    }
+
+    // Get the most recent one
+    const activeApk = apkFiles[apkFiles.length - 1];
+
+    res.json({
+      hasUpdate: true,
+      latestVersion: activeApk.versionName || "1.0.0",
+      latestVersionCode: activeApk.versionCode || "1",
+      downloadUrl: `${process.env.APP_URL || "https://matka-api-server.onrender.com"}${activeApk.filepath}`,
+      isForceUpdate: false,
+      whatsNew: `Updated to version ${activeApk.versionName}`,
+    });
+  } catch (error) {
+    console.error("[Check Update] Error:", error);
+    res.json({
+      hasUpdate: false,
+      error: "Failed to check updates",
+    });
+  }
 });
 
 // ✅ Scheduler
