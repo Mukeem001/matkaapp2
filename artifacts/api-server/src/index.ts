@@ -13,6 +13,21 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server listening on port ${port}`);
+process.on("uncaughtException", (error) => {
+  console.error("[Uncaught Exception]", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[Unhandled Rejection]", reason);
+  process.exit(1);
+});
+
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`✅ Server listening on port ${port}`);
+});
+
+server.on("error", (error) => {
+  console.error("[Server Error]", error);
+  process.exit(1);
 });
