@@ -1,0 +1,6 @@
+packages:
+  - 'artifacts/admin-panel'
+  - 'artifacts/api-server'
+  - 'lib/api-client-react'
+  - 'lib/api-zod'
+  - 'lib/db'
