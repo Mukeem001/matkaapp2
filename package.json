@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "Matka Admin Panel - Express.js API Server with React Frontend",
   "type": "module",
-  "main": "artifacts/api-server/dist/index.js",
+  "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
     "dev": "cd artifacts/api-server && npm run dev",
     "build": "tsc --build tsconfig.json",
-    "start": "node artifacts/api-server/dist/index.js",
+    "start": "node server.js",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
