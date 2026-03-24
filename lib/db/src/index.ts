@@ -13,9 +13,7 @@ console.log("[DB] Initializing database connection...");
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: true }
-    : { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }, // Render uses self-signed certs
 });
 
 pool.on("error", (error) => {
