@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "artifacts/admin-panel/dist",
+  "env": {
+    "VITE_API_URL": {
+      "description": "API server URL",
+      "value": "https://api.your-domain.com"
+    }
+  },
+  "ignoreCommand": "if [[ $VERCEL_ENV == \"production\" ]] ; then return 0; else return 1; fi"
+}
