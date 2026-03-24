@@ -24,7 +24,7 @@ router.post("/markets", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [market] = await db.insert(marketsTable).values(body.data).returning();
+  const [market] = await db.insert(marketsTable).values(body.data as any).returning();
   res.status(201).json(formatMarket(market));
 });
 

@@ -84,7 +84,7 @@ router.put("/settings", authMiddleware, async (req, res): Promise<void> => {
 });
 
 // Upload QR code endpoint
-router.post("/settings/upload-qr", authMiddleware, qrUpload.single("qrCode"), async (req, res): Promise<void> => {
+router.post("/settings/upload-qr", authMiddleware, qrUpload.single("qrCode") as any, async (req, res): Promise<void> => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "No QR code image uploaded" });

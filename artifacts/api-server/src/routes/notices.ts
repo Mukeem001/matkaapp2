@@ -18,7 +18,7 @@ router.post("/notices", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [notice] = await db.insert(noticesTable).values(body.data).returning();
+  const [notice] = await db.insert(noticesTable).values(body.data as any).returning();
   res.status(201).json({ ...notice, createdAt: notice.createdAt.toISOString() });
 });
 

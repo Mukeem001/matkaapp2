@@ -52,7 +52,7 @@ router.get("/apk-files", authMiddleware, async (_req, res): Promise<void> => {
 });
 
 // POST upload APK file
-router.post("/apk-files", authMiddleware, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/apk-files", authMiddleware, upload.single("file") as any, async (req, res): Promise<void> => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "No file uploaded" });
