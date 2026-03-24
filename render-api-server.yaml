@@ -5,8 +5,8 @@ services:
     plan: free
     runtime: node-18
     region: oregon
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm run start"
+    buildCommand: "npm install && npm --prefix artifacts/api-server install && npm --prefix artifacts/api-server run build"
+    startCommand: "node artifacts/api-server/dist/index.js"
     healthCheckPath: /api/health
     healthCheckInterval: 300
     
