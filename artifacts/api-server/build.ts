@@ -10,23 +10,44 @@ async function buildAll() {
   console.log("🚀 Building API Server with dependencies...\n");
   
   try {
-    // Step 1: Build lib/api-zod
-    console.log("📦 Building lib/api-zod...");
-    execSync("npm run build", {
-      cwd: path.join(rootDir, "lib/api-zod"),
+    // Step 0: Install root dependencies
+    console.log("📦 Installing root dependencies...");
+    execSync("npm install --legacy-peer-deps", {
+      cwd: rootDir,
       stdio: "inherit",
     });
     
-    // Step 2: Build lib/db
+    // Step 1: Install and build lib/api-zod
+    console.log("\n📦 Building lib/api-zod...");
+    const apiZodDir = path.join(rootDir, "lib/api-zod");
+    execSync("npm install --legacy-peer-deps", {
+      cwd: apiZodDir,
+      stdio: "inherit",
+    });
+    execSync("npm run build", {
+      cwd: apiZodDir,
+      stdio: "inherit",
+    });
+    
+    // Step 2: Install and build lib/db
     console.log("\n📚 Building lib/db...");
+    const dbDir = path.join(rootDir, "lib/db");
+    execSync("npm install --legacy-peer-deps", {
+      cwd: dbDir,
+      stdio: "inherit",
+    });
     execSync("npm run build", {
-      cwd: path.join(rootDir, "lib/db"),
+      cwd: dbDir,
       stdio: "inherit",
     });
     
-    // Step 3: Build api-server
+    // Step 3: Install and build api-server
     console.log("\n⚙️  Building api-server...");
-    execSync("npx tsc --build tsconfig.json", {
+    execSync("npm install --legacy-peer-deps", {
+      cwd: __dirname,
+      stdio: "inherit",
+    });
+    execSync("npx tsc --build tsconfig.json --listFiles", {
       cwd: __dirname,
       stdio: "inherit",
     });
