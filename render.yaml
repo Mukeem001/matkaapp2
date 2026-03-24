@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-18
     region: oregon
-    buildCommand: "npm install --legacy-peer-deps && npm run build"
+    buildCommand: "npm install --legacy-peer-deps && npx tsc --build tsconfig.json"
     startCommand: "cd artifacts/api-server && npx tsx ./src/index.ts"
     healthCheckPath: /api/health
     healthCheckInterval: 300
