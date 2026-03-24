@@ -9,8 +9,7 @@
   },
   "scripts": {
     "dev": "cd artifacts/api-server && npm run dev",
-    "build": "node build-render.js",
-    "build:monorepo": "tsc --build tsconfig.json",
+    "build": "npm install --prefer-offline --legacy-peer-deps && tsc --build tsconfig.json",
     "start": "node server.js",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
