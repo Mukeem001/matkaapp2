@@ -12,13 +12,30 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function Deposits() {
-  const { data: deposits, isLoading } = useGetDeposits({ status: "all" });
+  const { data: deposits, isLoading, error } = useGetDeposits({ status: "all" });
   const { mutate: approve } = useApproveDeposit();
   const { mutate: reject } = useRejectDeposit();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
   const [screenshot, setScreenshot] = useState<string | null>(null);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 rounded-lg border border-red-200 bg-red-50">
+          <h2 className="text-lg font-semibold text-red-900">Failed to load deposits</h2>
+          <p className="text-sm text-red-700 mt-2">Unable to fetch deposit data</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleAction = (id: number, type: 'approve' | 'reject') => {
     const action = type === 'approve' ? approve : reject;
@@ -53,9 +70,9 @@ export default function Deposits() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : deposits?.length === 0 ? (
+            ) : !Array.isArray(deposits) || deposits.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No deposit requests.</TableCell></TableRow>
-            ) : deposits?.map((d) => (
+            ) : (deposits as any[]).map((d) => (
               <TableRow key={d.id}>
                 <TableCell className="pl-6 text-sm text-muted-foreground">
                   {format(new Date(d.createdAt), 'PP p')}

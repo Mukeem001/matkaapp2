@@ -87,7 +87,7 @@ export default function Users() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : data?.users.map((user) => (
+            ) : !Array.isArray(data?.users) ? null : (data.users as any[]).map((user) => (
               <TableRow key={user.id} className="group">
                 <TableCell className="pl-6">
                   <div className="font-semibold text-foreground">{user.name}</div>
@@ -99,7 +99,7 @@ export default function Users() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="font-mono font-bold text-emerald-600 bg-emerald-50 w-max ml-auto px-3 py-1 rounded-md border border-emerald-100">
-                    ₹{user.walletBalance.toLocaleString()}
+                    ₹{(user.walletBalance ?? 0).toLocaleString()}
                   </div>
                 </TableCell>
                 <TableCell className="text-center">

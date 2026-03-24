@@ -28,7 +28,7 @@ export default function Bids() {
 
   // 🔎 frontend filter (same UI)
   const bids = useMemo(() => {
-    if (!stats?.recentBids) return [];
+    if (!stats?.recentBids || !Array.isArray(stats.recentBids)) return [];
 
     if (status === "all") return stats.recentBids;
 

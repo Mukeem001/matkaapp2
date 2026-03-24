@@ -543,7 +543,7 @@ export default function Markets2() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {markets?.map((market) => (
+              {!Array.isArray(markets) ? null : (markets as any[]).map((market) => (
                 <TableRow key={market.id}>
                   <TableCell className="pl-6 font-semibold">{market.name}</TableCell>
                   <TableCell>
@@ -684,7 +684,7 @@ export default function Markets2() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!markets || markets.length === 0) && (
+              {(!Array.isArray(markets) || markets.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                     No markets found. Add your first market.

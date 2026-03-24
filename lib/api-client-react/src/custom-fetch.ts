@@ -305,9 +305,16 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  const requestInfo = { method, url: resolveUrl(input) };
+  // Build full URL with API base URL for relative paths
+  let fullUrl = resolveUrl(input);
+  if (fullUrl.startsWith("/")) {
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    fullUrl = apiUrl + fullUrl;
+  }
 
-  const response = await fetch(input, { ...init, method, headers });
+  const requestInfo = { method, url: fullUrl };
+
+  const response = await fetch(fullUrl, { ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

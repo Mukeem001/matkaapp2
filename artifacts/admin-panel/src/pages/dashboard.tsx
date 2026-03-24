@@ -8,11 +8,11 @@ import { motion } from "framer-motion";
 import { Link } from "wouter";
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useGetDashboardStats();
-  const { data: markets } = useGetMarkets();
+  const { data: stats, isLoading, error: statsError } = useGetDashboardStats();
+  const { data: markets = [] } = useGetMarkets();
   const { data: scraperStatus } = useGetScraperStatus();
 
-  if (isLoading || !stats) {
+  if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
         {[...Array(6)].map((_, i) => (
@@ -22,17 +22,36 @@ export default function Dashboard() {
     );
   }
 
+  if (statsError || !stats) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 rounded-lg border border-red-200 bg-red-50">
+          <h2 className="text-lg font-semibold text-red-900">Failed to load dashboard</h2>
+          <p className="text-sm text-red-700 mt-2">
+            {statsError?.message || "Unable to fetch dashboard data. Please check your connection."}
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const statCards = [
-    { title: "Total Users", value: stats.totalUsers, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { title: "Bids Today", value: stats.totalBidsToday, icon: Ticket, color: "text-indigo-500", bg: "bg-indigo-500/10" },
-    { title: "Total Profit", value: `₹${stats.totalProfit.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { title: "Active Markets", value: stats.activeMarkets, icon: Store, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { title: "Deposits Today", value: `₹${stats.depositsToday.toLocaleString()}`, icon: ArrowDownToLine, color: "text-violet-500", bg: "bg-violet-500/10" },
-    { title: "Withdrawals Today", value: `₹${stats.withdrawalsToday.toLocaleString()}`, icon: ArrowUpFromLine, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { title: "Total Users", value: stats.totalUsers ?? 0, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+    { title: "Bids Today", value: stats.totalBidsToday ?? 0, icon: Ticket, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+    { title: "Total Profit", value: `₹${(stats.totalProfit ?? 0).toLocaleString()}`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    { title: "Active Markets", value: stats.activeMarkets ?? 0, icon: Store, color: "text-amber-500", bg: "bg-amber-500/10" },
+    { title: "Deposits Today", value: `₹${(stats.depositsToday ?? 0).toLocaleString()}`, icon: ArrowDownToLine, color: "text-violet-500", bg: "bg-violet-500/10" },
+    { title: "Withdrawals Today", value: `₹${(stats.withdrawalsToday ?? 0).toLocaleString()}`, icon: ArrowUpFromLine, color: "text-rose-500", bg: "bg-rose-500/10" },
   ];
 
   // Markets with auto-update enabled and their fetch status
-  const autoUpdateMarkets = markets?.filter(m => m.autoUpdate) || [];
+  const autoUpdateMarkets = Array.isArray(markets) ? markets.filter(m => m.autoUpdate) : [];
 
   return (
     <div className="space-y-8">
@@ -78,7 +97,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats.recentBids.slice(0, 8).map((bid) => (
+                  {(stats.recentBids ?? []).slice(0, 8).map((bid) => (
                     <TableRow key={bid.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="pl-6 font-medium">{bid.userName}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{bid.marketName}</TableCell>
@@ -91,7 +110,7 @@ export default function Dashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {stats.recentBids.length === 0 && (
+                  {(stats.recentBids ?? []).length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No recent bids found.</TableCell>
                     </TableRow>

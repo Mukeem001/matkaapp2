@@ -103,7 +103,7 @@ export default function Notices() {
             <Megaphone className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <p className="text-muted-foreground">No active notices.</p>
           </div>
-        ) : notices?.map((notice) => (
+        ) : !Array.isArray(notices) ? null : (notices as any[]).map((notice) => (
           <Card key={notice.id} className="overflow-hidden border-border/50 shadow-sm relative group">
             <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${notice.isActive ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
             <CardContent className="p-6 pl-8 flex items-start justify-between gap-4">

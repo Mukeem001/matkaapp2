@@ -9,36 +9,41 @@ import { authMiddleware, signToken, signUserToken, userAuthMiddleware, type Auth
 const router: IRouter = Router();
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = AdminLoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+  try {
+    const parsed = AdminLoginBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    const { email, password } = parsed.data;
+    const [admin] = await db.select().from(adminsTable).where(eq(adminsTable.email, email));
+
+    if (!admin) {
+      res.status(401).json({ error: "Invalid email or password" });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, admin.password);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid email or password" });
+      return;
+    }
+
+    const token = signToken(admin.id);
+    res.json({
+      token,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        createdAt: admin.createdAt.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Internal server error", details: error?.message });
   }
-
-  const { email, password } = parsed.data;
-  const [admin] = await db.select().from(adminsTable).where(eq(adminsTable.email, email));
-
-  if (!admin) {
-    res.status(401).json({ error: "Invalid email or password" });
-    return;
-  }
-
-  const valid = await bcrypt.compare(password, admin.password);
-  if (!valid) {
-    res.status(401).json({ error: "Invalid email or password" });
-    return;
-  }
-
-  const token = signToken(admin.id);
-  res.json({
-    token,
-    admin: {
-      id: admin.id,
-      email: admin.email,
-      name: admin.name,
-      createdAt: admin.createdAt.toISOString(),
-    },
-  });
 });
 
 const UserLoginBody = z.object({
@@ -47,38 +52,43 @@ const UserLoginBody = z.object({
 });
 
 router.post("/auth/user/login", async (req, res): Promise<void> => {
-  const parsed = UserLoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+  try {
+    const parsed = UserLoginBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    const { phone, password } = parsed.data;
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
+
+    if (!user || user.isBlocked) {
+      res.status(401).json({ error: "Invalid phone or password" });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid phone or password" });
+      return;
+    }
+
+    const token = signUserToken(user.id);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        walletBalance: parseFloat(user.walletBalance as string),
+        isBlocked: user.isBlocked,
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("User login error:", error);
+    res.status(500).json({ error: "Internal server error", details: error?.message });
   }
-
-  const { phone, password } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
-
-  if (!user || user.isBlocked) {
-    res.status(401).json({ error: "Invalid phone or password" });
-    return;
-  }
-
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) {
-    res.status(401).json({ error: "Invalid phone or password" });
-    return;
-  }
-
-  const token = signUserToken(user.id);
-  res.json({
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      phone: user.phone,
-      walletBalance: parseFloat(user.walletBalance as string),
-      isBlocked: user.isBlocked,
-      createdAt: user.createdAt.toISOString(),
-    },
-  });
 });
 
 const SignupBody = z.object({

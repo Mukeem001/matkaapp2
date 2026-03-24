@@ -86,7 +86,7 @@ export default function Logs() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs?.map((log) => (
+                {Array.isArray(logs) ? logs.map((log) => (
                   <TableRow key={log.id} className="hover:bg-muted/20 transition-colors">
                     <TableCell className="pl-6 text-sm text-muted-foreground">
                       {format(new Date(log.createdAt), "dd MMM, HH:mm:ss")}
@@ -131,8 +131,8 @@ export default function Logs() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
-                {(!logs || logs.length === 0) && (
+                )) : null}
+                {(!logs || logs.length === 0 || !Array.isArray(logs)) && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
                       <Activity className="w-8 h-8 mx-auto mb-3 opacity-30" />

@@ -10,14 +10,30 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Withdrawals() {
-  const { data: withdrawals, isLoading } = useGetWithdrawals({ status: "all" });
+  const { data: withdrawals, isLoading, error } = useGetWithdrawals({ status: "all" });
   const { mutate: approve } = useApproveWithdrawal();
   const { mutate: reject } = useRejectWithdrawal();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 rounded-lg border border-red-200 bg-red-50">
+          <h2 className="text-lg font-semibold text-red-900">Failed to load withdrawals</h2>
+          <p className="text-sm text-red-700 mt-2">Unable to fetch withdrawal data</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-console.log("Withdrawals data =>", withdrawals);
+  console.log("Withdrawals data =>", withdrawals);
 
   const handleAction = (id: number, type: 'approve' | 'reject') => {
     const action = type === 'approve' ? approve : reject;
@@ -51,9 +67,9 @@ console.log("Withdrawals data =>", withdrawals);
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : withdrawals?.length === 0 ? (
+            ) : !Array.isArray(withdrawals) || withdrawals.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No withdrawal requests.</TableCell></TableRow>
-            ) : withdrawals?.map((w) => (
+            ) : (withdrawals as any[]).map((w) => (
               <TableRow key={w.id}>
                 <TableCell className="pl-6 text-sm text-muted-foreground">
                   {format(new Date(w.createdAt), 'PP p')}

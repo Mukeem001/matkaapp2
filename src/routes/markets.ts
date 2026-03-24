@@ -13,8 +13,13 @@ const formatMarket = (m: typeof marketsTable.$inferSelect) => ({
 });
 
 router.get("/markets",async (_req, res): Promise<void> => {
-  const markets = await db.select().from(marketsTable);
-  res.json(markets.map(formatMarket));
+  try {
+    const markets = await db.select().from(marketsTable);
+    res.json(markets.map(formatMarket));
+  } catch (error: any) {
+    console.error("Get markets error:", error);
+    res.status(500).json({ error: "Internal server error", details: error?.message });
+  }
 });
 
 router.post("/markets", authMiddleware, async (req, res): Promise<void> => {

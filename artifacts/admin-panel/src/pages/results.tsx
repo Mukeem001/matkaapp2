@@ -79,9 +79,9 @@ export default function Results() {
                     <SelectValue placeholder="Select a market" />
                   </SelectTrigger>
                   <SelectContent>
-                    {markets?.map(m => (
+                    {Array.isArray(markets) ? markets.map(m => (
                       <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
-                    ))}
+                    )) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -135,7 +135,7 @@ export default function Results() {
                   <TableRow><TableCell colSpan={4} className="text-center py-8">Loading...</TableCell></TableRow>
                 ) : results?.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">No results found for this date.</TableCell></TableRow>
-                ) : results?.map((r) => (
+                ) : !Array.isArray(results) ? null : (results as any[]).map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="pl-6 font-semibold">{r.marketName}</TableCell>
                     <TableCell>{format(new Date(r.resultDate), 'PP')}</TableCell>

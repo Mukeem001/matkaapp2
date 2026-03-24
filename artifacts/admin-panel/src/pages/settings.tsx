@@ -460,13 +460,13 @@ export default function Settings() {
             <div className="text-center py-8">
               <Loader2 className="w-6 h-6 animate-spin mx-auto" />
             </div>
-          ) : upiMethods.length === 0 ? (
+          ) : !Array.isArray(upiMethods) || upiMethods.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No UPI methods added yet
             </div>
           ) : (
             <div className="space-y-3">
-              {upiMethods.map((method) => (
+              {(upiMethods as any[]).map((method) => (
                 <div
                   key={method.id}
                   className="p-4 rounded-lg border border-border/50 bg-muted/20 flex items-center justify-between"
@@ -559,13 +559,13 @@ export default function Settings() {
             <div className="text-center py-8">
               <Loader2 className="w-6 h-6 animate-spin mx-auto" />
             </div>
-          ) : apkFiles.length === 0 ? (
+          ) : !Array.isArray(apkFiles) || apkFiles.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No APK files uploaded yet
             </div>
           ) : (
             <div className="space-y-3">
-              {apkFiles.map((file) => (
+              {(apkFiles as any[]).map((file) => (
                 <div
                   key={file.id}
                   className="p-4 rounded-lg border border-border/50 bg-muted/20"
