@@ -176,19 +176,7 @@ export declare const withdrawalsTable: import("drizzle-orm/pg-core").PgTableWith
     };
     dialect: "pg";
 }>;
-export declare const insertWithdrawalSchema: z.ZodObject<{
-    userId: z.ZodInt;
-    amount: z.ZodString;
-    status: z.ZodOptional<z.ZodString>;
-    processedAt: z.ZodOptional<z.ZodNullable<z.ZodDate>>;
-    bankName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    accountNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    ifscCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    upiId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertWithdrawalSchema: any;
 export type InsertWithdrawal = z.infer<typeof insertWithdrawalSchema>;
 export type Withdrawal = typeof withdrawalsTable.$inferSelect;
 //# sourceMappingURL=withdrawals.d.ts.map

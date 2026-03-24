@@ -159,19 +159,7 @@ export declare const settingsTable: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
-export declare const insertSettingsSchema: z.ZodObject<{
-    bankName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    upiId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    appName: z.ZodOptional<z.ZodString>;
-    logoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    supportPhone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    bankAccountNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    bankIfscCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    qrCodeUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertSettingsSchema: any;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settingsTable.$inferSelect;
 //# sourceMappingURL=settings.d.ts.map

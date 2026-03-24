@@ -91,14 +91,7 @@ export declare const adminsTable: import("drizzle-orm/pg-core").PgTableWithColum
     };
     dialect: "pg";
 }>;
-export declare const insertAdminSchema: z.ZodObject<{
-    email: z.ZodString;
-    password: z.ZodString;
-    name: z.ZodString;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertAdminSchema: any;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
 export type Admin = typeof adminsTable.$inferSelect;
 //# sourceMappingURL=admins.d.ts.map

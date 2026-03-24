@@ -6,7 +6,7 @@ services:
     runtime: node-18
     region: oregon
     buildCommand: "npm install --legacy-peer-deps"
-    startCommand: "cd artifacts/api-server && npm install --legacy-peer-deps && npx tsx ./src/index.ts"
+    startCommand: "cd artifacts/api-server && npx tsx ./src/index.ts"
     healthCheckPath: /api/health
     healthCheckInterval: 300
     envVars:

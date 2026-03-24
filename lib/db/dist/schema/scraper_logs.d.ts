@@ -176,19 +176,7 @@ export declare const scraperLogsTable: import("drizzle-orm/pg-core").PgTableWith
     };
     dialect: "pg";
 }>;
-export declare const insertScraperLogSchema: z.ZodObject<{
-    openResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    closeResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    jodiResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    sourceUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    marketId: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
-    marketName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    success: z.ZodBoolean;
-    errorMessage: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertScraperLogSchema: any;
 export type InsertScraperLog = z.infer<typeof insertScraperLogSchema>;
 export type ScraperLog = typeof scraperLogsTable.$inferSelect;
 //# sourceMappingURL=scraper_logs.d.ts.map

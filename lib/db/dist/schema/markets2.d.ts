@@ -227,22 +227,7 @@ export declare const markets2Table: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
-export declare const insertMarkets2Schema: z.ZodObject<{
-    name: z.ZodString;
-    openTime: z.ZodString;
-    closeTime: z.ZodString;
-    isActive: z.ZodOptional<z.ZodBoolean>;
-    openResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    closeResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    jodiResult: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    autoUpdate: z.ZodOptional<z.ZodBoolean>;
-    sourceUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    lastFetchedAt: z.ZodOptional<z.ZodNullable<z.ZodDate>>;
-    fetchError: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertMarkets2Schema: any;
 export type InsertMarkets2 = z.infer<typeof insertMarkets2Schema>;
 export type Markets2 = typeof markets2Table.$inferSelect;
 //# sourceMappingURL=markets2.d.ts.map

@@ -159,17 +159,7 @@ export declare const apkFilesTable: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
-export declare const insertApkFileSchema: z.ZodObject<{
-    isActive: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    filename: z.ZodString;
-    filepath: z.ZodString;
-    filesize: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    versionCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    versionName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertApkFileSchema: any;
 export type InsertApkFile = z.infer<typeof insertApkFileSchema>;
 export type ApkFile = typeof apkFilesTable.$inferSelect;
 //# sourceMappingURL=apk-files.d.ts.map

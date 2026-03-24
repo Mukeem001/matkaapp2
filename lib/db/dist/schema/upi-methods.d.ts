@@ -125,15 +125,7 @@ export declare const upiMethodsTable: import("drizzle-orm/pg-core").PgTableWithC
     };
     dialect: "pg";
 }>;
-export declare const insertUpiMethodSchema: z.ZodObject<{
-    name: z.ZodString;
-    isActive: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    upiId: z.ZodString;
-    displayName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertUpiMethodSchema: any;
 export type InsertUpiMethod = z.infer<typeof insertUpiMethodSchema>;
 export type UpiMethod = typeof upiMethodsTable.$inferSelect;
 //# sourceMappingURL=upi-methods.d.ts.map

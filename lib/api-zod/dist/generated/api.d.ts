@@ -12,9 +12,9 @@ import * as zod from "zod";
 export declare const HealthCheckResponse: zod.ZodObject<{
     status: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
+    status?: string;
 }, {
-    status: string;
+    status?: string;
 }>;
 /**
  * @summary Admin login
@@ -23,11 +23,11 @@ export declare const AdminLoginBody: zod.ZodObject<{
     email: zod.ZodString;
     password: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    email: string;
-    password: string;
+    email?: string;
+    password?: string;
 }, {
-    email: string;
-    password: string;
+    email?: string;
+    password?: string;
 }>;
 export declare const AdminLoginResponse: zod.ZodObject<{
     token: zod.ZodString;
@@ -37,31 +37,31 @@ export declare const AdminLoginResponse: zod.ZodObject<{
         name: zod.ZodString;
         createdAt: zod.ZodString;
     }, "strip", zod.ZodTypeAny, {
-        email: string;
-        id: number;
-        name: string;
-        createdAt: string;
+        email?: string;
+        id?: number;
+        name?: string;
+        createdAt?: string;
     }, {
-        email: string;
-        id: number;
-        name: string;
-        createdAt: string;
+        email?: string;
+        id?: number;
+        name?: string;
+        createdAt?: string;
     }>;
 }, "strip", zod.ZodTypeAny, {
-    token: string;
-    admin: {
-        email: string;
-        id: number;
-        name: string;
-        createdAt: string;
+    token?: string;
+    admin?: {
+        email?: string;
+        id?: number;
+        name?: string;
+        createdAt?: string;
     };
 }, {
-    token: string;
-    admin: {
-        email: string;
-        id: number;
-        name: string;
-        createdAt: string;
+    token?: string;
+    admin?: {
+        email?: string;
+        id?: number;
+        name?: string;
+        createdAt?: string;
     };
 }>;
 /**
@@ -72,13 +72,13 @@ export declare const UserSignupBody: zod.ZodObject<{
     phone: zod.ZodString;
     password: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    password: string;
-    name: string;
-    phone: string;
+    password?: string;
+    name?: string;
+    phone?: string;
 }, {
-    password: string;
-    name: string;
-    phone: string;
+    password?: string;
+    name?: string;
+    phone?: string;
 }>;
 /**
  * @summary Get current admin info
@@ -89,15 +89,15 @@ export declare const GetAdminMeResponse: zod.ZodObject<{
     name: zod.ZodString;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    email: string;
-    id: number;
-    name: string;
-    createdAt: string;
+    email?: string;
+    id?: number;
+    name?: string;
+    createdAt?: string;
 }, {
-    email: string;
-    id: number;
-    name: string;
-    createdAt: string;
+    email?: string;
+    id?: number;
+    name?: string;
+    createdAt?: string;
 }>;
 /**
  * @summary Get dashboard statistics
@@ -124,77 +124,77 @@ export declare const GetDashboardStatsResponse: zod.ZodObject<{
         status: zod.ZodString;
         createdAt: zod.ZodString;
     }, "strip", zod.ZodTypeAny, {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }, {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }>, "many">;
 }, "strip", zod.ZodTypeAny, {
-    totalUsers: number;
-    totalBidsToday: number;
-    totalProfit: number;
-    activeMarkets: number;
-    depositsToday: number;
-    withdrawalsToday: number;
-    recentBids: {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+    totalUsers?: number;
+    totalBidsToday?: number;
+    totalProfit?: number;
+    activeMarkets?: number;
+    depositsToday?: number;
+    withdrawalsToday?: number;
+    recentBids?: {
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }[];
 }, {
-    totalUsers: number;
-    totalBidsToday: number;
-    totalProfit: number;
-    activeMarkets: number;
-    depositsToday: number;
-    withdrawalsToday: number;
-    recentBids: {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+    totalUsers?: number;
+    totalBidsToday?: number;
+    totalProfit?: number;
+    activeMarkets?: number;
+    depositsToday?: number;
+    withdrawalsToday?: number;
+    recentBids?: {
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }[];
 }>;
 /**
@@ -205,13 +205,13 @@ export declare const GetUsersQueryParams: zod.ZodObject<{
     limit: zod.ZodOptional<zod.ZodNumber>;
     search: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    page?: number | undefined;
-    limit?: number | undefined;
-    search?: string | undefined;
+    page?: number;
+    limit?: number;
+    search?: string;
 }, {
-    page?: number | undefined;
-    limit?: number | undefined;
-    search?: string | undefined;
+    page?: number;
+    limit?: number;
+    search?: string;
 }>;
 export declare const GetUsersResponse: zod.ZodObject<{
     users: zod.ZodArray<zod.ZodObject<{
@@ -222,47 +222,47 @@ export declare const GetUsersResponse: zod.ZodObject<{
         isBlocked: zod.ZodBoolean;
         createdAt: zod.ZodString;
     }, "strip", zod.ZodTypeAny, {
-        id: number;
-        name: string;
-        createdAt: string;
-        phone: string;
-        walletBalance: number;
-        isBlocked: boolean;
+        id?: number;
+        name?: string;
+        createdAt?: string;
+        phone?: string;
+        walletBalance?: number;
+        isBlocked?: boolean;
     }, {
-        id: number;
-        name: string;
-        createdAt: string;
-        phone: string;
-        walletBalance: number;
-        isBlocked: boolean;
+        id?: number;
+        name?: string;
+        createdAt?: string;
+        phone?: string;
+        walletBalance?: number;
+        isBlocked?: boolean;
     }>, "many">;
     total: zod.ZodNumber;
     page: zod.ZodNumber;
     limit: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    page: number;
-    limit: number;
-    users: {
-        id: number;
-        name: string;
-        createdAt: string;
-        phone: string;
-        walletBalance: number;
-        isBlocked: boolean;
+    page?: number;
+    limit?: number;
+    users?: {
+        id?: number;
+        name?: string;
+        createdAt?: string;
+        phone?: string;
+        walletBalance?: number;
+        isBlocked?: boolean;
     }[];
-    total: number;
+    total?: number;
 }, {
-    page: number;
-    limit: number;
-    users: {
-        id: number;
-        name: string;
-        createdAt: string;
-        phone: string;
-        walletBalance: number;
-        isBlocked: boolean;
+    page?: number;
+    limit?: number;
+    users?: {
+        id?: number;
+        name?: string;
+        createdAt?: string;
+        phone?: string;
+        walletBalance?: number;
+        isBlocked?: boolean;
     }[];
-    total: number;
+    total?: number;
 }>;
 /**
  * @summary Get user by ID
@@ -270,9 +270,9 @@ export declare const GetUsersResponse: zod.ZodObject<{
 export declare const GetUserByIdParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const GetUserByIdResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -282,19 +282,19 @@ export declare const GetUserByIdResponse: zod.ZodObject<{
     isBlocked: zod.ZodBoolean;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    phone: string;
-    walletBalance: number;
-    isBlocked: boolean;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    phone: string;
-    walletBalance: number;
-    isBlocked: boolean;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }>;
 /**
  * @summary Update user (block/unblock, update wallet)
@@ -302,9 +302,9 @@ export declare const GetUserByIdResponse: zod.ZodObject<{
 export declare const UpdateUserParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const UpdateUserBody: zod.ZodObject<{
     isBlocked: zod.ZodOptional<zod.ZodBoolean>;
@@ -312,15 +312,15 @@ export declare const UpdateUserBody: zod.ZodObject<{
     name: zod.ZodOptional<zod.ZodString>;
     phone: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    name?: string | undefined;
-    phone?: string | undefined;
-    walletBalance?: number | undefined;
-    isBlocked?: boolean | undefined;
+    name?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }, {
-    name?: string | undefined;
-    phone?: string | undefined;
-    walletBalance?: number | undefined;
-    isBlocked?: boolean | undefined;
+    name?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }>;
 export declare const UpdateUserResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -330,19 +330,19 @@ export declare const UpdateUserResponse: zod.ZodObject<{
     isBlocked: zod.ZodBoolean;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    phone: string;
-    walletBalance: number;
-    isBlocked: boolean;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    phone: string;
-    walletBalance: number;
-    isBlocked: boolean;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    phone?: string;
+    walletBalance?: number;
+    isBlocked?: boolean;
 }>;
 /**
  * @summary List all markets
@@ -362,33 +362,33 @@ export declare const GetMarketsResponseItem: zod.ZodObject<{
     fetchError: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }>;
 export declare const GetMarketsResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -405,33 +405,33 @@ export declare const GetMarketsResponse: zod.ZodArray<zod.ZodObject<{
     fetchError: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }>, "many">;
 /**
  * @summary Create a new market
@@ -442,15 +442,15 @@ export declare const CreateMarketBody: zod.ZodObject<{
     closeTime: zod.ZodString;
     isActive: zod.ZodBoolean;
 }, "strip", zod.ZodTypeAny, {
-    name: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
+    name?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
 }, {
-    name: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
+    name?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
 }>;
 /**
  * @summary Get market by ID
@@ -458,9 +458,9 @@ export declare const CreateMarketBody: zod.ZodObject<{
 export declare const GetMarketByIdParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const GetMarketByIdResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -477,33 +477,33 @@ export declare const GetMarketByIdResponse: zod.ZodObject<{
     fetchError: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }>;
 /**
  * @summary Update market
@@ -511,9 +511,9 @@ export declare const GetMarketByIdResponse: zod.ZodObject<{
 export declare const UpdateMarketParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const UpdateMarketBody: zod.ZodObject<{
     name: zod.ZodString;
@@ -521,15 +521,15 @@ export declare const UpdateMarketBody: zod.ZodObject<{
     closeTime: zod.ZodString;
     isActive: zod.ZodBoolean;
 }, "strip", zod.ZodTypeAny, {
-    name: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
+    name?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
 }, {
-    name: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
+    name?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
 }>;
 export declare const UpdateMarketResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -546,33 +546,33 @@ export declare const UpdateMarketResponse: zod.ZodObject<{
     fetchError: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }>;
 /**
  * @summary Delete market
@@ -580,19 +580,19 @@ export declare const UpdateMarketResponse: zod.ZodObject<{
 export declare const DeleteMarketParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const DeleteMarketResponse: zod.ZodObject<{
     success: zod.ZodBoolean;
     message: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    message: string;
-    success: boolean;
+    message?: string;
+    success?: boolean;
 }, {
-    message: string;
-    success: boolean;
+    message?: string;
+    success?: boolean;
 }>;
 /**
  * @summary Update market auto-update configuration
@@ -600,19 +600,19 @@ export declare const DeleteMarketResponse: zod.ZodObject<{
 export declare const UpdateMarketAutoConfigParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const UpdateMarketAutoConfigBody: zod.ZodObject<{
     autoUpdate: zod.ZodBoolean;
     sourceUrl: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    autoUpdate: boolean;
-    sourceUrl?: string | null | undefined;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
 }, {
-    autoUpdate: boolean;
-    sourceUrl?: string | null | undefined;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
 }>;
 export declare const UpdateMarketAutoConfigResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -629,33 +629,33 @@ export declare const UpdateMarketAutoConfigResponse: zod.ZodObject<{
     fetchError: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }, {
-    id: number;
-    name: string;
-    createdAt: string;
-    openTime: string;
-    closeTime: string;
-    isActive: boolean;
-    autoUpdate: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    lastFetchedAt?: string | null | undefined;
-    fetchError?: string | null | undefined;
+    id?: number;
+    name?: string;
+    createdAt?: string;
+    openTime?: string;
+    closeTime?: string;
+    isActive?: boolean;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
+    lastFetchedAt?: string;
+    fetchError?: string;
 }>;
 /**
  * @summary Manually trigger result fetch for a market
@@ -663,9 +663,9 @@ export declare const UpdateMarketAutoConfigResponse: zod.ZodObject<{
 export declare const FetchMarketResultNowParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const FetchMarketResultNowResponse: zod.ZodObject<{
     success: zod.ZodBoolean;
@@ -674,17 +674,17 @@ export declare const FetchMarketResultNowResponse: zod.ZodObject<{
     closeResult: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     jodiResult: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    message: string;
-    success: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
+    message?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    success?: boolean;
 }, {
-    message: string;
-    success: boolean;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
+    message?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    success?: boolean;
 }>;
 /**
  * @summary Get scraper logs
@@ -693,11 +693,11 @@ export declare const GetScraperLogsQueryParams: zod.ZodObject<{
     limit: zod.ZodOptional<zod.ZodNumber>;
     marketId: zod.ZodOptional<zod.ZodNumber>;
 }, "strip", zod.ZodTypeAny, {
-    marketId?: number | undefined;
-    limit?: number | undefined;
+    marketId?: number;
+    limit?: number;
 }, {
-    marketId?: number | undefined;
-    limit?: number | undefined;
+    marketId?: number;
+    limit?: number;
 }>;
 export declare const GetScraperLogsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -711,27 +711,27 @@ export declare const GetScraperLogsResponseItem: zod.ZodObject<{
     errorMessage: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    createdAt: string;
-    success: boolean;
-    marketId?: number | null | undefined;
-    marketName?: string | null | undefined;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    errorMessage?: string | null | undefined;
+    id?: number;
+    createdAt?: string;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    sourceUrl?: string;
+    success?: boolean;
+    errorMessage?: string;
 }, {
-    id: number;
-    createdAt: string;
-    success: boolean;
-    marketId?: number | null | undefined;
-    marketName?: string | null | undefined;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    errorMessage?: string | null | undefined;
+    id?: number;
+    createdAt?: string;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    sourceUrl?: string;
+    success?: boolean;
+    errorMessage?: string;
 }>;
 export declare const GetScraperLogsResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -745,27 +745,27 @@ export declare const GetScraperLogsResponse: zod.ZodArray<zod.ZodObject<{
     errorMessage: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    createdAt: string;
-    success: boolean;
-    marketId?: number | null | undefined;
-    marketName?: string | null | undefined;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    errorMessage?: string | null | undefined;
+    id?: number;
+    createdAt?: string;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    sourceUrl?: string;
+    success?: boolean;
+    errorMessage?: string;
 }, {
-    id: number;
-    createdAt: string;
-    success: boolean;
-    marketId?: number | null | undefined;
-    marketName?: string | null | undefined;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    sourceUrl?: string | null | undefined;
-    errorMessage?: string | null | undefined;
+    id?: number;
+    createdAt?: string;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    sourceUrl?: string;
+    success?: boolean;
+    errorMessage?: string;
 }>, "many">;
 /**
  * @summary Get scraper scheduler status
@@ -776,15 +776,15 @@ export declare const GetScraperStatusResponse: zod.ZodObject<{
     lastRunAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     nextRunIn: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    isRunning: boolean;
-    totalMarketsWithAutoUpdate: number;
-    nextRunIn: string;
-    lastRunAt?: string | null | undefined;
+    isRunning?: boolean;
+    totalMarketsWithAutoUpdate?: number;
+    lastRunAt?: string;
+    nextRunIn?: string;
 }, {
-    isRunning: boolean;
-    totalMarketsWithAutoUpdate: number;
-    nextRunIn: string;
-    lastRunAt?: string | null | undefined;
+    isRunning?: boolean;
+    totalMarketsWithAutoUpdate?: number;
+    lastRunAt?: string;
+    nextRunIn?: string;
 }>;
 /**
  * @summary List results
@@ -793,11 +793,11 @@ export declare const GetResultsQueryParams: zod.ZodObject<{
     marketId: zod.ZodOptional<zod.ZodNumber>;
     date: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    date?: string | undefined;
-    marketId?: number | undefined;
+    date?: string;
+    marketId?: number;
 }, {
-    date?: string | undefined;
-    marketId?: number | undefined;
+    date?: string;
+    marketId?: number;
 }>;
 export declare const GetResultsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -810,25 +810,25 @@ export declare const GetResultsResponseItem: zod.ZodObject<{
     pannaResult: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     declaredAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    marketId: number;
-    marketName: string;
-    resultDate: string;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    pannaResult?: string | null | undefined;
-    declaredAt?: string | null | undefined;
+    id?: number;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
+    declaredAt?: string;
 }, {
-    id: number;
-    marketId: number;
-    marketName: string;
-    resultDate: string;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    pannaResult?: string | null | undefined;
-    declaredAt?: string | null | undefined;
+    id?: number;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
+    declaredAt?: string;
 }>;
 export declare const GetResultsResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -841,25 +841,25 @@ export declare const GetResultsResponse: zod.ZodArray<zod.ZodObject<{
     pannaResult: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     declaredAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    marketId: number;
-    marketName: string;
-    resultDate: string;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    pannaResult?: string | null | undefined;
-    declaredAt?: string | null | undefined;
+    id?: number;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
+    declaredAt?: string;
 }, {
-    id: number;
-    marketId: number;
-    marketName: string;
-    resultDate: string;
-    openResult?: string | null | undefined;
-    closeResult?: string | null | undefined;
-    jodiResult?: string | null | undefined;
-    pannaResult?: string | null | undefined;
-    declaredAt?: string | null | undefined;
+    id?: number;
+    marketId?: number;
+    marketName?: string;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
+    declaredAt?: string;
 }>, "many">;
 /**
  * @summary Declare a result
@@ -872,19 +872,19 @@ export declare const DeclareResultBody: zod.ZodObject<{
     jodiResult: zod.ZodOptional<zod.ZodString>;
     pannaResult: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    marketId: number;
-    resultDate: string;
-    openResult?: string | undefined;
-    closeResult?: string | undefined;
-    jodiResult?: string | undefined;
-    pannaResult?: string | undefined;
+    marketId?: number;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
 }, {
-    marketId: number;
-    resultDate: string;
-    openResult?: string | undefined;
-    closeResult?: string | undefined;
-    jodiResult?: string | undefined;
-    pannaResult?: string | undefined;
+    marketId?: number;
+    openResult?: string;
+    closeResult?: string;
+    jodiResult?: string;
+    resultDate?: string;
+    pannaResult?: string;
 }>;
 /**
  * @summary List all bids
@@ -896,17 +896,17 @@ export declare const GetBidsQueryParams: zod.ZodObject<{
     userId: zod.ZodOptional<zod.ZodNumber>;
     status: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    status?: string | undefined;
-    userId?: number | undefined;
-    marketId?: number | undefined;
-    page?: number | undefined;
-    limit?: number | undefined;
+    status?: string;
+    userId?: number;
+    marketId?: number;
+    page?: number;
+    limit?: number;
 }, {
-    status?: string | undefined;
-    userId?: number | undefined;
-    marketId?: number | undefined;
-    page?: number | undefined;
-    limit?: number | undefined;
+    status?: string;
+    userId?: number;
+    marketId?: number;
+    page?: number;
+    limit?: number;
 }>;
 export declare const GetBidsResponse: zod.ZodObject<{
     bids: zod.ZodArray<zod.ZodObject<{
@@ -924,74 +924,74 @@ export declare const GetBidsResponse: zod.ZodObject<{
         status: zod.ZodString;
         createdAt: zod.ZodString;
     }, "strip", zod.ZodTypeAny, {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }, {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }>, "many">;
     total: zod.ZodNumber;
     page: zod.ZodNumber;
     limit: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    page: number;
-    limit: number;
-    total: number;
-    bids: {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+    page?: number;
+    limit?: number;
+    total?: number;
+    bids?: {
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }[];
 }, {
-    page: number;
-    limit: number;
-    total: number;
-    bids: {
-        status: string;
-        id: number;
-        createdAt: string;
-        userId: number;
-        marketId: number;
-        marketName: string;
-        gameType: string;
-        amount: number;
-        digit: string;
-        userName?: string | undefined;
-        openTime?: string | undefined;
-        closeTime?: string | undefined;
-        currentTime?: string | undefined;
+    page?: number;
+    limit?: number;
+    total?: number;
+    bids?: {
+        status?: string;
+        id?: number;
+        createdAt?: string;
+        userId?: number;
+        userName?: string;
+        marketId?: number;
+        marketName?: string;
+        gameType?: string;
+        amount?: number;
+        digit?: string;
+        openTime?: string;
+        closeTime?: string;
+        currentTime?: string;
     }[];
 }>;
 /**
@@ -1000,9 +1000,9 @@ export declare const GetBidsResponse: zod.ZodObject<{
 export declare const GetDepositsQueryParams: zod.ZodObject<{
     status: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    status?: string | undefined;
+    status?: string;
 }, {
-    status?: string | undefined;
+    status?: string;
 }>;
 export declare const GetDepositsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1016,27 +1016,27 @@ export declare const GetDepositsResponseItem: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }>;
 export declare const GetDepositsResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1050,27 +1050,27 @@ export declare const GetDepositsResponse: zod.ZodArray<zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }>, "many">;
 /**
  * @summary Approve a deposit
@@ -1078,9 +1078,9 @@ export declare const GetDepositsResponse: zod.ZodArray<zod.ZodObject<{
 export declare const ApproveDepositParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const ApproveDepositResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1094,27 +1094,27 @@ export declare const ApproveDepositResponse: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }>;
 /**
  * @summary Reject a deposit
@@ -1122,9 +1122,9 @@ export declare const ApproveDepositResponse: zod.ZodObject<{
 export declare const RejectDepositParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const RejectDepositResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1138,27 +1138,27 @@ export declare const RejectDepositResponse: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    paymentMethod: string;
-    transactionId?: string | null | undefined;
-    screenshotUrl?: string | null | undefined;
-    processedAt?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    paymentMethod?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+    processedAt?: string;
 }>;
 /**
  * @summary List withdrawal requests
@@ -1166,9 +1166,9 @@ export declare const RejectDepositResponse: zod.ZodObject<{
 export declare const GetWithdrawalsQueryParams: zod.ZodObject<{
     status: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
-    status?: string | undefined;
+    status?: string;
 }, {
-    status?: string | undefined;
+    status?: string;
 }>;
 export declare const GetWithdrawalsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1183,29 +1183,29 @@ export declare const GetWithdrawalsResponseItem: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }>;
 export declare const GetWithdrawalsResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1220,29 +1220,29 @@ export declare const GetWithdrawalsResponse: zod.ZodArray<zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }>, "many">;
 /**
  * @summary Approve a withdrawal
@@ -1250,9 +1250,9 @@ export declare const GetWithdrawalsResponse: zod.ZodArray<zod.ZodObject<{
 export declare const ApproveWithdrawalParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const ApproveWithdrawalResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1267,29 +1267,29 @@ export declare const ApproveWithdrawalResponse: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }>;
 /**
  * @summary Reject a withdrawal
@@ -1297,9 +1297,9 @@ export declare const ApproveWithdrawalResponse: zod.ZodObject<{
 export declare const RejectWithdrawalParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const RejectWithdrawalResponse: zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1314,29 +1314,29 @@ export declare const RejectWithdrawalResponse: zod.ZodObject<{
     createdAt: zod.ZodString;
     processedAt: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }, {
-    status: string;
-    id: number;
-    createdAt: string;
-    userId: number;
-    userName: string;
-    amount: number;
-    processedAt?: string | null | undefined;
-    bankName?: string | null | undefined;
-    accountNumber?: string | null | undefined;
-    ifscCode?: string | null | undefined;
-    upiId?: string | null | undefined;
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    amount?: number;
+    processedAt?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
 }>;
 /**
  * @summary Get game rates
@@ -1350,21 +1350,21 @@ export declare const GetGameRatesResponse: zod.ZodObject<{
     halfSangam: zod.ZodNumber;
     fullSangam: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }>;
 /**
  * @summary Update game rates
@@ -1378,21 +1378,21 @@ export declare const UpdateGameRatesBody: zod.ZodObject<{
     halfSangam: zod.ZodNumber;
     fullSangam: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }>;
 export declare const UpdateGameRatesResponse: zod.ZodObject<{
     singleDigit: zod.ZodNumber;
@@ -1403,21 +1403,21 @@ export declare const UpdateGameRatesResponse: zod.ZodObject<{
     halfSangam: zod.ZodNumber;
     fullSangam: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }, {
-    singleDigit: number;
-    jodiDigit: number;
-    singlePanna: number;
-    doublePanna: number;
-    triplePanna: number;
-    halfSangam: number;
-    fullSangam: number;
+    singleDigit?: number;
+    jodiDigit?: number;
+    singlePanna?: number;
+    doublePanna?: number;
+    triplePanna?: number;
+    halfSangam?: number;
+    fullSangam?: number;
 }>;
 /**
  * @summary List notices
@@ -1429,17 +1429,17 @@ export declare const GetNoticesResponseItem: zod.ZodObject<{
     isActive: zod.ZodBoolean;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    createdAt: string;
-    isActive: boolean;
-    title: string;
-    content: string;
+    id?: number;
+    createdAt?: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }, {
-    id: number;
-    createdAt: string;
-    isActive: boolean;
-    title: string;
-    content: string;
+    id?: number;
+    createdAt?: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }>;
 export declare const GetNoticesResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
@@ -1448,17 +1448,17 @@ export declare const GetNoticesResponse: zod.ZodArray<zod.ZodObject<{
     isActive: zod.ZodBoolean;
     createdAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
-    createdAt: string;
-    isActive: boolean;
-    title: string;
-    content: string;
+    id?: number;
+    createdAt?: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }, {
-    id: number;
-    createdAt: string;
-    isActive: boolean;
-    title: string;
-    content: string;
+    id?: number;
+    createdAt?: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }>, "many">;
 /**
  * @summary Create a notice
@@ -1468,13 +1468,13 @@ export declare const CreateNoticeBody: zod.ZodObject<{
     content: zod.ZodString;
     isActive: zod.ZodBoolean;
 }, "strip", zod.ZodTypeAny, {
-    isActive: boolean;
-    title: string;
-    content: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }, {
-    isActive: boolean;
-    title: string;
-    content: string;
+    isActive?: boolean;
+    title?: string;
+    content?: string;
 }>;
 /**
  * @summary Delete a notice
@@ -1482,19 +1482,19 @@ export declare const CreateNoticeBody: zod.ZodObject<{
 export declare const DeleteNoticeParams: zod.ZodObject<{
     id: zod.ZodNumber;
 }, "strip", zod.ZodTypeAny, {
-    id: number;
+    id?: number;
 }, {
-    id: number;
+    id?: number;
 }>;
 export declare const DeleteNoticeResponse: zod.ZodObject<{
     success: zod.ZodBoolean;
     message: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
-    message: string;
-    success: boolean;
+    message?: string;
+    success?: boolean;
 }, {
-    message: string;
-    success: boolean;
+    message?: string;
+    success?: boolean;
 }>;
 /**
  * @summary Get app settings
@@ -1509,23 +1509,23 @@ export declare const GetSettingsResponse: zod.ZodObject<{
     bankIfscCode: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     qrCodeUrl: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }>;
 /**
  * @summary Update app settings
@@ -1540,23 +1540,23 @@ export declare const UpdateSettingsBody: zod.ZodObject<{
     bankIfscCode: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     qrCodeUrl: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }>;
 export declare const UpdateSettingsResponse: zod.ZodObject<{
     appName: zod.ZodString;
@@ -1568,22 +1568,22 @@ export declare const UpdateSettingsResponse: zod.ZodObject<{
     bankIfscCode: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     qrCodeUrl: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }, {
-    appName: string;
-    bankName?: string | null | undefined;
-    upiId?: string | null | undefined;
-    logoUrl?: string | null | undefined;
-    supportPhone?: string | null | undefined;
-    bankAccountNumber?: string | null | undefined;
-    bankIfscCode?: string | null | undefined;
-    qrCodeUrl?: string | null | undefined;
+    bankName?: string;
+    upiId?: string;
+    appName?: string;
+    logoUrl?: string;
+    supportPhone?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+    qrCodeUrl?: string;
 }>;
 //# sourceMappingURL=api.d.ts.map

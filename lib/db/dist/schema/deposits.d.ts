@@ -159,18 +159,7 @@ export declare const depositsTable: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
-export declare const insertDepositSchema: z.ZodObject<{
-    userId: z.ZodInt;
-    amount: z.ZodString;
-    status: z.ZodOptional<z.ZodString>;
-    paymentMethod: z.ZodOptional<z.ZodString>;
-    transactionId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    screenshotUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    processedAt: z.ZodOptional<z.ZodNullable<z.ZodDate>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertDepositSchema: any;
 export type InsertDeposit = z.infer<typeof insertDepositSchema>;
 export type Deposit = typeof depositsTable.$inferSelect;
 //# sourceMappingURL=deposits.d.ts.map

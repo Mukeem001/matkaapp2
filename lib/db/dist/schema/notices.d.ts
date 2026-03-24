@@ -91,14 +91,7 @@ export declare const noticesTable: import("drizzle-orm/pg-core").PgTableWithColu
     };
     dialect: "pg";
 }>;
-export declare const insertNoticeSchema: z.ZodObject<{
-    isActive: z.ZodOptional<z.ZodBoolean>;
-    title: z.ZodString;
-    content: z.ZodString;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertNoticeSchema: any;
 export type InsertNotice = z.infer<typeof insertNoticeSchema>;
 export type Notice = typeof noticesTable.$inferSelect;
 //# sourceMappingURL=notices.d.ts.map

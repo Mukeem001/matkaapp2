@@ -227,21 +227,7 @@ export declare const bids2Table: import("drizzle-orm/pg-core").PgTableWithColumn
     };
     dialect: "pg";
 }>;
-export declare const insertBids2Schema: z.ZodObject<{
-    number: z.ZodString;
-    closeTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    marketId: z.ZodInt;
-    userId: z.ZodInt;
-    marketName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    amount: z.ZodString;
-    status: z.ZodOptional<z.ZodString>;
-    betType: z.ZodString;
-    multiplier: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
-    winAmount: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertBids2Schema: any;
 export type InsertBids2 = z.infer<typeof insertBids2Schema>;
 export type Bids2 = typeof bids2Table.$inferSelect;
 //# sourceMappingURL=bids2.d.ts.map

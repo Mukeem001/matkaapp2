@@ -142,18 +142,7 @@ export declare const gameRatesTable: import("drizzle-orm/pg-core").PgTableWithCo
     };
     dialect: "pg";
 }>;
-export declare const insertGameRatesSchema: z.ZodObject<{
-    singleDigit: z.ZodOptional<z.ZodString>;
-    jodiDigit: z.ZodOptional<z.ZodString>;
-    singlePanna: z.ZodOptional<z.ZodString>;
-    doublePanna: z.ZodOptional<z.ZodString>;
-    triplePanna: z.ZodOptional<z.ZodString>;
-    halfSangam: z.ZodOptional<z.ZodString>;
-    fullSangam: z.ZodOptional<z.ZodString>;
-}, {
-    out: {};
-    in: {};
-}>;
+export declare const insertGameRatesSchema: any;
 export type InsertGameRates = z.infer<typeof insertGameRatesSchema>;
 export type GameRates = typeof gameRatesTable.$inferSelect;
 //# sourceMappingURL=game_rates.d.ts.map
