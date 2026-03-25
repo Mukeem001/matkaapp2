@@ -53,30 +53,44 @@ router.post("/deposits/:id/approve", authMiddleware, async (req, res): Promise<v
     return;
   }
 
-  const depositId = params.data.id;
+  try {
+    const depositId = params.data.id;
 
-  // Get deposit details first
-  const [deposit] = await db.select().from(depositsTable).where(eq(depositsTable.id, depositId));
-  if (!deposit || deposit.status !== "pending") {
-    res.status(404).json({ error: "Deposit not found or already processed" });
-    return;
-  }
+    // Get deposit details first
+    const [deposit] = await db.select().from(depositsTable).where(eq(depositsTable.id, depositId));
+    if (!deposit || deposit.status !== "pending") {
+      res.status(404).json({ error: "Deposit not found or already processed" });
+      return;
+    }
 
-  await db.transaction(async (tx) => {
-    // Update deposit status to 'success'
-    const [updatedDeposit] = await tx.update(depositsTable)
-      .set({ status: "success", processedAt: new Date() })
-      .where(eq(depositsTable.id, depositId))
-      .returning();
+    let updatedDeposit: any;
+    let user: any;
 
-    // Add balance to user wallet
-    await tx.update(usersTable)
-      .set({ walletBalance: sql`${usersTable.walletBalance} + ${deposit.amount}` })
-      .where(eq(usersTable.id, deposit.userId));
+    await db.transaction(async (tx) => {
+      // Update deposit status to 'success'
+      const result = await tx.update(depositsTable)
+        .set({ status: "success", processedAt: new Date() })
+        .where(eq(depositsTable.id, depositId))
+        .returning();
+      
+      updatedDeposit = result[0];
 
-    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, deposit.userId));
+      // Add balance to user wallet (convert string amount to number)
+      const amount = parseFloat(deposit.amount as string);
+      await tx.update(usersTable)
+        .set({ walletBalance: sql`${usersTable.walletBalance} + ${amount}` })
+        .where(eq(usersTable.id, deposit.userId));
+
+      // Get updated user data
+      const userResult = await tx.select().from(usersTable).where(eq(usersTable.id, deposit.userId));
+      user = userResult[0];
+    });
+
     res.json(formatDeposit(updatedDeposit, user?.name ?? "Unknown"));
-  });
+  } catch (error) {
+    console.error("Error approving deposit:", error);
+    res.status(500).json({ error: "Failed to approve deposit", details: (error as Error).message });
+  }
 });
 
 router.post("/deposits/:id/reject", authMiddleware, async (req, res): Promise<void> => {
