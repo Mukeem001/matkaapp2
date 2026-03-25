@@ -8,7 +8,9 @@ const router: IRouter = Router();
 // GET all UPI methods
 router.get("/upi-methods", authMiddleware, async (_req, res): Promise<void> => {
   try {
-    const methods = await db.select().from(upiMethodsTable).orderBy(upiMethodsTable.createdAt);
+    const methods = await db.select().from(upiMethodsTable)
+      .where(eq(upiMethodsTable.isActive, "true"))
+      .orderBy(upiMethodsTable.createdAt);
     res.json(methods || []);
   } catch (error) {
     console.error("Error fetching UPI methods:", error);
