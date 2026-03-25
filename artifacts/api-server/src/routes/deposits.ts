@@ -63,9 +63,9 @@ router.post("/deposits/:id/approve", authMiddleware, async (req, res): Promise<v
   }
 
   await db.transaction(async (tx) => {
-    // Update deposit status
+    // Update deposit status to 'success'
     const [updatedDeposit] = await tx.update(depositsTable)
-      .set({ status: "approved", processedAt: new Date() })
+      .set({ status: "success", processedAt: new Date() })
       .where(eq(depositsTable.id, depositId))
       .returning();
 

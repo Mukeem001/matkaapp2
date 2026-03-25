@@ -481,8 +481,8 @@ router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res):
       userId,
       ...parsed.data,
       amount: parsed.data.amount.toString(),
-      status: "approved",
-      processedAt: new Date(),
+      status: "pending",
+      processedAt: null,
     })
     .returning();
 
