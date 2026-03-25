@@ -466,6 +466,7 @@ const CreateDepositBody = z.object({
   paymentMethod: z.string().default("upi"),
   transactionId: z.string().optional(),
   screenshotUrl: z.string().optional(),
+  status: z.string().optional(), // Optional: if "success", auto-approve
 });
 
 router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
@@ -475,28 +476,64 @@ router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res):
     return;
   }
 
-  const userId = req.userId!;
-  const [deposit] = await db.insert(depositsTable)
-    .values({
-      userId,
-      ...parsed.data,
-      amount: parsed.data.amount.toString(),
-      status: "pending",
-      processedAt: null,
-    })
-    .returning();
+  try {
+    const userId = req.userId!;
+    const isAutoApprove = parsed.data.status === "success";
 
-  res.status(201).json({
-    deposit: {
-      id: deposit.id,
-      amount: parseFloat(deposit.amount as string),
-      status: deposit.status,
-      paymentMethod: deposit.paymentMethod,
-      transactionId: deposit.transactionId,
-      screenshotUrl: deposit.screenshotUrl,
-      createdAt: deposit.createdAt.toISOString(),
-    },
-  });
+    let deposit: any;
+
+    if (isAutoApprove) {
+      // Auto-approve and update wallet in transaction
+      await db.transaction(async (tx) => {
+        const [newDeposit] = await tx.insert(depositsTable)
+          .values({
+            userId,
+            ...parsed.data,
+            amount: parsed.data.amount.toString(),
+            status: "success",
+            processedAt: new Date(),
+          })
+          .returning();
+        
+        deposit = newDeposit;
+
+        // Update wallet balance
+        const amount = parsed.data.amount;
+        await tx.update(usersTable)
+          .set({ walletBalance: sql`${usersTable.walletBalance} + ${amount}` })
+          .where(eq(usersTable.id, userId));
+      });
+    } else {
+      // Save as pending for admin review
+      const [newDeposit] = await db.insert(depositsTable)
+        .values({
+          userId,
+          ...parsed.data,
+          amount: parsed.data.amount.toString(),
+          status: "pending",
+          processedAt: null,
+        })
+        .returning();
+      
+      deposit = newDeposit;
+    }
+
+    res.status(201).json({
+      deposit: {
+        id: deposit.id,
+        amount: parseFloat(deposit.amount as string),
+        status: deposit.status,
+        paymentMethod: deposit.paymentMethod,
+        transactionId: deposit.transactionId,
+        screenshotUrl: deposit.screenshotUrl,
+        createdAt: deposit.createdAt.toISOString(),
+        processedAt: deposit.processedAt?.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("Error creating deposit:", error);
+    res.status(500).json({ error: "Failed to create deposit", details: (error as Error).message });
+  }
 });
 
 router.get("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
