@@ -466,7 +466,8 @@ const CreateDepositBody = z.object({
   paymentMethod: z.string().default("upi"),
   transactionId: z.string().optional(),
   screenshotUrl: z.string().optional(),
-  status: z.string().optional(), // Optional: if "success", auto-approve
+  status: z.string().optional(),
+  upiResponse: z.string().optional(), // UPI gateway response with Status=SUCCESS/FAILURE
 });
 
 router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
@@ -478,7 +479,15 @@ router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res):
 
   try {
     const userId = req.userId!;
-    const isAutoApprove = parsed.data.status === "success";
+    
+    // Check for auto-approve conditions:
+    // 1. If status field is 'success'
+    // 2. If upiResponse contains 'Status=SUCCESS'
+    let isAutoApprove = parsed.data.status === "success";
+    
+    if (!isAutoApprove && parsed.data.upiResponse) {
+      isAutoApprove = parsed.data.upiResponse.includes("Status=SUCCESS");
+    }
 
     let deposit: any;
 
@@ -488,8 +497,10 @@ router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res):
         const [newDeposit] = await tx.insert(depositsTable)
           .values({
             userId,
-            ...parsed.data,
             amount: parsed.data.amount.toString(),
+            paymentMethod: parsed.data.paymentMethod,
+            transactionId: parsed.data.transactionId || null,
+            screenshotUrl: parsed.data.screenshotUrl || null,
             status: "success",
             processedAt: new Date(),
           })
@@ -508,8 +519,10 @@ router.post("/user/deposits", userAuthMiddleware, async (req: AuthRequest, res):
       const [newDeposit] = await db.insert(depositsTable)
         .values({
           userId,
-          ...parsed.data,
           amount: parsed.data.amount.toString(),
+          paymentMethod: parsed.data.paymentMethod,
+          transactionId: parsed.data.transactionId || null,
+          screenshotUrl: parsed.data.screenshotUrl || null,
           status: "pending",
           processedAt: null,
         })
