@@ -29,14 +29,28 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     console.log(`[Market2] Result: ${result}`);
 
     if (!result) {
+      const errorMsg = `Market not found on website or results not ready yet`;
       await db.update(markets2Table)
         .set({
-          fetchError: `Invalid result`,
+          fetchError: errorMsg,
           lastFetchedAt: new Date()
         })
         .where(eq(markets2Table.id, marketId));
 
-      return { success: false, message: "Invalid result", data: null };
+      return { success: false, message: errorMsg, data: null };
+    }
+
+    // Validate result is 2-digit number
+    if (!/^\d{2}$/.test(result) || result === "XX") {
+      const errorMsg = `Results not ready yet (showing as XX placeholder)`;
+      await db.update(markets2Table)
+        .set({
+          fetchError: errorMsg,
+          lastFetchedAt: new Date()
+        })
+        .where(eq(markets2Table.id, marketId));
+
+      return { success: false, message: errorMsg, data: null };
     }
 
     const updated = await db.update(markets2Table)
@@ -71,20 +85,32 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * 🔥 FIXED SCRAPER (LATEST COLUMN LOGIC)
+ * 🔥 FIXED SCRAPER - Aggressive Extraction
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
   try {
     const response = await axios.get(url, {
       timeout: 10000 + Math.random() * 5000,
       headers: {
-        "User-Agent": getRandomUserAgent()
+        "User-Agent": getRandomUserAgent(),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
       }
     });
 
     const $ = cheerio.load(response.data);
 
-    const rows = $("table tbody tr");
+    // Try both selectors - table tr and table tbody tr
+    let rows = $("table tbody tr");
+    if (rows.length === 0) {
+      rows = $("table tr");
+    }
+
+    console.log(`[Scraper] Found ${rows.length} rows`);
+
+    if (rows.length === 0) {
+      console.log(`[Scraper] No tables found`);
+      return null;
+    }
 
     const target = normalize(marketName);
 
@@ -94,34 +120,47 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
       if (cols.length < 2) continue;
 
-      const name = normalize($(cols[0]).text());
+      const cellText = $(cols[0]).text().trim();
+      const name = normalize(cellText);
 
-      // ✅ better matching
-      if (name.includes(target)) {
+      // Match market name
+      if (name.includes(target) || target.includes(name)) {
+        console.log(`✅ Found market: ${marketName}`);
 
+        // Collect all values from columns
         const values: string[] = [];
-
-        cols.each((i, el) => {
-          if (i > 0) {
-            values.push($(el).text().trim());
+        cols.each((idx, el) => {
+          if (idx > 0) {
+            const text = $(el).text().trim();
+            values.push(text);
+            console.log(`  [Col${idx}] "${text}"`);
           }
         });
 
-        // 🔥 latest valid result
-        const latest = values.reverse().find(v => isValidResult(v));
+        // Try each value to find valid result
+        for (const val of values) {
+          const cleaned = cleanResult(val);
+          
+          if (cleaned && isValidResult(cleaned)) {
+            console.log(`✅ Returning: "${cleaned}" from "${val}"`);
+            return cleaned;
+          } else if (cleaned === "XX") {
+            console.log(`⏳ Found XX placeholder`);
+            return "XX";
+          }
+        }
 
-        console.log(`🟢 ${marketName} → Values:`, values);
-        console.log(`✅ Latest: ${latest}`);
-
-        if (latest) return latest;
+        console.log(`⚠️ No valid result in any column for ${marketName}`);
+        return null;
       }
     }
 
-    console.log(`🔴 No result found for ${marketName}`);
+    console.log(`❌ Market "${marketName}" not found in table`);
     return null;
 
   } catch (err) {
-    console.error("[Scraper Error]", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[Scraper Error]", msg);
     return null;
   }
 }
@@ -131,6 +170,36 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
  */
 function normalize(str: string): string {
   return str.toLowerCase().replace(/\s+/g, "").trim();
+}
+
+/**
+ * ✅ CLEAN RESULT - AGGRESSIVE EXTRACTION
+ * Tries multiple strategies to extract 2-digit result
+ */
+function cleanResult(val: string): string {
+  if (!val) return "";
+
+  const trimmed = val.trim().toUpperCase();
+
+  // XX placeholder
+  if (trimmed === "XX") return "XX";
+
+  // Strategy 1: Match 2 consecutive digits
+  let match = trimmed.match(/\d{2}/);
+  if (match) return match[0];
+
+  // Strategy 2: Match separated digits (4 5, 4-5, 4_5)
+  match = trimmed.match(/(\d)\s*[-\s_]*(\d)/);
+  if (match && match.length >= 3) {
+    return match[1] + match[2];
+  }
+
+  // Strategy 3: Extract all digits, take first 2
+  const allDigits = trimmed.replace(/\D/g, "");
+  if (allDigits.length >= 2) return allDigits.substring(0, 2);
+  if (allDigits.length === 1) return "0" + allDigits;
+
+  return "";
 }
 
 /**
