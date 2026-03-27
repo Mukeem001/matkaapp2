@@ -350,13 +350,17 @@ async function updateMarket2ActivityStatus() {
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
+      const [openH, openM] = market.openTime.split(":").map(Number);
+      const openTimeInMinutes = openH * 60 + openM;
+
       const [closeH, closeM] = market.closeTime.split(":").map(Number);
       const closeTimeInMinutes = closeH * 60 + closeM;
 
       // Betting closes 10 minutes before market closes
       const bettingCloseTime = closeTimeInMinutes - 10;
 
-      // Market is ACTIVE (betting allowed) only BEFORE betting close window
+      // Market is ACTIVE (betting allowed) if currentTime is BEFORE betting close window
+      // This includes time before market opens too
       const shouldBeActive = currentTime < bettingCloseTime;
 
       if (market.isActive !== shouldBeActive) {
@@ -364,11 +368,16 @@ async function updateMarket2ActivityStatus() {
           .set({ isActive: shouldBeActive })
           .where(eq(markets2Table.id, market.id));
 
-        console.log(`[Activity] ${market.name}: isActive = ${shouldBeActive}`);
+        const currentTimeStr = `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}`;
+        const openTimeStr = `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`;
+        const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
+
+        console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
+        console.log(`  └─ Opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
-    console.error("[Activity Error]", err);
+    console.error("[Market2 Activity Error]", err);
   }
 }
 

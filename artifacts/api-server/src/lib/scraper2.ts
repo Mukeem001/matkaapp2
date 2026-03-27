@@ -244,26 +244,37 @@ function isAfterCloseWindow(closeTime: string): boolean {
 async function updateMarket2ActivityStatus() {
   try {
     const markets = await db.select().from(markets2Table);
-
     const now = new Date();
-    const current = now.getHours() * 60 + now.getMinutes();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
-      const [h, m] = market.closeTime.split(":").map(Number);
-      const close = h * 60 + m;
+      const [openH, openM] = market.openTime.split(":").map(Number);
+      const openTimeInMinutes = openH * 60 + openM;
 
-      const shouldBeActive = current < close;
+      const [closeH, closeM] = market.closeTime.split(":").map(Number);
+      const closeTimeInMinutes = closeH * 60 + closeM;
+
+      // Betting closes 10 minutes before market closes
+      const bettingCloseTime = closeTimeInMinutes - 10;
+
+      // Market is ACTIVE if currentTime is BEFORE betting close window
+      const shouldBeActive = currentTime < bettingCloseTime;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
           .set({ isActive: shouldBeActive })
           .where(eq(markets2Table.id, market.id));
 
-        console.log(`[Activity] ${market.name}: ${shouldBeActive}`);
+        const currentTimeStr = `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}`;
+        const openTimeStr = `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`;
+        const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
+
+        console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
+        console.log(`  └─ Opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
-    console.error("[Activity Error]", err);
+    console.error("[Market2 Activity Error]", err);
   }
 }
 

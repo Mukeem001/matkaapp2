@@ -59,24 +59,29 @@ async function resetMarketsAtMidnight() {
   }
 }
 
-// Update market isActive status based on closeTime
+// Update market isActive status based on openTime and closeTime
 // BETTING WINDOW logic:
-// - isActive = TRUE: From 00:00 until (closeTime - 10 min) — users can place bets
-// - isActive = FALSE: From (closeTime - 10 min) until 23:59 — market locked, no new bets
-// - Cycle repeats next day
+// - isActive = TRUE: From BEFORE openTime (midnight or from previous close) until (closeTime - 10 min)
+// - isActive = FALSE: From (closeTime - 10 min) until next market opens
+// This means betting is enabled throughout the day until 10 min before close
 async function updateMarketActivityStatus() {
   try {
     const markets = await db.select().from(marketsTable);
     const currentTimeInMinutes = getCurrentTimeInMinutes();
 
     for (const market of markets) {
+      const { hours: openHour, minutes: openMin } = parseTimeString(market.openTime);
+      const openTimeInMinutes = timeToMinutes(openHour, openMin);
+
       const { hours: closeHour, minutes: closeMin } = parseTimeString(market.closeTime);
       const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
 
       // Betting closes 10 minutes before market closes
       const bettingCloseTime = closeTimeInMinutes - 10;
 
-      // Market is ACTIVE (betting allowed) only BEFORE betting close window
+      // Market is ACTIVE if:
+      // - CurrentTime is BEFORE betting close window (closeTime - 10)
+      // This includes time before market opens (midnight onwards)
       const shouldBeActive = currentTimeInMinutes < bettingCloseTime;
 
       // Update if status changed
@@ -86,8 +91,11 @@ async function updateMarketActivityStatus() {
           .where(eq(marketsTable.id, market.id));
         
         const currentTimeStr = `${String(Math.floor(currentTimeInMinutes / 60)).padStart(2, '0')}:${String(currentTimeInMinutes % 60).padStart(2, '0')}`;
+        const openTimeStr = `${String(Math.floor(openTimeInMinutes / 60)).padStart(2, '0')}:${String(openTimeInMinutes % 60).padStart(2, '0')}`;
         const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
-        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (betting closes at ${bettingCloseStr}, currentTime: ${currentTimeStr})`);
+        
+        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive}`);
+        console.log(`  └─ Opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
