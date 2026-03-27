@@ -50,6 +50,9 @@ async function seedMarkets() {
     { name: "Morning Market", openTime: "09:00", closeTime: "11:00" },
     { name: "Evening Market", openTime: "16:00", closeTime: "18:00" },
     { name: "Test Market - 02:46", openTime: "02:46", closeTime: "11:59" },
+    { name: "Late Night Market - 23:30", openTime: "23:30", closeTime: "01:30" },
+    { name: "Midnight Market - 23:45", openTime: "23:45", closeTime: "02:00" },
+    { name: "Night Market - 23:50", openTime: "23:50", closeTime: "03:00" },
   ];
 
   for (const m of markets) {

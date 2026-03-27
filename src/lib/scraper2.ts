@@ -177,13 +177,24 @@ async function updateMarket2ActivityStatus() {
   try {
     const markets = await db.select().from(markets2Table);
     const now = new Date();
-    const current = now.getHours() * 60 + now.getMinutes();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
-      const [h, m] = market.openTime.split(":").map(Number);
-      const open = h * 60 + m;
+      const [openH, openM] = market.openTime.split(":").map(Number);
+      const [closeH, closeM] = market.closeTime.split(":").map(Number);
+      const openTimeInMinutes = openH * 60 + openM;
+      const closeTimeInMinutes = closeH * 60 + closeM;
 
-      const shouldBeActive = current < open + 10;
+      let shouldBeActive: boolean;
+
+      if (openTimeInMinutes < closeTimeInMinutes) {
+        // Normal case: market operates within same day (e.g., 09:00 - 11:00)
+        shouldBeActive = currentTime >= openTimeInMinutes && currentTime <= closeTimeInMinutes;
+      } else {
+        // Day-wrapping case: market spans midnight (e.g., 23:50 - 02:00)
+        // Market is active if: current >= openTime OR current <= closeTime
+        shouldBeActive = currentTime >= openTimeInMinutes || currentTime <= closeTimeInMinutes;
+      }
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)

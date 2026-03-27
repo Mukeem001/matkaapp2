@@ -42,9 +42,9 @@ async function resetMarketsAtMidnight() {
   }
 }
 
-// Update market isActive status based on openTime
-// Logic: Market is ACTIVE only BEFORE the fetch window (before openTime + 10 mins)
-// After fetch window starts, becomes INACTIVE for rest of day
+// Update market isActive status based on openTime and closeTime
+// Properly handles day-wrapping for late-night markets (e.g., 23:50 - 02:00)
+// Market is ACTIVE if current time is between openTime and closeTime
 async function updateMarketActivityStatus() {
   try {
     const markets = await db.select().from(marketsTable);
@@ -52,13 +52,20 @@ async function updateMarketActivityStatus() {
 
     for (const market of markets) {
       const { hours: openHour, minutes: openMin } = parseTimeString(market.openTime);
+      const { hours: closeHour, minutes: closeMin } = parseTimeString(market.closeTime);
       const openTimeInMinutes = timeToMinutes(openHour, openMin);
+      const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
 
-      // Calculate if should be active
-      // Active ONLY from midnight until end of fetch window (openTime + 10 min)
-      // Inactive after fetch window to end of day
-      const fetchWindowEnd = openTimeInMinutes + 10;
-      const shouldBeActive = currentTimeInMinutes < fetchWindowEnd;
+      let shouldBeActive: boolean;
+
+      if (openTimeInMinutes < closeTimeInMinutes) {
+        // Normal case: market operates within same day (e.g., 09:00 - 11:00)
+        shouldBeActive = currentTimeInMinutes >= openTimeInMinutes && currentTimeInMinutes <= closeTimeInMinutes;
+      } else {
+        // Day-wrapping case: market spans midnight (e.g., 23:50 - 02:00)
+        // Market is active if: current >= openTime OR current <= closeTime
+        shouldBeActive = currentTimeInMinutes >= openTimeInMinutes || currentTimeInMinutes <= closeTimeInMinutes;
+      }
 
       // Update if status changed
       if (market.isActive !== shouldBeActive) {
@@ -67,7 +74,7 @@ async function updateMarketActivityStatus() {
           .where(eq(marketsTable.id, market.id));
         
         const currentTimeStr = `${String(Math.floor(currentTimeInMinutes / 60)).padStart(2, '0')}:${String(currentTimeInMinutes % 60).padStart(2, '0')}`;
-        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (openTime: ${market.openTime}, currentTime: ${currentTimeStr})`);
+        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (openTime: ${market.openTime} - closeTime: ${market.closeTime}, currentTime: ${currentTimeStr})`);
       }
     }
   } catch (err) {
