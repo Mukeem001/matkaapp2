@@ -22,16 +22,16 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       return { success: false, message: `No sourceUrl configured for ${market.name}`, data: null };
     }
 
-    // ✅ Check if current time is after openTime + 10 minutes
-    if (!isAfterOpenWindow(market.openTime)) {
-      const [h, m] = market.openTime.split(":").map(Number);
-      const openWindow = (h * 60 + m) + 10;
-      const openHrs = Math.floor(openWindow / 60) % 24;
-      const openMins = openWindow % 60;
-      const windowTimeStr = `${String(openHrs).padStart(2, '0')}:${String(openMins).padStart(2, '0')}`;
+    // ✅ Check if current time is AFTER closeTime (not openTime + 10)
+    if (!isAfterCloseTime(market.closeTime)) {
+      const [h, m] = market.closeTime.split(":").map(Number);
+      const closeTimeInMinutes = h * 60 + m;
+      const closeHrs = Math.floor(closeTimeInMinutes / 60) % 24;
+      const closeMins = closeTimeInMinutes % 60;
+      const windowTimeStr = `${String(closeHrs).padStart(2, '0')}:${String(closeMins).padStart(2, '0')}`;
       return {
         success: false,
-        message: `Can fetch only after ${windowTimeStr} (openTime: ${market.openTime} + 10 min)`,
+        message: `Can fetch only after ${windowTimeStr} (closeTime: ${market.closeTime})`,
         data: null
       };
     }
@@ -159,17 +159,17 @@ function getRandomUserAgent(): string {
 }
 
 /**
- * TIME LOGIC (UNCHANGED)
+ * TIME LOGIC - Check if current time is AFTER closeTime
  */
-function isAfterOpenWindow(openTime: string): boolean {
+function isAfterCloseTime(closeTime: string): boolean {
   try {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    const [h, m] = openTime.split(":").map(Number);
-    const open = h * 60 + m;
+    const [h, m] = closeTime.split(":").map(Number);
+    const close = h * 60 + m;
 
-    return currentTime >= open + 10;
+    return currentTime >= close;
   } catch {
     return false;
   }
@@ -207,6 +207,6 @@ async function updateMarket2ActivityStatus() {
 export {
   fetchAndUpdateMarkets2Result,
   scrapeMarkets2Result,
-  isAfterOpenWindow,
+  isAfterCloseTime,
   updateMarket2ActivityStatus
 };
