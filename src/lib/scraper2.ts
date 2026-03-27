@@ -350,15 +350,14 @@ async function updateMarket2ActivityStatus() {
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
-      const [openH, openM] = market.openTime.split(":").map(Number);
-      const openTimeInMinutes = openH * 60 + openM;
+      const [closeH, closeM] = market.closeTime.split(":").map(Number);
+      const closeTimeInMinutes = closeH * 60 + closeM;
 
-      // Betting closes 10 minutes BEFORE market opens
-      const bettingCloseTime = openTimeInMinutes - 10;
-
-      // Market is ACTIVE if currentTime is BEFORE betting close time
-      // Once (openTime - 10) is reached, betting is disabled for rest of day
-      const shouldBeActive = currentTime < bettingCloseTime;
+      // MARKETS2 BETTING WINDOW LOGIC:
+      // - isActive = TRUE: From 00:00 until closeTime — users can place bets
+      // - isActive = FALSE: From closeTime until 23:59 — no betting allowed
+      // - Next day, cycle repeats at 00:00
+      const shouldBeActive = currentTime < closeTimeInMinutes;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
@@ -366,11 +365,10 @@ async function updateMarket2ActivityStatus() {
           .where(eq(markets2Table.id, market.id));
 
         const currentTimeStr = `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}`;
-        const openTimeStr = `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`;
-        const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
+        const closeTimeStr = `${String(closeH).padStart(2, '0')}:${String(closeM).padStart(2, '0')}`;
 
         console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
-        console.log(`  └─ Market opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
+        console.log(`  └─ Close time: ${closeTimeStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {

@@ -30,7 +30,8 @@ router.get("/debug/check-market-status", async (_req, res) => {
     const market1s = await db.select().from(marketsTable);
     const market2s = await db.select().from(markets2Table);
     
-    const formatMarketDebug = (m: any) => {
+    // For Market1: betting allowed until (openTime - 10 min)
+    const formatMarket1Debug = (m: any) => {
       const [mOpen, mClose] = m.openTime.split(":");
       const openTimeInMinutes = parseInt(mOpen) * 60 + parseInt(mClose);
       const bettingCloseTime = openTimeInMinutes - 10;
@@ -46,6 +47,28 @@ router.get("/debug/check-market-status", async (_req, res) => {
         isActive: m.isActive,
         expected_shouldBeActive: shouldBeActive,
         bettingCloseTime: bettingCloseStr,
+        logic: "isActive = true until (openTime - 10 min)",
+        match: m.isActive === shouldBeActive ? "✅" : "❌"
+      };
+    };
+
+    // For Market2: betting allowed until closeTime
+    const formatMarket2Debug = (m: any) => {
+      const [mClose, mCloseMin] = m.closeTime.split(":");
+      const closeTimeInMinutes = parseInt(mClose) * 60 + parseInt(mCloseMin);
+      const shouldBeActive = currentTimeInMinutes < closeTimeInMinutes;
+      
+      const closeTimeStr = `${String(Math.floor(closeTimeInMinutes / 60)).padStart(2, '0')}:${String(closeTimeInMinutes % 60).padStart(2, '0')}`;
+      
+      return {
+        id: m.id,
+        name: m.name,
+        openTime: m.openTime,
+        closeTime: m.closeTime,
+        isActive: m.isActive,
+        expected_shouldBeActive: shouldBeActive,
+        bettingCloseTime: closeTimeStr,
+        logic: "isActive = true until closeTime",
         match: m.isActive === shouldBeActive ? "✅" : "❌"
       };
     };
@@ -56,11 +79,13 @@ router.get("/debug/check-market-status", async (_req, res) => {
       currentTimeInMinutes,
       market1: {
         total: market1s.length,
-        data: market1s.map(formatMarketDebug)
+        bettingLogic: "00:00 → (openTime - 10 min) = ACTIVE, (openTime - 10 min) → 23:59 = INACTIVE",
+        data: market1s.map(formatMarket1Debug)
       },
       market2: {
         total: market2s.length,
-        data: market2s.map(formatMarketDebug)
+        bettingLogic: "00:00 → closeTime = ACTIVE, closeTime → 23:59 = INACTIVE",
+        data: market2s.map(formatMarket2Debug)
       },
       message: "Market status check completed. Check 'match' column - ✅ means status is correct, ❌ means it needs update"
     });
