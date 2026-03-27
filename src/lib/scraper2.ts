@@ -61,9 +61,12 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     // ✅ Validate result is exactly 2 digits OR "XX" (placeholder)
     if (!isValidResult(result)) {
-      const errorMsg = `Invalid result: got "${result}" but expected 2 digits (00-99) or XX. Website structure may have changed - check table columns.`;
+      const errorMsg = `Invalid result: got "${result}" (length: ${result.length}, chars: ${result.split('').map(c => c.charCodeAt(0)).join(',')}) - expected 2 digits (00-99) or XX`;
       
-      console.error(`[Market2] Validation failed for ${market.name}: "${result}"`);
+      console.error(`[Market2] Validation FAILED for ${market.name}:`);
+      console.error(`  Raw result: "${result}"`);
+      console.error(`  Length: ${result.length}`);
+      console.error(`  Char codes: ${result.split('').map((c, i) => `[${i}]=${c}(${c.charCodeAt(0)})`).join(' ')}`);
       
       await db.update(markets2Table)
         .set({
@@ -125,7 +128,9 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     const response = await axios.get(url, {
       timeout: 10000,
       headers: {
-        "User-Agent": getRandomUserAgent()
+        "User-Agent": getRandomUserAgent(),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate",
       }
     });
 
@@ -158,60 +163,42 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
         // Try multiple matching strategies
         if (cleanName.includes(cleanTarget) || cleanTarget.includes(cleanName) || cellText.toLowerCase().includes(marketName.toLowerCase())) {
-          // Try different column combinations to find today's result
-          const col1 = $(cols[1]).text().trim();
-          const col2 = $(cols[2]).text().trim();
-          
           console.log(`✅ [Scraper] FOUND ${marketName}`);
-          console.log(`[Scraper] Raw Col1: "${col1}", Col2: "${col2}"`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
-          // 🎯 Priority: Try col2 first (usually today), then col1 (usually yesterday)
-          // But validate that neither is "XX" (placeholder)
+          // Try to find 2-digit result in any column
+          let result = null;
+
+          // Priority order: col2, col1, col3, col4, col5
+          const colsToTry = [2, 1, 3, 4, 5];
           
-          // Clean both columns before validation
-          const cleanedCol2 = cleanResult(col2);
-          const cleanedCol1 = cleanResult(col1);
-          
-          console.log(`[Scraper] After cleaning - Col1: "${cleanedCol1}", Col2: "${cleanedCol2}"`);
-
-          // Try today's column first (col2)
-          if (cleanedCol2 && isValidResult(cleanedCol2) && cleanedCol2 !== "XX") {
-            console.log(`✅ [Scraper] Using Col2 (Today): ${cleanedCol2}`);
-            return cleanedCol2;
-          }
-
-          // If col2 is invalid, try col1
-          if (cleanedCol1 && isValidResult(cleanedCol1) && cleanedCol1 !== "XX") {
-            console.log(`⚠️ [Scraper] Col2 not ready, using Col1 (Yesterday): ${cleanedCol1}`);
-            return cleanedCol1;
-          }
-
-          // If both are XX or invalid, check if we should return XX
-          if (cleanedCol2 === "XX" || cleanedCol1 === "XX") {
-            console.log(`⏳ [Scraper] Results not ready yet (XX placeholder)`);
-            return "XX";
-          }
-
-          // If col1 and col2 are empty, try other columns (col3+)
-          console.log(`⚠️ [Scraper] Col1 & Col2 empty, trying other columns...`);
-          for (let j = 3; j < Math.min(cols.length, 6); j++) {
-            const colN = $(cols[j]).text().trim();
-            const cleanedColN = cleanResult(colN);
-            console.log(`[Scraper] Trying Col${j}: "${colN}" → "${cleanedColN}"`);
+          for (const colIdx of colsToTry) {
+            if (colIdx >= cols.length) continue;
             
-            if (cleanedColN && isValidResult(cleanedColN) && cleanedColN !== "XX") {
-              console.log(`✅ [Scraper] Found valid result in Col${j}: ${cleanedColN}`);
-              return cleanedColN;
-            }
-            if (cleanedColN === "XX") {
-              console.log(`⏳ [Scraper] Col${j} has XX placeholder`);
-              return "XX";
+            const rawText = $(cols[colIdx]).text().trim();
+            const cleanedText = cleanResult(rawText);
+            
+            console.log(`[Scraper] Col${colIdx}: rawText="${rawText}" → cleaned="${cleanedText}"`);
+
+            if (cleanedText) {
+              if (isValidResult(cleanedText) && cleanedText !== "XX") {
+                console.log(`✅ [Scraper] Found valid result in Col${colIdx}: ${cleanedText}`);
+                result = cleanedText;
+                break;
+              }
+              if (cleanedText === "XX") {
+                console.log(`⏳ [Scraper] Found XX placeholder in Col${colIdx}`);
+                if (!result) result = "XX";
+              }
             }
           }
 
-          // Both are invalid/empty
-          console.log(`❌ [Scraper] No valid results found in any column. Raw: col1="${col1}", col2="${col2}"`);
+          if (result) {
+            console.log(`✅ [Scraper] Returning result: ${result}`);
+            return result;
+          }
+
+          console.log(`⚠️ [Scraper] No valid result found for ${marketName}`);
           return null;
         }
       }
