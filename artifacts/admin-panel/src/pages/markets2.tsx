@@ -413,24 +413,45 @@ export default function Markets2() {
         } : m));
 
         toast({ title: "✓ Fetch successful", description: message });
-      } else if (message.toLowerCase().includes("invalid result format") || message.toLowerCase().includes("null")) {
-        setCurrentResults((prev) => ({
-          ...prev,
-          [market.id]: {
-            open: market.openResult ?? prev[market.id]?.open ?? "***",
-            jodi: market.jodiResult ?? prev[market.id]?.jodi ?? "**",
-            close: market.closeResult ?? prev[market.id]?.close ?? "***",
-          },
-        }));
-
+      } else if (message.toLowerCase().includes("can fetch only after")) {
+        // Timing issue - market not yet closed
+        toast({ title: "Not yet time", description: message });
+      } else if (message.toLowerCase().includes("not yet available") || message.toLowerCase().includes("temporary placeholder")) {
+        // Results showing as XX - temporary placeholder
         setMarkets((prev) => prev.map((m) => m.id === market.id ? {
           ...m,
           fetchError: undefined,
           lastFetchedAt: new Date().toISOString(),
         } : m));
 
-        toast({ title: "Fetch result not ready", description: message });
+        toast({ title: "Results - Temporary (XX)", description: message });
+      } else if (message.toLowerCase().includes("invalid result format")) {
+        // Real error - data from website is in unexpected format
+        setMarkets((prev) => prev.map((m) => m.id === market.id ? {
+          ...m,
+          fetchError: message,
+          lastFetchedAt: new Date().toISOString(),
+        } : m));
+
+        toast({ 
+          title: "Format Error - Check website", 
+          description: `Website returned unexpected format: ${message}`, 
+          variant: "destructive" 
+        });
+      } else if (message.toLowerCase().includes("not found")) {
+        // Market or results not found on website
+        setMarkets((prev) => prev.map((m) => m.id === market.id ? {
+          ...m,
+          fetchError: message,
+          lastFetchedAt: new Date().toISOString(),
+        } : m));
+
+        toast({ 
+          title: "Not found on website", 
+          description: message 
+        });
       } else {
+        // Generic error
         setMarkets((prev) => prev.map((m) => m.id === market.id ? {
           ...m,
           fetchError: message,

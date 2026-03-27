@@ -61,7 +61,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     // ✅ Validate result is exactly 2 digits OR "XX" (placeholder)
     if (!isValidResult(result)) {
-      const errorMsg = `Invalid result format: "${result}" - must be 2 digits (00-99) or XX`;
+      const errorMsg = `Invalid result format: got "${result}" - must be 2 digits (00-99) or XX. Website may have changed format or data structure.`;
       await db.update(markets2Table)
         .set({
           fetchError: errorMsg,
@@ -165,26 +165,32 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
           // 🎯 Priority: Try col2 first (usually today), then col1 (usually yesterday)
           // But validate that neither is "XX" (placeholder)
           
+          // Clean both columns before validation
+          const cleanedCol2 = cleanResult(col2);
+          const cleanedCol1 = cleanResult(col1);
+          
+          console.log(`[Scraper] After cleaning - Col1: "${cleanedCol1}", Col2: "${cleanedCol2}"`);
+
           // Try today's column first (col2)
-          if (isValidResult(col2) && col2 !== "XX") {
-            console.log(`✅ [Scraper] Using Col2 (Today): ${col2}`);
-            return col2;
+          if (isValidResult(cleanedCol2) && cleanedCol2 !== "XX") {
+            console.log(`✅ [Scraper] Using Col2 (Today): ${cleanedCol2}`);
+            return cleanedCol2;
           }
 
           // If col2 is invalid, try col1
-          if (isValidResult(col1) && col1 !== "XX") {
-            console.log(`⚠️ [Scraper] Col2 not ready, using Col1 (Yesterday): ${col1}`);
-            return col1;
+          if (isValidResult(cleanedCol1) && cleanedCol1 !== "XX") {
+            console.log(`⚠️ [Scraper] Col2 not ready, using Col1 (Yesterday): ${cleanedCol1}`);
+            return cleanedCol1;
           }
 
           // If both are XX or invalid, return XX to indicate not ready
-          if (col2 === "XX" || col1 === "XX") {
+          if (cleanedCol2 === "XX" || cleanedCol1 === "XX") {
             console.log(`⏳ [Scraper] Results not ready yet (XX placeholder)`);
             return "XX";
           }
 
           // Both are invalid/empty
-          console.log(`❌ [Scraper] No valid results found in columns`);
+          console.log(`❌ [Scraper] No valid results found in columns. Raw: col1="${col1}", col2="${col2}"`);
           return null;
         }
       }
@@ -198,6 +204,25 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     console.error(`[Scraper Error] URL: ${url}, Market: ${marketName}, Error: ${errorMsg}`);
     return null;
   }
+}
+
+/**
+ * ✅ RESULT CLEANING
+ * Cleans various formats: "4 5" → "45", "4-5" → "45", "4_5" → "45", "XX" → "XX"
+ */
+function cleanResult(val: string): string {
+  if (!val) return "";
+  
+  // For "XX" placeholder, keep it as is
+  if (val.trim().toUpperCase() === "XX") {
+    return "XX";
+  }
+
+  // Remove all non-digit characters (spaces, dashes, underscores, etc.)
+  const digitsOnly = val.replace(/\D/g, "");
+  
+  // Return cleaned result
+  return digitsOnly;
 }
 
 /**
