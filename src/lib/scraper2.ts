@@ -61,7 +61,10 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     // ✅ Validate result is exactly 2 digits OR "XX" (placeholder)
     if (!isValidResult(result)) {
-      const errorMsg = `Invalid result format: got "${result}" - must be 2 digits (00-99) or XX. Website may have changed format or data structure.`;
+      const errorMsg = `Invalid result: got "${result}" but expected 2 digits (00-99) or XX. Website structure may have changed - check table columns.`;
+      
+      console.error(`[Market2] Validation failed for ${market.name}: "${result}"`);
+      
       await db.update(markets2Table)
         .set({
           fetchError: errorMsg,
@@ -160,7 +163,8 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
           const col2 = $(cols[2]).text().trim();
           
           console.log(`✅ [Scraper] FOUND ${marketName}`);
-          console.log(`[Scraper] Col 1: "${col1}", Col 2: "${col2}"`);
+          console.log(`[Scraper] Raw Col1: "${col1}", Col2: "${col2}"`);
+          console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
           // 🎯 Priority: Try col2 first (usually today), then col1 (usually yesterday)
           // But validate that neither is "XX" (placeholder)
@@ -172,25 +176,42 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
           console.log(`[Scraper] After cleaning - Col1: "${cleanedCol1}", Col2: "${cleanedCol2}"`);
 
           // Try today's column first (col2)
-          if (isValidResult(cleanedCol2) && cleanedCol2 !== "XX") {
+          if (cleanedCol2 && isValidResult(cleanedCol2) && cleanedCol2 !== "XX") {
             console.log(`✅ [Scraper] Using Col2 (Today): ${cleanedCol2}`);
             return cleanedCol2;
           }
 
           // If col2 is invalid, try col1
-          if (isValidResult(cleanedCol1) && cleanedCol1 !== "XX") {
+          if (cleanedCol1 && isValidResult(cleanedCol1) && cleanedCol1 !== "XX") {
             console.log(`⚠️ [Scraper] Col2 not ready, using Col1 (Yesterday): ${cleanedCol1}`);
             return cleanedCol1;
           }
 
-          // If both are XX or invalid, return XX to indicate not ready
+          // If both are XX or invalid, check if we should return XX
           if (cleanedCol2 === "XX" || cleanedCol1 === "XX") {
             console.log(`⏳ [Scraper] Results not ready yet (XX placeholder)`);
             return "XX";
           }
 
+          // If col1 and col2 are empty, try other columns (col3+)
+          console.log(`⚠️ [Scraper] Col1 & Col2 empty, trying other columns...`);
+          for (let j = 3; j < Math.min(cols.length, 6); j++) {
+            const colN = $(cols[j]).text().trim();
+            const cleanedColN = cleanResult(colN);
+            console.log(`[Scraper] Trying Col${j}: "${colN}" → "${cleanedColN}"`);
+            
+            if (cleanedColN && isValidResult(cleanedColN) && cleanedColN !== "XX") {
+              console.log(`✅ [Scraper] Found valid result in Col${j}: ${cleanedColN}`);
+              return cleanedColN;
+            }
+            if (cleanedColN === "XX") {
+              console.log(`⏳ [Scraper] Col${j} has XX placeholder`);
+              return "XX";
+            }
+          }
+
           // Both are invalid/empty
-          console.log(`❌ [Scraper] No valid results found in columns. Raw: col1="${col1}", col2="${col2}"`);
+          console.log(`❌ [Scraper] No valid results found in any column. Raw: col1="${col1}", col2="${col2}"`);
           return null;
         }
       }
@@ -207,22 +228,36 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 }
 
 /**
- * ✅ RESULT CLEANING
- * Cleans various formats: "4 5" → "45", "4-5" → "45", "4_5" → "45", "XX" → "XX"
+ * ✅ RESULT CLEANING - More Robust
+ * Extracts 2-digit number from various formats
+ * "4 5" → "45", "4-5" → "45", " 45 " → "45"
+ * "XX" or "xx" → "XX"
  */
 function cleanResult(val: string): string {
   if (!val) return "";
   
-  // For "XX" placeholder, keep it as is
-  if (val.trim().toUpperCase() === "XX") {
+  const trimmed = val.trim().toUpperCase();
+  
+  // For "XX" placeholder, keep it
+  if (trimmed === "XX") {
     return "XX";
   }
 
-  // Remove all non-digit characters (spaces, dashes, underscores, etc.)
-  const digitsOnly = val.replace(/\D/g, "");
-  
-  // Return cleaned result
-  return digitsOnly;
+  // Try to extract 2 consecutive digits
+  const digitMatch = trimmed.match(/\d{2}/);
+  if (digitMatch) {
+    return digitMatch[0];
+  }
+
+  // If we find individual digits, try to combine them
+  const allDigits = trimmed.replace(/\D/g, "");
+  if (allDigits.length >= 2) {
+    // Take first 2 digits
+    return allDigits.substring(0, 2);
+  }
+
+  // Return empty if no digits found
+  return "";
 }
 
 /**
@@ -231,7 +266,7 @@ function cleanResult(val: string): string {
  */
 function isValidResult(val: string): boolean {
   if (!val) return false;
-  // Accept both valid 2-digit numbers AND "XX" as placeholder
+  // Accept valid 2-digit numbers or "XX" placeholder
   return /^\d{2}$/.test(val) || val === "XX";
 }
 
