@@ -166,36 +166,80 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
           console.log(`✅ [Scraper] FOUND ${marketName}`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
-          // Try to find 2-digit result in any column
-          let result = null;
+          // Try to find 2-digit result - AGGRESSIVE APPROACH
+          // First, collect ALL text from all columns
+          const allTexts: string[] = [];
+          for (let j = 0; j < cols.length; j++) {
+            const rawText = $(cols[j]).text().trim();
+            allTexts.push(rawText);
+            console.log(`[Scraper] Col${j}: raw="${rawText}"`);
+          }
 
-          // Priority order: col2, col1, col3, col4, col5
-          const colsToTry = [2, 1, 3, 4, 5];
+          // Priority order: try cols[1], cols[2], then any others
+          const colsToTry = [1, 2, 3, 4, 5];
           
           for (const colIdx of colsToTry) {
             if (colIdx >= cols.length) continue;
             
-            const rawText = $(cols[colIdx]).text().trim();
-            const cleanedText = cleanResult(rawText);
+            const rawText = allTexts[colIdx];
             
-            console.log(`[Scraper] Col${colIdx}: rawText="${rawText}" → cleaned="${cleanedText}"`);
-
-            if (cleanedText) {
-              if (isValidResult(cleanedText) && cleanedText !== "XX") {
-                console.log(`✅ [Scraper] Found valid result in Col${colIdx}: ${cleanedText}`);
-                result = cleanedText;
-                break;
+            // AGGRESSIVE CLEANING - try multiple strategies
+            let result = null;
+            
+            // Strategy 1: Direct 2-digit match
+            let match = rawText.match(/\d{2}/);
+            if (match) {
+              result = match[0];
+              console.log(`[Scraper] Col${colIdx} Strategy 1 (2-digit): "${rawText}" → "${result}"`);
+            }
+            
+            // Strategy 2: Extract ALL digits and take first 2
+            if (!result) {
+              const allDigits = rawText.replace(/\D/g, "");
+              if (allDigits.length >= 2) {
+                result = allDigits.substring(0, 2);
+                console.log(`[Scraper] Col${colIdx} Strategy 2 (extract digits): "${rawText}" → "${result}"`);
               }
-              if (cleanedText === "XX") {
-                console.log(`⏳ [Scraper] Found XX placeholder in Col${colIdx}`);
-                if (!result) result = "XX";
+            }
+            
+            // Strategy 3: Check for XX
+            if (!result && (rawText.toUpperCase() === "XX" || rawText.toUpperCase().includes("XX"))) {
+              result = "XX";
+              console.log(`[Scraper] Col${colIdx} Strategy 3 (XX placeholder): "${rawText}" → "${result}"`);
+            }
+            
+            // Validate result
+            if (result) {
+              if (isValidResult(result)) {
+                if (result !== "XX") {
+                  console.log(`✅ [Scraper] FOUND VALID RESULT in Col${colIdx}: ${result}`);
+                  return result;
+                } else {
+                  console.log(`⏳ [Scraper] Found XX placeholder in Col${colIdx}`);
+                  // Don't return yet, try other columns first
+                }
+              } else {
+                console.log(`❌ [Scraper] Col${colIdx} failed validation: "${result}"`);
               }
             }
           }
 
-          if (result) {
-            console.log(`✅ [Scraper] Returning result: ${result}`);
-            return result;
+          // If nothing found, try to extract ANY 2 digits from entire row
+          console.log(`⚠️ [Scraper] Priority columns failed, searching entire row...`);
+          for (let j = 0; j < cols.length; j++) {
+            const rawText = allTexts[j];
+            const allDigits = rawText.replace(/\D/g, "");
+            if (allDigits.length >= 2) {
+              const extracted = allDigits.substring(0, 2);
+              if (isValidResult(extracted) && extracted !== "XX") {
+                console.log(`✅ [Scraper] FOUND in Col${j} (fallback): "${rawText}" → "${extracted}"`);
+                return extracted;
+              }
+            }
+            if (rawText === "XX" || rawText.toUpperCase() === "XX") {
+              console.log(`⏳ [Scraper] Found XX in Col${j} (fallback)`);
+              return "XX";
+            }
           }
 
           console.log(`⚠️ [Scraper] No valid result found for ${marketName}`);
@@ -215,10 +259,8 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 }
 
 /**
- * ✅ RESULT CLEANING - More Robust
- * Extracts 2-digit number from various formats
- * "4 5" → "45", "4-5" → "45", " 45 " → "45"
- * "XX" or "xx" → "XX"
+ * ✅ RESULT CLEANING - AGGRESSIVE MULTI-STRATEGY
+ * Tries multiple approaches to extract 2-digit number
  */
 function cleanResult(val: string): string {
   if (!val) return "";
@@ -230,17 +272,32 @@ function cleanResult(val: string): string {
     return "XX";
   }
 
-  // Try to extract 2 consecutive digits
-  const digitMatch = trimmed.match(/\d{2}/);
+  // Strategy 1: Look for 2 consecutive digits (most common)
+  let digitMatch = trimmed.match(/\d{2}/);
   if (digitMatch) {
     return digitMatch[0];
   }
 
-  // If we find individual digits, try to combine them
+  // Strategy 2: Look for single digits separated by space/dash/underscore
+  // e.g. "4 5" → "45", "4-5" → "45"
+  let separatedMatch = trimmed.match(/(\d)\s*[-\s_]*(\d)/);
+  if (separatedMatch && separatedMatch.length >= 3) {
+    const num1 = separatedMatch[1];
+    const num2 = separatedMatch[2];
+    if (num1 && num2) {
+      return num1 + num2;
+    }
+  }
+
+  // Strategy 3: Extract all digits and take first 2
   const allDigits = trimmed.replace(/\D/g, "");
   if (allDigits.length >= 2) {
-    // Take first 2 digits
     return allDigits.substring(0, 2);
+  }
+
+  // Strategy 4: Single digit might mean result is "0X"
+  if (allDigits.length === 1) {
+    return "0" + allDigits;
   }
 
   // Return empty if no digits found
