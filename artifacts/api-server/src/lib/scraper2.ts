@@ -4,13 +4,13 @@ import { db, markets2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 /**
- * Scraper for Market2 (2-digit markets)
- * Source: https://satta-king-fast.com/
+ * MAIN FUNCTION
  */
-
 async function fetchAndUpdateMarkets2Result(marketId: number) {
   try {
-    const market = await db.select().from(markets2Table)
+    const market = await db
+      .select()
+      .from(markets2Table)
       .where(eq(markets2Table.id, marketId))
       .then(r => r[0]);
 
@@ -19,35 +19,31 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     }
 
     if (!market.sourceUrl) {
-      return { success: false, message: `No sourceUrl configured for ${market.name}`, data: null };
+      return { success: false, message: `No sourceUrl for ${market.name}`, data: null };
     }
 
     console.log(`[Market2] Scraping: ${market.name}`);
 
     const result = await scrapeMarkets2Result(market.sourceUrl, market.name);
 
-    console.log(`[Market2] Result for ${market.name}: ${result}`);
+    console.log(`[Market2] Result: ${result}`);
 
-    if (!result || result.length !== 2) {
+    if (!result) {
       await db.update(markets2Table)
         .set({
-          fetchError: `Invalid result: "${result}"`,
+          fetchError: `Invalid result`,
           lastFetchedAt: new Date()
         })
         .where(eq(markets2Table.id, marketId));
 
-      return {
-        success: false,
-        message: `Invalid result format`,
-        data: null
-      };
+      return { success: false, message: "Invalid result", data: null };
     }
 
     const updated = await db.update(markets2Table)
       .set({
-        openResult: result[0],
-        closeResult: result[1],
         jodiResult: result,
+        openResult: result.charAt(0),
+        closeResult: result.charAt(1),
         fetchError: null,
         lastFetchedAt: new Date()
       })
@@ -75,12 +71,12 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * ✅ FIXED SCRAPER (TABLE BASED - ACCURATE)
+ * 🔥 FIXED SCRAPER (LATEST COLUMN LOGIC)
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
   try {
     const response = await axios.get(url, {
-      timeout: 10000,
+      timeout: 10000 + Math.random() * 5000,
       headers: {
         "User-Agent": getRandomUserAgent()
       }
@@ -88,29 +84,36 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
     const $ = cheerio.load(response.data);
 
-    // 🔥 MAIN FIX: TABLE BASED SCRAPING
-    const rows = $("table tr");
+    const rows = $("table tbody tr");
+
+    const target = normalize(marketName);
 
     for (let i = 0; i < rows.length; i++) {
       const row = $(rows[i]);
       const cols = row.find("td");
 
-      if (cols.length >= 3) {
-        const name = $(cols[0]).text().trim().toLowerCase().replace(/\s+/g, "");
-        const target = marketName.toLowerCase().replace(/\s+/g, "");
+      if (cols.length < 2) continue;
 
-        if (name.includes(target)) {
-          const prev = $(cols[1]).text().trim();   // Sun
-          const today = $(cols[2]).text().trim();  // Mon
+      const name = normalize($(cols[0]).text());
 
-          console.log(`🟢 Found ${marketName}: Prev=${prev}, Today=${today}`);
+      // ✅ better matching
+      if (name.includes(target)) {
 
-          // Priority → Today
-          if (isValidResult(today)) return today;
+        const values: string[] = [];
 
-          // Fallback → Previous
-          if (isValidResult(prev)) return prev;
-        }
+        cols.each((i, el) => {
+          if (i > 0) {
+            values.push($(el).text().trim());
+          }
+        });
+
+        // 🔥 latest valid result
+        const latest = values.reverse().find(v => isValidResult(v));
+
+        console.log(`🟢 ${marketName} → Values:`, values);
+        console.log(`✅ Latest: ${latest}`);
+
+        if (latest) return latest;
       }
     }
 
@@ -124,6 +127,13 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 }
 
 /**
+ * ✅ NORMALIZE TEXT
+ */
+function normalize(str: string): string {
+  return str.toLowerCase().replace(/\s+/g, "").trim();
+}
+
+/**
  * ✅ RESULT VALIDATION
  */
 function isValidResult(val: string): boolean {
@@ -131,37 +141,41 @@ function isValidResult(val: string): boolean {
 }
 
 /**
- * ✅ RANDOM USER AGENT (ANTI-BLOCK)
+ * ✅ RANDOM USER AGENT
  */
 function getRandomUserAgent(): string {
   const agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Mozilla/5.0 (X11; Linux x86_64)",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.0.0 Safari/537.36"
   ];
   return agents[Math.floor(Math.random() * agents.length)];
 }
 
 /**
- * TIME LOGIC (UNCHANGED)
+ * TIME LOGIC
  */
 function isAfterCloseWindow(closeTime: string): boolean {
   try {
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const current = now.getHours() * 60 + now.getMinutes();
 
     const [h, m] = closeTime.split(":").map(Number);
     const close = h * 60 + m;
 
-    return currentTime >= close + 20;
+    return current >= close + 20;
   } catch {
     return false;
   }
 }
 
+/**
+ * MARKET ACTIVE STATUS
+ */
 async function updateMarket2ActivityStatus() {
   try {
     const markets = await db.select().from(markets2Table);
+
     const now = new Date();
     const current = now.getHours() * 60 + now.getMinutes();
 
