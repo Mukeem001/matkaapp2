@@ -22,6 +22,20 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       return { success: false, message: `No sourceUrl configured for ${market.name}`, data: null };
     }
 
+    // ✅ Check if current time is after openTime + 10 minutes
+    if (!isAfterOpenWindow(market.openTime)) {
+      const [h, m] = market.openTime.split(":").map(Number);
+      const openWindow = (h * 60 + m) + 10;
+      const openHrs = Math.floor(openWindow / 60) % 24;
+      const openMins = openWindow % 60;
+      const windowTimeStr = `${String(openHrs).padStart(2, '0')}:${String(openMins).padStart(2, '0')}`;
+      return {
+        success: false,
+        message: `Can fetch only after ${windowTimeStr} (openTime: ${market.openTime} + 10 min)`,
+        data: null
+      };
+    }
+
     console.log(`[Market2] Scraping: ${market.name}`);
 
     const result = await scrapeMarkets2Result(market.sourceUrl, market.name);
@@ -145,15 +159,15 @@ function getRandomUserAgent(): string {
 /**
  * TIME LOGIC (UNCHANGED)
  */
-function isAfterCloseWindow(closeTime: string): boolean {
+function isAfterOpenWindow(openTime: string): boolean {
   try {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    const [h, m] = closeTime.split(":").map(Number);
-    const close = h * 60 + m;
+    const [h, m] = openTime.split(":").map(Number);
+    const open = h * 60 + m;
 
-    return currentTime >= close + 20;
+    return currentTime >= open + 10;
   } catch {
     return false;
   }
@@ -166,10 +180,10 @@ async function updateMarket2ActivityStatus() {
     const current = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
-      const [h, m] = market.closeTime.split(":").map(Number);
-      const close = h * 60 + m;
+      const [h, m] = market.openTime.split(":").map(Number);
+      const open = h * 60 + m;
 
-      const shouldBeActive = current < close;
+      const shouldBeActive = current < open + 10;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
@@ -187,6 +201,6 @@ async function updateMarket2ActivityStatus() {
 export {
   fetchAndUpdateMarkets2Result,
   scrapeMarkets2Result,
-  isAfterCloseWindow,
+  isAfterOpenWindow,
   updateMarket2ActivityStatus
 };

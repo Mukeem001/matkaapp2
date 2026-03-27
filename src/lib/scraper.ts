@@ -26,7 +26,17 @@ function getCurrentTimeInMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
-// Check if current time is after closeTime + 20 minutes
+// Check if current time is after openTime + 10 minutes
+function isAfterOpenWindow(openTime: string): boolean {
+  const { hours: openHour, minutes: openMin } = parseTimeString(openTime);
+  const openTimeInMinutes = timeToMinutes(openHour, openMin);
+  const openWindowEndMinutes = openTimeInMinutes + 10; // 10 min after open
+  const currentTimeInMinutes = getCurrentTimeInMinutes();
+  
+  return currentTimeInMinutes >= openWindowEndMinutes;
+}
+
+// Check if current time is after closeTime + 20 minutes (DEPRECATED - kept for backward compatibility)
 function isAfterCloseWindow(closeTime: string): boolean {
   const { hours: closeHour, minutes: closeMin } = parseTimeString(closeTime);
   const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
@@ -250,16 +260,16 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: "No source URL" };
   }
 
-  // ✅ Check if current time is after closeTime + 20 minutes
-  if (!isAfterCloseWindow(market.closeTime)) {
-    const { hours, minutes } = parseTimeString(market.closeTime);
-    const closeWindow = timeToMinutes(hours, minutes) + 20;
-    const closeHrs = Math.floor(closeWindow / 60) % 24;
-    const closeMins = closeWindow % 60;
-    const windowTimeStr = `${String(closeHrs).padStart(2, '0')}:${String(closeMins).padStart(2, '0')}`;
+  // ✅ Check if current time is after openTime + 10 minutes
+  if (!isAfterOpenWindow(market.openTime)) {
+    const { hours, minutes } = parseTimeString(market.openTime);
+    const openWindow = timeToMinutes(hours, minutes) + 10;
+    const openHrs = Math.floor(openWindow / 60) % 24;
+    const openMins = openWindow % 60;
+    const windowTimeStr = `${String(openHrs).padStart(2, '0')}:${String(openMins).padStart(2, '0')}`;
     return { 
       success: false, 
-      message: `Can fetch only after ${windowTimeStr} (closeTime: ${market.closeTime} + 20 min)` 
+      message: `Can fetch only after ${windowTimeStr} (openTime: ${market.openTime} + 10 min)` 
     };
   }
 

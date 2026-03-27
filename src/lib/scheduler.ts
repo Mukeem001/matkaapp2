@@ -42,9 +42,9 @@ async function resetMarketsAtMidnight() {
   }
 }
 
-// Update market isActive status based on openTime only
-// Logic: Market is ACTIVE only BEFORE pre-open window (before openTime - 10 mins)
-// After pre-open starts, becomes INACTIVE for rest of day
+// Update market isActive status based on openTime
+// Logic: Market is ACTIVE only BEFORE the fetch window (before openTime + 10 mins)
+// After fetch window starts, becomes INACTIVE for rest of day
 async function updateMarketActivityStatus() {
   try {
     const markets = await db.select().from(marketsTable);
@@ -55,10 +55,10 @@ async function updateMarketActivityStatus() {
       const openTimeInMinutes = timeToMinutes(openHour, openMin);
 
       // Calculate if should be active
-      // Active ONLY from midnight until 10 min before openTime
-      // Inactive from pre-open (10 min before) to end of day
-      const preOpenInactiveStart = openTimeInMinutes - 10;
-      const shouldBeActive = currentTimeInMinutes < preOpenInactiveStart;
+      // Active ONLY from midnight until end of fetch window (openTime + 10 min)
+      // Inactive after fetch window to end of day
+      const fetchWindowEnd = openTimeInMinutes + 10;
+      const shouldBeActive = currentTimeInMinutes < fetchWindowEnd;
 
       // Update if status changed
       if (market.isActive !== shouldBeActive) {
