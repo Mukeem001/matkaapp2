@@ -40,20 +40,38 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     const result = await scrapeMarkets2Result(market.sourceUrl, market.name);
 
-    console.log(`[Market2] Result for ${market.name}: ${result}`);
+    console.log(`[Market2] Scraping result for ${market.name}: ${result ? result : 'NULL'}`);
 
-    // ✅ Validate result is exactly 2 digits
-    if (!isValidResult(result)) {
+    // ✅ Distinguish between different error types
+    if (!result) {
+      const errorMsg = `Market not found on website or results not ready yet`;
       await db.update(markets2Table)
         .set({
-          fetchError: `Invalid result: "${result}" (must be 2 digits, not XX)`,
+          fetchError: errorMsg,
           lastFetchedAt: new Date()
         })
         .where(eq(markets2Table.id, marketId));
 
       return {
         success: false,
-        message: `Invalid result format: "${result}"`,
+        message: errorMsg,
+        data: null
+      };
+    }
+
+    // ✅ Validate result is exactly 2 digits
+    if (!isValidResult(result)) {
+      const errorMsg = `Invalid result format: "${result}" - must be 2 digits (00-99), not XX`;
+      await db.update(markets2Table)
+        .set({
+          fetchError: errorMsg,
+          lastFetchedAt: new Date()
+        })
+        .where(eq(markets2Table.id, marketId));
+
+      return {
+        success: false,
+        message: errorMsg,
         data: null
       };
     }
@@ -91,7 +109,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * ✅ FIXED SCRAPER (TABLE BASED - ACCURATE)
+ * ✅ ROBUST SCRAPER (TABLE BASED WITH FALLBACK)
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
   try {
@@ -104,37 +122,53 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
     const $ = cheerio.load(response.data);
 
-    // 🔥 MAIN FIX: TABLE BASED SCRAPING
+    // 🔥 METHOD 1: TABLE BASED SCRAPING (Most Reliable)
     const rows = $("table tr");
+    
+    if (rows.length === 0) {
+      console.log(`⚠️ [Scraper] No tables found on page. URL: ${url}`);
+      return null;
+    }
+
+    console.log(`[Scraper] Found ${rows.length} rows in table`);
+
+    const cleanTarget = marketName.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
     for (let i = 0; i < rows.length; i++) {
       const row = $(rows[i]);
       const cols = row.find("td");
 
       if (cols.length >= 3) {
-        const name = $(cols[0]).text().trim().toLowerCase().replace(/\s+/g, "");
-        const target = marketName.toLowerCase().replace(/\s+/g, "");
+        const cellText = $(cols[0]).text().trim();
+        const cleanName = cellText.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
-        if (name.includes(target)) {
-          const prev = $(cols[1]).text().trim();   // Sun
-          const today = $(cols[2]).text().trim();  // Mon
+        console.log(`[Scraper] Row ${i}: "${cellText}" → Trying to match against "${marketName}"`);
 
-          console.log(`🟢 Found ${marketName}: Prev=${prev}, Today=${today}`);
+        // Try multiple matching strategies
+        if (cleanName.includes(cleanTarget) || cleanTarget.includes(cleanName) || cellText.toLowerCase().includes(marketName.toLowerCase())) {
+          const prev = $(cols[1]).text().trim();   // Previous result
+          const today = $(cols[2]).text().trim();  // Today result
+
+          console.log(`✅ [Scraper] FOUND ${marketName}: Prev="${prev}", Today="${today}"`);
 
           // Priority → Today
           if (isValidResult(today)) return today;
 
           // Fallback → Previous
           if (isValidResult(prev)) return prev;
+
+          console.log(`⚠️ [Scraper] Found market but results are not ready yet. Prev="${prev}", Today="${today}"`);
+          return null;
         }
       }
     }
 
-    console.log(`🔴 No result found for ${marketName}`);
+    console.log(`❌ [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
     return null;
 
   } catch (err) {
-    console.error("[Scraper Error]", err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[Scraper Error] URL: ${url}, Market: ${marketName}, Error: ${errorMsg}`);
     return null;
   }
 }
