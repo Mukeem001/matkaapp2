@@ -42,10 +42,10 @@ async function resetMarketsAtMidnight() {
   }
 }
 
-// Update market isActive status based on openTime
+// Update market isActive status based on closeTime
 // BETTING WINDOW logic:
-// - isActive = TRUE: From 00:00 until (openTime - 10 min) — users can place bets
-// - isActive = FALSE: From (openTime - 10 min) until 23:59 — market locked, no new bets
+// - isActive = TRUE: From 00:00 until (closeTime - 10 min) — users can place bets
+// - isActive = FALSE: From (closeTime - 10 min) until 23:59 — market locked, no new bets
 // - Cycle repeats next day
 async function updateMarketActivityStatus() {
   try {
@@ -53,14 +53,14 @@ async function updateMarketActivityStatus() {
     const currentTimeInMinutes = getCurrentTimeInMinutes();
 
     for (const market of markets) {
-      const { hours: openHour, minutes: openMin } = parseTimeString(market.openTime);
-      const openTimeInMinutes = timeToMinutes(openHour, openMin);
+      const { hours: closeHour, minutes: closeMin } = parseTimeString(market.closeTime);
+      const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
 
-      // Pre-open window: 10 minutes before market opens
-      const preOpenWindowStart = openTimeInMinutes - 10;
+      // Betting closes 10 minutes before market closes
+      const bettingCloseTime = closeTimeInMinutes - 10;
 
-      // Market is ACTIVE (betting allowed) only BEFORE the pre-open window
-      const shouldBeActive = currentTimeInMinutes < preOpenWindowStart;
+      // Market is ACTIVE (betting allowed) only BEFORE betting close window
+      const shouldBeActive = currentTimeInMinutes < bettingCloseTime;
 
       // Update if status changed
       if (market.isActive !== shouldBeActive) {
@@ -69,8 +69,8 @@ async function updateMarketActivityStatus() {
           .where(eq(marketsTable.id, market.id));
         
         const currentTimeStr = `${String(Math.floor(currentTimeInMinutes / 60)).padStart(2, '0')}:${String(currentTimeInMinutes % 60).padStart(2, '0')}`;
-        const preOpenStr = `${String(Math.floor(preOpenWindowStart / 60)).padStart(2, '0')}:${String(preOpenWindowStart % 60).padStart(2, '0')}`;
-        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (betting closes at ${preOpenStr}, currentTime: ${currentTimeStr})`);
+        const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
+        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (betting closes at ${bettingCloseStr}, currentTime: ${currentTimeStr})`);
       }
     }
   } catch (err) {

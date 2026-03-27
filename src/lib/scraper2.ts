@@ -182,21 +182,21 @@ async function updateMarket2ActivityStatus() {
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     for (const market of markets) {
-      const [openH, openM] = market.openTime.split(":").map(Number);
-      const openTimeInMinutes = openH * 60 + openM;
+      const [closeH, closeM] = market.closeTime.split(":").map(Number);
+      const closeTimeInMinutes = closeH * 60 + closeM;
 
-      // Pre-open window: 10 minutes before market opens
-      const preOpenWindowStart = openTimeInMinutes - 10;
+      // Betting closes 10 minutes before market closes
+      const bettingCloseTime = closeTimeInMinutes - 10;
 
-      // Market is ACTIVE (betting allowed) only BEFORE the pre-open window
-      const shouldBeActive = currentTime < preOpenWindowStart;
+      // Market is ACTIVE (betting allowed) only BEFORE betting close window
+      const shouldBeActive = currentTime < bettingCloseTime;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
           .set({ isActive: shouldBeActive })
           .where(eq(markets2Table.id, market.id));
 
-        console.log(`[Activity] ${market.name}: ${shouldBeActive}`);
+        console.log(`[Activity] ${market.name}: isActive = ${shouldBeActive}`);
       }
     }
   } catch (err) {
