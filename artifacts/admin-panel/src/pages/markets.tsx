@@ -367,23 +367,23 @@ export default function Markets() {
     fetchLiveResults();
   }, [markets]);
 
-  // Effect 4: Auto-refresh market data every 2 minutes
+  // Effect 4: Auto-refresh market data every 1 minute
   useEffect(() => {
     const autoRefreshInterval = setInterval(() => {
-      console.log("[Markets] Auto-refreshing market data...");
+      console.log("[Markets] Auto-refreshing market data and status...");
       queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
-    }, 120000);
+    }, 60000); // Changed from 120000 (2 min) to 60000 (1 min)
 
     return () => clearInterval(autoRefreshInterval);
   }, [queryClient]);
 
-  // Effect 5: Auto-refresh current results every 2 minutes
+  // Effect 5: Auto-refresh current results every 1 minute
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
 
     const autoRefreshCurrentResults = setInterval(async () => {
-      console.log("[Markets] Auto-refreshing current results...");
+      console.log("[Markets] Auto-refreshing current results and market status...");
       
       const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
 
@@ -416,12 +416,12 @@ export default function Markets() {
       }
 
       setCurrentResults(results);
-    }, 120000);
+    }, 60000); // Changed from 120000 (2 min) to 60000 (1 min)
 
     return () => clearInterval(autoRefreshCurrentResults);
   }, [markets]);
 
-  // Effect 6: Auto-refresh live results every 2 minutes
+  // Effect 6: Auto-refresh live results every 1 minute
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
@@ -458,7 +458,7 @@ export default function Markets() {
       }
 
       setLiveResults(results);
-    }, 120000);
+    }, 60000); // Changed from 120000 (2 min) to 60000 (1 min)
 
     return () => clearInterval(autoRefreshLiveResults);
   }, [markets]);
