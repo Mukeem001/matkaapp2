@@ -42,25 +42,27 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     console.log(`[Market2] Result for ${market.name}: ${result}`);
 
-    if (!result || result.length !== 2) {
+    // ✅ Validate result is exactly 2 digits
+    if (!isValidResult(result)) {
       await db.update(markets2Table)
         .set({
-          fetchError: `Invalid result: "${result}"`,
+          fetchError: `Invalid result: "${result}" (must be 2 digits, not XX)`,
           lastFetchedAt: new Date()
         })
         .where(eq(markets2Table.id, marketId));
 
       return {
         success: false,
-        message: `Invalid result format`,
+        message: `Invalid result format: "${result}"`,
         data: null
       };
     }
 
+    // ✅ For 2-digit markets: openResult = closeResult = jodiResult = same value
     const updated = await db.update(markets2Table)
       .set({
-        openResult: result[0],
-        closeResult: result[1],
+        openResult: result,
+        closeResult: result,
         jodiResult: result,
         fetchError: null,
         lastFetchedAt: new Date()
