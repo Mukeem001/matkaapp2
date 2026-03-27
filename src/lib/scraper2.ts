@@ -59,9 +59,9 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       };
     }
 
-    // ✅ Validate result is exactly 2 digits
+    // ✅ Validate result is exactly 2 digits OR "XX" (placeholder)
     if (!isValidResult(result)) {
-      const errorMsg = `Invalid result format: "${result}" - must be 2 digits (00-99), not XX`;
+      const errorMsg = `Invalid result format: "${result}" - must be 2 digits (00-99) or XX`;
       await db.update(markets2Table)
         .set({
           fetchError: errorMsg,
@@ -77,12 +77,17 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     }
 
     // ✅ For 2-digit markets: openResult = closeResult = jodiResult = same value
+    // Special handling for "XX" - mark as temporary/not ready
+    const successMsg = result === "XX" 
+      ? `Results not yet available on website (showing as XX - temporary placeholder)` 
+      : `Updated: ${result}`;
+
     const updated = await db.update(markets2Table)
       .set({
         openResult: result,
         closeResult: result,
         jodiResult: result,
-        fetchError: null,
+        fetchError: result === "XX" ? "Results marked as XX - temporary placeholder" : null,
         lastFetchedAt: new Date()
       })
       .where(eq(markets2Table.id, marketId))
@@ -90,7 +95,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     return {
       success: true,
-      message: `Updated: ${result}`,
+      message: successMsg,
       data: updated[0]
     };
 
@@ -175,9 +180,12 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
 /**
  * ✅ RESULT VALIDATION
+ * Accepts 2-digit numbers (00-99) and "XX" as temporary placeholder
  */
 function isValidResult(val: string): boolean {
-  return !!val && val !== "XX" && /^\d{2}$/.test(val);
+  if (!val) return false;
+  // Accept both valid 2-digit numbers AND "XX" as placeholder
+  return /^\d{2}$/.test(val) || val === "XX";
 }
 
 /**
