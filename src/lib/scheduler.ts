@@ -27,18 +27,35 @@ function timeToMinutes(hours: number, minutes: number): number {
   return hours * 60 + minutes;
 }
 
-// Daily reset at midnight - set all markets to isActive = true
+// Daily reset at midnight IST - set all markets to isActive = true
+// This allows betting to start from 00:00 when new day begins
 async function resetMarketsAtMidnight() {
   try {
+    // Get current time in IST
     const now = new Date();
-    const timeStr = now.toISOString();
+    const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const hours = istTime.getHours();
+    const minutes = istTime.getMinutes();
     
-    const result = await db.update(marketsTable)
-      .set({ isActive: true });
-    
-    console.log(`[Daily Reset] At ${timeStr}: All markets reset to isActive = true`);
+    // Update ALL markets when it's 00:00-00:01 IST
+    if (hours === 0 && minutes <= 1) {
+      console.log(`[Midnight Reset] 🌙 IST Time: ${istTime.toLocaleTimeString()}`);
+      
+      // Reset Market1
+      await db.update(marketsTable)
+        .set({ isActive: true });
+      
+      console.log(`[Midnight Reset] ✅ All Market1 reset to isActive = true`);
+      
+      // Reset Market2
+      await db.update(markets2Table)
+        .set({ isActive: true });
+      
+      console.log(`[Midnight Reset] ✅ All Market2 reset to isActive = true`);
+      console.log(`[Midnight Reset] ✅ New day started! Betting enabled for all markets`);
+    }
   } catch (err) {
-    console.error("[Daily Reset] Error:", err);
+    console.error("[Midnight Reset] Error:", err);
   }
 }
 
