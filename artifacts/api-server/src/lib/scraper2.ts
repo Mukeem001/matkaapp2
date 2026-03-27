@@ -251,13 +251,11 @@ async function updateMarket2ActivityStatus() {
       const [openH, openM] = market.openTime.split(":").map(Number);
       const openTimeInMinutes = openH * 60 + openM;
 
-      const [closeH, closeM] = market.closeTime.split(":").map(Number);
-      const closeTimeInMinutes = closeH * 60 + closeM;
+      // Betting closes 10 minutes BEFORE market opens
+      const bettingCloseTime = openTimeInMinutes - 10;
 
-      // Betting closes 10 minutes before market closes
-      const bettingCloseTime = closeTimeInMinutes - 10;
-
-      // Market is ACTIVE if currentTime is BEFORE betting close window
+      // Market is ACTIVE if currentTime is BEFORE betting close time
+      // Once (openTime - 10) is reached, betting is disabled for rest of day
       const shouldBeActive = currentTime < bettingCloseTime;
 
       if (market.isActive !== shouldBeActive) {
@@ -270,7 +268,7 @@ async function updateMarket2ActivityStatus() {
         const bettingCloseStr = `${String(Math.floor(bettingCloseTime / 60)).padStart(2, '0')}:${String(bettingCloseTime % 60).padStart(2, '0')}`;
 
         console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
-        console.log(`  └─ Opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
+        console.log(`  └─ Market opens: ${openTimeStr}, Betting closes: ${bettingCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
