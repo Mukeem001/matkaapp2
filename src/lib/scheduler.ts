@@ -42,9 +42,11 @@ async function resetMarketsAtMidnight() {
   }
 }
 
-// Update market isActive status based on openTime and closeTime
-// Properly handles day-wrapping for late-night markets (e.g., 23:50 - 02:00)
-// Market is ACTIVE if current time is between openTime and closeTime
+// Update market isActive status based on openTime
+// BETTING WINDOW logic:
+// - isActive = TRUE: From 00:00 until (openTime - 10 min) — users can place bets
+// - isActive = FALSE: From (openTime - 10 min) until 23:59 — market locked, no new bets
+// - Cycle repeats next day
 async function updateMarketActivityStatus() {
   try {
     const markets = await db.select().from(marketsTable);
@@ -52,20 +54,13 @@ async function updateMarketActivityStatus() {
 
     for (const market of markets) {
       const { hours: openHour, minutes: openMin } = parseTimeString(market.openTime);
-      const { hours: closeHour, minutes: closeMin } = parseTimeString(market.closeTime);
       const openTimeInMinutes = timeToMinutes(openHour, openMin);
-      const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
 
-      let shouldBeActive: boolean;
+      // Pre-open window: 10 minutes before market opens
+      const preOpenWindowStart = openTimeInMinutes - 10;
 
-      if (openTimeInMinutes < closeTimeInMinutes) {
-        // Normal case: market operates within same day (e.g., 09:00 - 11:00)
-        shouldBeActive = currentTimeInMinutes >= openTimeInMinutes && currentTimeInMinutes <= closeTimeInMinutes;
-      } else {
-        // Day-wrapping case: market spans midnight (e.g., 23:50 - 02:00)
-        // Market is active if: current >= openTime OR current <= closeTime
-        shouldBeActive = currentTimeInMinutes >= openTimeInMinutes || currentTimeInMinutes <= closeTimeInMinutes;
-      }
+      // Market is ACTIVE (betting allowed) only BEFORE the pre-open window
+      const shouldBeActive = currentTimeInMinutes < preOpenWindowStart;
 
       // Update if status changed
       if (market.isActive !== shouldBeActive) {
@@ -74,7 +69,8 @@ async function updateMarketActivityStatus() {
           .where(eq(marketsTable.id, market.id));
         
         const currentTimeStr = `${String(Math.floor(currentTimeInMinutes / 60)).padStart(2, '0')}:${String(currentTimeInMinutes % 60).padStart(2, '0')}`;
-        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (openTime: ${market.openTime} - closeTime: ${market.closeTime}, currentTime: ${currentTimeStr})`);
+        const preOpenStr = `${String(Math.floor(preOpenWindowStart / 60)).padStart(2, '0')}:${String(preOpenWindowStart % 60).padStart(2, '0')}`;
+        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (betting closes at ${preOpenStr}, currentTime: ${currentTimeStr})`);
       }
     }
   } catch (err) {

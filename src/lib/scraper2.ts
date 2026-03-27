@@ -181,20 +181,13 @@ async function updateMarket2ActivityStatus() {
 
     for (const market of markets) {
       const [openH, openM] = market.openTime.split(":").map(Number);
-      const [closeH, closeM] = market.closeTime.split(":").map(Number);
       const openTimeInMinutes = openH * 60 + openM;
-      const closeTimeInMinutes = closeH * 60 + closeM;
 
-      let shouldBeActive: boolean;
+      // Pre-open window: 10 minutes before market opens
+      const preOpenWindowStart = openTimeInMinutes - 10;
 
-      if (openTimeInMinutes < closeTimeInMinutes) {
-        // Normal case: market operates within same day (e.g., 09:00 - 11:00)
-        shouldBeActive = currentTime >= openTimeInMinutes && currentTime <= closeTimeInMinutes;
-      } else {
-        // Day-wrapping case: market spans midnight (e.g., 23:50 - 02:00)
-        // Market is active if: current >= openTime OR current <= closeTime
-        shouldBeActive = currentTime >= openTimeInMinutes || currentTime <= closeTimeInMinutes;
-      }
+      // Market is ACTIVE (betting allowed) only BEFORE the pre-open window
+      const shouldBeActive = currentTime < preOpenWindowStart;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
