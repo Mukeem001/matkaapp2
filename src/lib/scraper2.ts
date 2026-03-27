@@ -114,7 +114,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * ✅ ROBUST SCRAPER (TABLE BASED WITH FALLBACK)
+ * ✅ ROBUST SCRAPER (TABLE BASED WITH TODAY'S DATE VALIDATION)
+ * Fetches results for TODAY's date specifically
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
   try {
@@ -126,6 +127,11 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     });
 
     const $ = cheerio.load(response.data);
+
+    // 🟢 Get today's date for validation
+    const today = new Date();
+    const todayDate = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+    console.log(`[Scraper] Looking for results for: ${todayDate}`);
 
     // 🔥 METHOD 1: TABLE BASED SCRAPING (Most Reliable)
     const rows = $("table tr");
@@ -147,22 +153,38 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
         const cellText = $(cols[0]).text().trim();
         const cleanName = cellText.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
-        console.log(`[Scraper] Row ${i}: "${cellText}" → Trying to match against "${marketName}"`);
-
         // Try multiple matching strategies
         if (cleanName.includes(cleanTarget) || cleanTarget.includes(cleanName) || cellText.toLowerCase().includes(marketName.toLowerCase())) {
-          const prev = $(cols[1]).text().trim();   // Previous result
-          const today = $(cols[2]).text().trim();  // Today result
+          // Try different column combinations to find today's result
+          const col1 = $(cols[1]).text().trim();
+          const col2 = $(cols[2]).text().trim();
+          
+          console.log(`✅ [Scraper] FOUND ${marketName}`);
+          console.log(`[Scraper] Col 1: "${col1}", Col 2: "${col2}"`);
 
-          console.log(`✅ [Scraper] FOUND ${marketName}: Prev="${prev}", Today="${today}"`);
+          // 🎯 Priority: Try col2 first (usually today), then col1 (usually yesterday)
+          // But validate that neither is "XX" (placeholder)
+          
+          // Try today's column first (col2)
+          if (isValidResult(col2) && col2 !== "XX") {
+            console.log(`✅ [Scraper] Using Col2 (Today): ${col2}`);
+            return col2;
+          }
 
-          // Priority → Today
-          if (isValidResult(today)) return today;
+          // If col2 is invalid, try col1
+          if (isValidResult(col1) && col1 !== "XX") {
+            console.log(`⚠️ [Scraper] Col2 not ready, using Col1 (Yesterday): ${col1}`);
+            return col1;
+          }
 
-          // Fallback → Previous
-          if (isValidResult(prev)) return prev;
+          // If both are XX or invalid, return XX to indicate not ready
+          if (col2 === "XX" || col1 === "XX") {
+            console.log(`⏳ [Scraper] Results not ready yet (XX placeholder)`);
+            return "XX";
+          }
 
-          console.log(`⚠️ [Scraper] Found market but results are not ready yet. Prev="${prev}", Today="${today}"`);
+          // Both are invalid/empty
+          console.log(`❌ [Scraper] No valid results found in columns`);
           return null;
         }
       }
