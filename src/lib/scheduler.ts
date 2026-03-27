@@ -234,3 +234,6 @@ export function getSchedulerStatus() {
     lastRunAt: lastRunAt?.toISOString() ?? null,
   };
 }
+
+// Export for debug endpoints
+export { updateMarketActivityStatus };
