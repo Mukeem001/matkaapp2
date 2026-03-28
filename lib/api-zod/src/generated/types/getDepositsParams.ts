@@ -5,7 +5,20 @@
  * Matka Admin Panel API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetDepositsCreatedType } from './getDepositsCreatedType';
 
 export type GetDepositsParams = {
 status?: string;
+/**
+ * Predefined date range
+ */
+createdType?: GetDepositsCreatedType;
+/**
+ * Filter deposits created after this ISO date
+ */
+createdAfter?: Date;
+/**
+ * Filter deposits created before this ISO date
+ */
+createdBefore?: Date;
 };

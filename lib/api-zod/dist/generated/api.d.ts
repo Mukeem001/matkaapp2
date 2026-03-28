@@ -1004,14 +1004,23 @@ export declare const GetBidsResponse: zod.ZodObject<{
     }[];
 }>;
 /**
- * @summary List deposit requests
+ * @summary List deposit requests with optional date filters
  */
 export declare const GetDepositsQueryParams: zod.ZodObject<{
     status: zod.ZodOptional<zod.ZodString>;
+    createdType: zod.ZodOptional<zod.ZodEnum<["today", "yesterday", "last3days", "last7days", "lastMonth"]>>;
+    createdAfter: zod.ZodOptional<zod.ZodDate>;
+    createdBefore: zod.ZodOptional<zod.ZodDate>;
 }, "strip", zod.ZodTypeAny, {
     status?: string;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }, {
     status?: string;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }>;
 export declare const GetDepositsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;

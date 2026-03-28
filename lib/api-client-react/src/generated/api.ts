@@ -1561,7 +1561,7 @@ export function useGetBids<TData = Awaited<ReturnType<typeof getBids>>, TError =
 
 
 /**
- * @summary List deposit requests
+ * @summary List deposit requests with optional date filters
  */
 export const getGetDepositsUrl = (params?: GetDepositsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -1623,7 +1623,7 @@ export type GetDepositsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List deposit requests
+ * @summary List deposit requests with optional date filters
  */
 
 export function useGetDeposits<TData = Awaited<ReturnType<typeof getDeposits>>, TError = ErrorType<unknown>>(

@@ -505,7 +505,7 @@ paths:
     get:
       operationId: getDeposits
       tags: [deposits]
-      summary: List deposit requests
+      summary: List deposit requests with optional date filters
       security:
         - bearerAuth: []
       parameters:
@@ -513,6 +513,24 @@ paths:
           name: status
           schema:
             type: string
+        - in: query
+          name: createdType
+          schema:
+            type: string
+            enum: [today, yesterday, last3days, last7days, lastMonth]
+          description: Predefined date range
+        - in: query
+          name: createdAfter
+          schema:
+            type: string
+            format: date-time
+          description: Filter deposits created after this ISO date
+        - in: query
+          name: createdBefore
+          schema:
+            type: string
+            format: date-time
+          description: Filter deposits created before this ISO date
       responses:
         "200":
           description: List of deposits

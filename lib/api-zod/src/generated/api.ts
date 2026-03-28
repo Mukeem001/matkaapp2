@@ -400,10 +400,13 @@ export const GetBidsResponse = zod.object({
 
 
 /**
- * @summary List deposit requests
+ * @summary List deposit requests with optional date filters
  */
 export const GetDepositsQueryParams = zod.object({
-  "status": zod.coerce.string().optional()
+  "status": zod.coerce.string().optional(),
+  "createdType": zod.enum(['today', 'yesterday', 'last3days', 'last7days', 'lastMonth']).optional().describe('Predefined date range'),
+  "createdAfter": zod.date().optional().describe('Filter deposits created after this ISO date'),
+  "createdBefore": zod.date().optional().describe('Filter deposits created before this ISO date')
 })
 
 export const GetDepositsResponseItem = zod.object({

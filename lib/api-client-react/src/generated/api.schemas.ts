@@ -290,7 +290,30 @@ status?: string;
 
 export type GetDepositsParams = {
 status?: string;
+/**
+ * Predefined date range
+ */
+createdType?: GetDepositsCreatedType;
+/**
+ * Filter deposits created after this ISO date
+ */
+createdAfter?: string;
+/**
+ * Filter deposits created before this ISO date
+ */
+createdBefore?: string;
 };
+
+export type GetDepositsCreatedType = typeof GetDepositsCreatedType[keyof typeof GetDepositsCreatedType];
+
+
+export const GetDepositsCreatedType = {
+  today: 'today',
+  yesterday: 'yesterday',
+  last3days: 'last3days',
+  last7days: 'last7days',
+  lastMonth: 'lastMonth',
+} as const;
 
 export type GetWithdrawalsParams = {
 status?: string;
