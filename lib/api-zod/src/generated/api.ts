@@ -81,12 +81,15 @@ export const GetDashboardStatsResponse = zod.object({
 });
 
 /**
- * @summary List all users
+ * @summary List all users with optional date filters
  */
 export const GetUsersQueryParams = zod.object({
   page: zod.coerce.number().optional(),
   limit: zod.coerce.number().optional(),
   search: zod.coerce.string().optional(),
+  joinedType: zod.enum(['today', 'yesterday', 'last3days', 'last7days', 'lastMonth']).optional(),
+  joinedAfter: zod.string().datetime().optional(),
+  joinedBefore: zod.string().datetime().optional(),
 });
 
 export const GetUsersResponse = zod.object({

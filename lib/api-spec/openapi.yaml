@@ -137,7 +137,7 @@ paths:
     get:
       operationId: getUsers
       tags: [users]
-      summary: List all users
+      summary: List all users with optional date filters
       security:
         - bearerAuth: []
       parameters:
@@ -153,6 +153,29 @@ paths:
           name: search
           schema:
             type: string
+        - in: query
+          name: joinedType
+          schema:
+            type: string
+            enum:
+              - today
+              - yesterday
+              - last3days
+              - last7days
+              - lastMonth
+          description: Predefined date range
+        - in: query
+          name: joinedAfter
+          schema:
+            type: string
+            format: date-time
+          description: Filter users joined after this ISO date
+        - in: query
+          name: joinedBefore
+          schema:
+            type: string
+            format: date-time
+          description: Filter users joined before this ISO date
       responses:
         "200":
           description: List of users

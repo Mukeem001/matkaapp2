@@ -198,20 +198,29 @@ export declare const GetDashboardStatsResponse: zod.ZodObject<{
     }[];
 }>;
 /**
- * @summary List all users
+ * @summary List all users with optional date filters
  */
 export declare const GetUsersQueryParams: zod.ZodObject<{
     page: zod.ZodOptional<zod.ZodNumber>;
     limit: zod.ZodOptional<zod.ZodNumber>;
     search: zod.ZodOptional<zod.ZodString>;
+    joinedType: zod.ZodOptional<zod.ZodEnum<["today", "yesterday", "last3days", "last7days", "lastMonth"]>>;
+    joinedAfter: zod.ZodOptional<zod.ZodString>;
+    joinedBefore: zod.ZodOptional<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
     page?: number;
     limit?: number;
     search?: string;
+    joinedType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    joinedAfter?: string;
+    joinedBefore?: string;
 }, {
     page?: number;
     limit?: number;
     search?: string;
+    joinedType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    joinedAfter?: string;
+    joinedBefore?: string;
 }>;
 export declare const GetUsersResponse: zod.ZodObject<{
     users: zod.ZodArray<zod.ZodObject<{
