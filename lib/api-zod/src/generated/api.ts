@@ -467,10 +467,13 @@ export const RejectDepositResponse = zod.object({
 
 
 /**
- * @summary List withdrawal requests
+ * @summary List withdrawal requests with optional date filters
  */
 export const GetWithdrawalsQueryParams = zod.object({
-  "status": zod.coerce.string().optional()
+  "status": zod.coerce.string().optional(),
+  "createdType": zod.enum(['today', 'yesterday', 'last3days', 'last7days', 'lastMonth']).optional().describe('Predefined date range'),
+  "createdAfter": zod.date().optional().describe('Filter withdrawals created after this ISO date'),
+  "createdBefore": zod.date().optional().describe('Filter withdrawals created before this ISO date')
 })
 
 export const GetWithdrawalsResponseItem = zod.object({

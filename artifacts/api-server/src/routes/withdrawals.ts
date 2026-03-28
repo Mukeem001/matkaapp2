@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db, withdrawalsTable, usersTable } from "@workspace/db";
 import { ApproveWithdrawalParams, RejectWithdrawalParams } from "@workspace/api-zod";
@@ -21,7 +21,58 @@ const formatWithdrawal = (w: typeof withdrawalsTable.$inferSelect, userName: str
   processedAt: w.processedAt?.toISOString() ?? null,
 });
 
-router.get("/withdrawals", authMiddleware, async (_req, res): Promise<void> => {
+function getDateRangeForType(type: string): { from: Date; to: Date } | null {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  switch (type) {
+    case 'today':
+      return { from: today, to: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
+    case 'yesterday':
+      return { from: yesterday, to: today };
+    case 'last3days':
+      const last3 = new Date(today);
+      last3.setDate(last3.getDate() - 3);
+      return { from: last3, to: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
+    case 'last7days':
+      const last7 = new Date(today);
+      last7.setDate(last7.getDate() - 7);
+      return { from: last7, to: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
+    case 'lastMonth':
+      const lastMonth = new Date(today);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      return { from: lastMonth, to: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
+    default:
+      return null;
+  }
+}
+
+router.get("/withdrawals", authMiddleware, async (req, res): Promise<void> => {
+  const { createdType, createdAfter, createdBefore } = req.query;
+  
+  const conditions: any[] = [];
+  
+  if (createdType && createdType !== 'undefined') {
+    const range = getDateRangeForType(createdType as string);
+    if (range) {
+      conditions.push(gte(withdrawalsTable.createdAt, range.from));
+      conditions.push(lte(withdrawalsTable.createdAt, range.to));
+      console.log(`[Withdrawals Filter] createdType: ${createdType}, custom: no, conditions: ${conditions.length}`);
+    }
+  } else if (createdAfter || createdBefore) {
+    if (createdAfter) {
+      conditions.push(gte(withdrawalsTable.createdAt, new Date(createdAfter as string)));
+    }
+    if (createdBefore) {
+      conditions.push(lte(withdrawalsTable.createdAt, new Date(createdBefore as string)));
+    }
+    console.log(`[Withdrawals Filter] createdType: undefined, custom: yes, conditions: ${conditions.length}`);
+  } else {
+    console.log(`[Withdrawals Filter] createdType: undefined, custom: no, conditions: 0`);
+  }
+
   const withdrawals = await db
     .select({
       id: withdrawalsTable.id,
@@ -37,7 +88,10 @@ router.get("/withdrawals", authMiddleware, async (_req, res): Promise<void> => {
       processedAt: withdrawalsTable.processedAt,
     })
     .from(withdrawalsTable)
-    .leftJoin(usersTable, eq(withdrawalsTable.userId, usersTable.id));
+    .leftJoin(usersTable, eq(withdrawalsTable.userId, usersTable.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  console.log(`[Withdrawals Filter] Found ${withdrawals.length} withdrawals`);
 
   res.json(withdrawals.map(w => ({
     ...w,

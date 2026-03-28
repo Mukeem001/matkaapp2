@@ -1783,7 +1783,7 @@ export const useRejectDeposit = <TError = ErrorType<unknown>,
     }
 
 /**
- * @summary List withdrawal requests
+ * @summary List withdrawal requests with optional date filters
  */
 export const getGetWithdrawalsUrl = (params?: GetWithdrawalsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -1845,7 +1845,7 @@ export type GetWithdrawalsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List withdrawal requests
+ * @summary List withdrawal requests with optional date filters
  */
 
 export function useGetWithdrawals<TData = Awaited<ReturnType<typeof getWithdrawals>>, TError = ErrorType<unknown>>(

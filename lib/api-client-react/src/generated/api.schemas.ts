@@ -317,5 +317,28 @@ export const GetDepositsCreatedType = {
 
 export type GetWithdrawalsParams = {
 status?: string;
+/**
+ * Predefined date range
+ */
+createdType?: GetWithdrawalsCreatedType;
+/**
+ * Filter withdrawals created after this ISO date
+ */
+createdAfter?: string;
+/**
+ * Filter withdrawals created before this ISO date
+ */
+createdBefore?: string;
 };
+
+export type GetWithdrawalsCreatedType = typeof GetWithdrawalsCreatedType[keyof typeof GetWithdrawalsCreatedType];
+
+
+export const GetWithdrawalsCreatedType = {
+  today: 'today',
+  yesterday: 'yesterday',
+  last3days: 'last3days',
+  last7days: 'last7days',
+  lastMonth: 'lastMonth',
+} as const;
 

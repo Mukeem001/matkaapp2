@@ -24,6 +24,7 @@ export * from './getResultsParams';
 export * from './getScraperLogsParams';
 export * from './getUsersJoinedType';
 export * from './getUsersParams';
+export * from './getWithdrawalsCreatedType';
 export * from './getWithdrawalsParams';
 export * from './healthStatus';
 export * from './loginRequest';

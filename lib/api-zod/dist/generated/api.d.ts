@@ -1179,14 +1179,23 @@ export declare const RejectDepositResponse: zod.ZodObject<{
     processedAt?: string;
 }>;
 /**
- * @summary List withdrawal requests
+ * @summary List withdrawal requests with optional date filters
  */
 export declare const GetWithdrawalsQueryParams: zod.ZodObject<{
     status: zod.ZodOptional<zod.ZodString>;
+    createdType: zod.ZodOptional<zod.ZodEnum<["today", "yesterday", "last3days", "last7days", "lastMonth"]>>;
+    createdAfter: zod.ZodOptional<zod.ZodDate>;
+    createdBefore: zod.ZodOptional<zod.ZodDate>;
 }, "strip", zod.ZodTypeAny, {
     status?: string;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }, {
     status?: string;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }>;
 export declare const GetWithdrawalsResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useGetWithdrawals, useApproveWithdrawal, useRejectWithdrawal, getGetWithdrawalsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -6,15 +7,48 @@ import { Check, X, Landmark } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
+type DateFilterType = 'today' | 'yesterday' | 'last3days' | 'last7days' | 'lastMonth' | 'custom' | null;
+
 export default function Withdrawals() {
-  const { data: withdrawals, isLoading, error } = useGetWithdrawals({ status: "all" });
+  const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
+  
+  // Build query parameters
+  let queryParams: any = { status: "all" };
+  if (dateFilterType && dateFilterType !== 'custom') {
+    queryParams.createdType = dateFilterType;
+  } else if (dateFilterType === 'custom') {
+    if (customDateFrom) queryParams.createdAfter = new Date(customDateFrom).toISOString();
+    if (customDateTo) queryParams.createdBefore = new Date(customDateTo).toISOString();
+  }
+
+  const { data: withdrawals, isLoading, error } = useGetWithdrawals(queryParams);
   const { mutate: approve } = useApproveWithdrawal();
   const { mutate: reject } = useRejectWithdrawal();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const handleDateFilterClick = (type: DateFilterType) => {
+    if (type === 'custom') {
+      setDateFilterType('custom');
+    } else {
+      setDateFilterType(type);
+      setCustomDateFrom("");
+      setCustomDateTo("");
+    }
+  };
+
+  const clearDateFilter = () => {
+    setDateFilterType(null);
+    setCustomDateFrom("");
+    setCustomDateTo("");
+  };
 
   if (error) {
     return (
@@ -33,8 +67,6 @@ export default function Withdrawals() {
     );
   }
 
-  console.log("Withdrawals data =>", withdrawals);
-
   const handleAction = (id: number, type: 'approve' | 'reject') => {
     const action = type === 'approve' ? approve : reject;
     action({ id }, {
@@ -50,6 +82,94 @@ export default function Withdrawals() {
       <div>
         <h2 className="text-2xl font-display font-bold">Withdrawal Requests</h2>
         <p className="text-muted-foreground mt-1">Review and process user cashouts.</p>
+      </div>
+
+      {/* Date Filter Buttons */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={dateFilterType === 'today' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('today')}
+          >
+            Today
+          </Button>
+          <Button
+            variant={dateFilterType === 'yesterday' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('yesterday')}
+          >
+            Yesterday
+          </Button>
+          <Button
+            variant={dateFilterType === 'last3days' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('last3days')}
+          >
+            Last 3 Days
+          </Button>
+          <Button
+            variant={dateFilterType === 'last7days' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('last7days')}
+          >
+            Last 7 Days
+          </Button>
+          <Button
+            variant={dateFilterType === 'lastMonth' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('lastMonth')}
+          >
+            Last Month
+          </Button>
+          <Button
+            variant={dateFilterType === 'custom' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('custom')}
+          >
+            Custom Date
+          </Button>
+          {dateFilterType && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full text-muted-foreground"
+              onClick={clearDateFilter}
+            >
+              <X className="w-3 h-3 mr-1" /> Clear
+            </Button>
+          )}
+        </div>
+
+        {/* Custom Date Picker */}
+        {dateFilterType === 'custom' && (
+          <div className="flex gap-2 items-end bg-cardmuted/30 p-3 rounded-lg">
+            <div className="flex-1">
+              <Label className="text-xs mb-1">From Date</Label>
+              <Input 
+                type="date" 
+                value={customDateFrom}
+                onChange={(e) => setCustomDateFrom(e.target.value)}
+                className="rounded-lg h-9"
+              />
+            </div>
+            <div className="flex-1">
+              <Label className="text-xs mb-1">To Date</Label>
+              <Input 
+                type="date" 
+                value={customDateTo}
+                onChange={(e) => setCustomDateTo(e.target.value)}
+                className="rounded-lg h-9"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">

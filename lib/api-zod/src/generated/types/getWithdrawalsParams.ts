@@ -5,7 +5,20 @@
  * Matka Admin Panel API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetWithdrawalsCreatedType } from './getWithdrawalsCreatedType';
 
 export type GetWithdrawalsParams = {
 status?: string;
+/**
+ * Predefined date range
+ */
+createdType?: GetWithdrawalsCreatedType;
+/**
+ * Filter withdrawals created after this ISO date
+ */
+createdAfter?: Date;
+/**
+ * Filter withdrawals created before this ISO date
+ */
+createdBefore?: Date;
 };
