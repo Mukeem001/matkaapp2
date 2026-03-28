@@ -5,11 +5,24 @@
  * Matka Admin Panel API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetBidsCreatedType } from './getBidsCreatedType';
 export type GetBidsParams = {
     page?: number;
     limit?: number;
     marketId?: number;
     userId?: number;
     status?: string;
+    /**
+     * Predefined date range
+     */
+    createdType?: GetBidsCreatedType;
+    /**
+     * Filter bids created after this ISO date
+     */
+    createdAfter?: Date;
+    /**
+     * Filter bids created before this ISO date
+     */
+    createdBefore?: Date;
 };
 //# sourceMappingURL=getBidsParams.d.ts.map

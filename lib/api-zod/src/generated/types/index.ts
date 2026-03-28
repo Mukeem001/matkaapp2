@@ -18,6 +18,7 @@ export * from './deposit';
 export * from './errorResponse';
 export * from './fetchResultResponse';
 export * from './gameRates';
+export * from './getBidsCreatedType';
 export * from './getBidsParams';
 export * from './getDepositsCreatedType';
 export * from './getDepositsParams';

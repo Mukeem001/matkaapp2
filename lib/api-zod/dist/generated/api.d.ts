@@ -896,7 +896,7 @@ export declare const DeclareResultBody: zod.ZodObject<{
     pannaResult?: string;
 }>;
 /**
- * @summary List all bids
+ * @summary List all bids with optional date filters
  */
 export declare const GetBidsQueryParams: zod.ZodObject<{
     page: zod.ZodOptional<zod.ZodNumber>;
@@ -904,18 +904,27 @@ export declare const GetBidsQueryParams: zod.ZodObject<{
     marketId: zod.ZodOptional<zod.ZodNumber>;
     userId: zod.ZodOptional<zod.ZodNumber>;
     status: zod.ZodOptional<zod.ZodString>;
+    createdType: zod.ZodOptional<zod.ZodEnum<["today", "yesterday", "last3days", "last7days", "lastMonth"]>>;
+    createdAfter: zod.ZodOptional<zod.ZodDate>;
+    createdBefore: zod.ZodOptional<zod.ZodDate>;
 }, "strip", zod.ZodTypeAny, {
     status?: string;
     userId?: number;
     marketId?: number;
     page?: number;
     limit?: number;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }, {
     status?: string;
     userId?: number;
     marketId?: number;
     page?: number;
     limit?: number;
+    createdType?: "today" | "yesterday" | "last3days" | "last7days" | "lastMonth";
+    createdAfter?: Date;
+    createdBefore?: Date;
 }>;
 export declare const GetBidsResponse: zod.ZodObject<{
     bids: zod.ZodArray<zod.ZodObject<{
@@ -1016,11 +1025,14 @@ export declare const UpdateBidParams: zod.ZodObject<{
 export declare const UpdateBidBody: zod.ZodObject<{
     amount: zod.ZodOptional<zod.ZodNumber>;
     number: zod.ZodOptional<zod.ZodString>;
+    status: zod.ZodOptional<zod.ZodEnum<["pending", "won", "lost"]>>;
 }, "strip", zod.ZodTypeAny, {
     number?: string;
+    status?: "pending" | "won" | "lost";
     amount?: number;
 }, {
     number?: string;
+    status?: "pending" | "won" | "lost";
     amount?: number;
 }>;
 export declare const UpdateBidResponse: zod.ZodObject<{

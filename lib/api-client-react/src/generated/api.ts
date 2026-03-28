@@ -1482,7 +1482,7 @@ export const useDeclareResult = <TError = ErrorType<unknown>,
     }
 
 /**
- * @summary List all bids
+ * @summary List all bids with optional date filters
  */
 export const getGetBidsUrl = (params?: GetBidsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -1544,7 +1544,7 @@ export type GetBidsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List all bids
+ * @summary List all bids with optional date filters
  */
 
 export function useGetBids<TData = Awaited<ReturnType<typeof getBids>>, TError = ErrorType<unknown>>(

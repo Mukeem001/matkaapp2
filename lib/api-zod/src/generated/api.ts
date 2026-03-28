@@ -367,14 +367,17 @@ export const DeclareResultBody = zod.object({
 
 
 /**
- * @summary List all bids
+ * @summary List all bids with optional date filters
  */
 export const GetBidsQueryParams = zod.object({
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional(),
   "marketId": zod.coerce.number().optional(),
   "userId": zod.coerce.number().optional(),
-  "status": zod.coerce.string().optional()
+  "status": zod.coerce.string().optional(),
+  "createdType": zod.enum(['today', 'yesterday', 'last3days', 'last7days', 'lastMonth']).optional().describe('Predefined date range'),
+  "createdAfter": zod.date().optional().describe('Filter bids created after this ISO date'),
+  "createdBefore": zod.date().optional().describe('Filter bids created before this ISO date')
 })
 
 export const GetBidsResponse = zod.object({
@@ -408,7 +411,8 @@ export const UpdateBidParams = zod.object({
 
 export const UpdateBidBody = zod.object({
   "amount": zod.number().optional().describe('New bid amount (must be > 0)'),
-  "number": zod.string().optional().describe('New bid number')
+  "number": zod.string().optional().describe('New bid number'),
+  "status": zod.enum(['pending', 'won', 'lost']).optional().describe('New bid status')
 })
 
 export const UpdateBidResponse = zod.object({

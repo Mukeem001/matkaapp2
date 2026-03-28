@@ -469,7 +469,7 @@ paths:
     get:
       operationId: getBids
       tags: [bids]
-      summary: List all bids
+      summary: List all bids with optional date filters
       security:
         - bearerAuth: []
       parameters:
@@ -493,6 +493,24 @@ paths:
           name: status
           schema:
             type: string
+        - in: query
+          name: createdType
+          schema:
+            type: string
+            enum: [today, yesterday, last3days, last7days, lastMonth]
+          description: Predefined date range
+        - in: query
+          name: createdAfter
+          schema:
+            type: string
+            format: date-time
+          description: Filter bids created after this ISO date
+        - in: query
+          name: createdBefore
+          schema:
+            type: string
+            format: date-time
+          description: Filter bids created before this ISO date
       responses:
         "200":
           description: List of bids
@@ -528,6 +546,10 @@ paths:
                 number:
                   type: string
                   description: New bid number
+                status:
+                  type: string
+                  enum: [pending, won, lost]
+                  description: New bid status
       responses:
         "200":
           description: Updated bid

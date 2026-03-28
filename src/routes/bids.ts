@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, eq, and } from "drizzle-orm";
+import { sql, eq, and, gte, lte } from "drizzle-orm";
 import { format } from "date-fns";
 import { db, bidsTable, usersTable, marketsTable, resultsTable, gameRatesTable } from "@workspace/db";
 import { GetBidsQueryParams } from "@workspace/api-zod";
@@ -8,43 +8,119 @@ import { processMarketBidsPreClose, isBidWinner, calculateWinnings } from "../li
 
 const router: IRouter = Router();
 
+// Helper function for date range calculation
+function getDateRangeForType(type: string): { from: Date; to: Date } | null {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istNow = new Date(now.getTime() + istOffset);
+
+  switch (type) {
+    case "today":
+      const todayStart = new Date(istNow);
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const todayEnd = new Date(istNow);
+      todayEnd.setUTCHours(23, 59, 59, 999);
+      return { from: todayStart, to: todayEnd };
+
+    case "yesterday":
+      const yesterdayDate = new Date(istNow);
+      yesterdayDate.setUTCDate(istNow.getUTCDate() - 1);
+      const yesterdayStart = new Date(yesterdayDate);
+      yesterdayStart.setUTCHours(0, 0, 0, 0);
+      const yesterdayEnd = new Date(yesterdayDate);
+      yesterdayEnd.setUTCHours(23, 59, 59, 999);
+      return { from: yesterdayStart, to: yesterdayEnd };
+
+    case "last3days":
+      const last3End = new Date(istNow);
+      last3End.setUTCHours(23, 59, 59, 999);
+      const last3Start = new Date(istNow);
+      last3Start.setUTCDate(istNow.getUTCDate() - 2);
+      last3Start.setUTCHours(0, 0, 0, 0);
+      return { from: last3Start, to: last3End };
+
+    case "last7days":
+      const last7End = new Date(istNow);
+      last7End.setUTCHours(23, 59, 59, 999);
+      const last7Start = new Date(istNow);
+      last7Start.setUTCDate(istNow.getUTCDate() - 6);
+      last7Start.setUTCHours(0, 0, 0, 0);
+      return { from: last7Start, to: last7End };
+
+    case "lastMonth":
+      const lastMonthEnd = new Date(istNow);
+      lastMonthEnd.setUTCHours(23, 59, 59, 999);
+      const lastMonthStart = new Date(istNow);
+      lastMonthStart.setUTCDate(1);
+      lastMonthStart.setUTCHours(0, 0, 0, 0);
+      return { from: lastMonthStart, to: lastMonthEnd };
+
+    default:
+      return null;
+  }
+}
+
 router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
   try {
     const query = GetBidsQueryParams.safeParse(req.query);
     const page = query.success ? (query.data.page ?? 1) : 1;
     const limit = query.success ? (query.data.limit ?? 20) : 20;
+    const createdType = (req.query.createdType as string) || undefined;
+    const createdAfter = (req.query.createdAfter as string) || undefined;
+    const createdBefore = (req.query.createdBefore as string) || undefined;
 
-    // Use sql() helper for raw SQL with drizzle
-    const bidsResult = await db.execute(sql`
-      SELECT 
-        id, user_id, market_id, market_name, game_type, amount, number, 
-        open_time, close_time, current_time, status, created_at
-      FROM bids 
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-    `) as any;
+    // Build date filter conditions
+    let conditions = [];
+    if (createdType && createdType !== "custom") {
+      const range = getDateRangeForType(createdType);
+      if (range) {
+        conditions.push(gte(bidsTable.createdAt, range.from));
+        conditions.push(lte(bidsTable.createdAt, range.to));
+        console.log(`[Bids Filter] createdType: ${createdType}, custom: no, conditions: ${conditions.length}`);
+      }
+    } else if (createdAfter || createdBefore) {
+      if (createdAfter) {
+        conditions.push(gte(bidsTable.createdAt, new Date(createdAfter)));
+      }
+      if (createdBefore) {
+        conditions.push(lte(bidsTable.createdAt, new Date(createdBefore)));
+      }
+      console.log(`[Bids Filter] custom dates, conditions: ${conditions.length}`);
+    }
 
-    const totalResult = await db.execute(sql`SELECT COUNT(*) as count FROM bids`) as any;
+    // Build the query
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const bids = (bidsResult.rows || []).map((b: any) => ({
+    const bidsResult = whereCondition
+      ? await db.select().from(bidsTable).where(whereCondition).limit(limit)
+      : await db.select().from(bidsTable).limit(limit);
+
+    const totalResult = whereCondition
+      ? await db.select({ count: sql`count(*)` }).from(bidsTable).where(whereCondition)
+      : await db.select({ count: sql`count(*)` }).from(bidsTable);
+
+    console.log(`[Bids Filter] Found ${bidsResult.length} bids`);
+
+    const bids = bidsResult.map((b: any) => ({
       id: b.id,
-      userId: b.user_id,
-      userName: "User " + b.user_id,
-      marketId: b.market_id,
-      marketName: b.market_name || "Unknown",
-      gameType: b.game_type,
-      amount: parseFloat(b.amount || "0"),
+      userId: b.userId,
+      userName: "User " + b.userId,
+      marketId: b.marketId,
+      marketName: b.marketName || "Unknown",
+      gameType: b.gameType,
+      amount: typeof b.amount === "string" ? parseFloat(b.amount) : b.amount,
       number: b.number,
-      openTime: b.open_time || "",
-      closeTime: b.close_time || "",
-      currentTime: typeof b.current_time === 'string' ? b.current_time : (b.current_time?.toISOString?.() ?? new Date().toISOString()),
+      digit: b.number,
+      openTime: b.openTime || "",
+      closeTime: b.closeTime || "",
+      currentTime: typeof b.currentTime === "string" ? b.currentTime : (b.currentTime?.toISOString?.() ?? new Date().toISOString()),
       status: b.status,
-      createdAt: typeof b.created_at === 'string' ? b.created_at : (b.created_at?.toISOString?.() ?? new Date().toISOString()),
+      createdAt: typeof b.createdAt === "string" ? b.createdAt : (b.createdAt?.toISOString?.() ?? new Date().toISOString()),
     }));
 
     res.json({
       bids,
-      total: parseInt((totalResult.rows?.[0]?.count || 0) as string),
+      total: parseInt(totalResult[0]?.count?.toString() || "0"),
       page,
       limit,
     });
@@ -230,7 +306,7 @@ router.post("/process-now/:marketId", authMiddleware, async (req, res): Promise<
 router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
   try {
     const bidId = parseInt(req.params.id as string, 10);
-    const { amount, number } = req.body;
+    const { amount, number, status } = req.body;
 
     if (isNaN(bidId)) {
       res.status(400).json({ error: "Invalid bid ID" });
@@ -240,11 +316,6 @@ router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
     const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, bidId));
     if (!bid) {
       res.status(404).json({ error: "Bid not found" });
-      return;
-    }
-
-    if (bid.status !== "pending") {
-      res.status(400).json({ error: `Cannot edit ${bid.status} bid` });
       return;
     }
 
@@ -266,6 +337,15 @@ router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
         return;
       }
       updates.number = number.trim();
+    }
+
+    if (status !== undefined) {
+      const validStatuses = ['pending', 'won', 'lost'];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ error: "Invalid status - must be pending, won, or lost" });
+        return;
+      }
+      updates.status = status;
     }
 
     if (Object.keys(updates).length === 0) {

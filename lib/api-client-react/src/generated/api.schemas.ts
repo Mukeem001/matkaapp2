@@ -286,13 +286,50 @@ limit?: number;
 marketId?: number;
 userId?: number;
 status?: string;
+/**
+ * Predefined date range
+ */
+createdType?: GetBidsCreatedType;
+/**
+ * Filter bids created after this ISO date
+ */
+createdAfter?: string;
+/**
+ * Filter bids created before this ISO date
+ */
+createdBefore?: string;
 };
+
+export type GetBidsCreatedType = typeof GetBidsCreatedType[keyof typeof GetBidsCreatedType];
+
+
+export const GetBidsCreatedType = {
+  today: 'today',
+  yesterday: 'yesterday',
+  last3days: 'last3days',
+  last7days: 'last7days',
+  lastMonth: 'lastMonth',
+} as const;
+
+/**
+ * New bid status
+ */
+export type UpdateBidBodyStatus = typeof UpdateBidBodyStatus[keyof typeof UpdateBidBodyStatus];
+
+
+export const UpdateBidBodyStatus = {
+  pending: 'pending',
+  won: 'won',
+  lost: 'lost',
+} as const;
 
 export type UpdateBidBody = {
   /** New bid amount (must be > 0) */
   amount?: number;
   /** New bid number */
   number?: string;
+  /** New bid status */
+  status?: UpdateBidBodyStatus;
 };
 
 export type UpdateBid400 = {

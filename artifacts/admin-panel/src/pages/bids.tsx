@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
-import { useGetDashboardStats, useUpdateBid } from "@workspace/api-client-react";
+import { useState, useMemo } from "react";
+import { useGetBids, useUpdateBid, getGetBidsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -32,92 +33,109 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
+type DateFilterType = 'today' | 'yesterday' | 'last3days' | 'last7days' | 'lastMonth' | 'custom' | null;
+
 export default function Bids() {
-  const [status, setStatus] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
   const [editingBidId, setEditingBidId] = useState<number | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNumber, setEditNumber] = useState("");
+  const [editStatus, setEditStatus] = useState("");
 
-  // 🔥 SAME API AS DASHBOARD
-  const { data: stats, isLoading, refetch } = useGetDashboardStats();
+  const queryClient = useQueryClient();
+  
+  // Build query parameters
+  let queryParams: any = {};
+  if (dateFilterType && dateFilterType !== 'custom') {
+    queryParams.createdType = dateFilterType;
+  } else if (dateFilterType === 'custom') {
+    if (customDateFrom) queryParams.createdAfter = new Date(customDateFrom).toISOString();
+    if (customDateTo) queryParams.createdBefore = new Date(customDateTo).toISOString();
+  }
+
+  // 🔥 Fetch bids with filters
+  const { data: bidsData, isLoading } = useGetBids(queryParams);
 
   // 🔄 Update bid mutation
-  const updateBidMutation = useUpdateBid({
-    mutation: {
-      onSuccess: () => {
-        toast.success("Bid updated successfully!");
-        setEditingBidId(null);
-        setEditAmount("");
-        setEditNumber("");
-        refetch();
-      },
-      onError: (error: any) => {
-        toast.error(error?.response?.data?.error || "Failed to update bid");
-      },
-    },
-  });
+  const { mutate: updateBid } = useUpdateBid();
 
-  // 🔎 frontend filter (same UI)
+  // 🔎 frontend status filter
   const bids = useMemo(() => {
-    if (!stats?.recentBids || !Array.isArray(stats.recentBids)) return [];
+    if (!bidsData?.bids || !Array.isArray(bidsData.bids)) return [];
 
-    if (status === "all") return stats.recentBids;
+    if (statusFilter === "all") return bidsData.bids;
 
-    return stats.recentBids.filter(
-      (bid) => bid.status === status
-    );
-  }, [stats, status]);
+    return bidsData.bids.filter((bid: any) => bid.status === statusFilter);
+  }, [bidsData, statusFilter]);
 
-  // 🔄 Auto-refresh bid data every 2 minutes to check for result updates
-  useEffect(() => {
-    console.log("[Bids] Setting up auto-refresh interval");
-    
-    const autoRefreshInterval = setInterval(() => {
-      console.log("[Bids] Auto-refreshing bid data...");
-      refetch();
-    }, 120000); // 2 minutes
+  // Handle date filter
+  const handleDateFilterClick = (type: DateFilterType) => {
+    if (type === 'custom') {
+      setDateFilterType('custom');
+    } else {
+      setDateFilterType(type);
+      setCustomDateFrom("");
+      setCustomDateTo("");
+    }
+  };
 
-    return () => {
-      clearInterval(autoRefreshInterval);
-      console.log("[Bids] Cleared auto-refresh interval");
-    };
-  }, [refetch]);
+  // Clear date filter
+  const clearDateFilter = () => {
+    setDateFilterType(null);
+    setCustomDateFrom("");
+    setCustomDateTo("");
+  };
 
   // Handle edit button click
   const handleEditClick = (bid: any) => {
     setEditingBidId(bid.id);
     setEditAmount(bid.amount.toString());
     setEditNumber(bid.number);
+    setEditStatus(bid.status);
   };
 
   // Handle save edit
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editingBidId) return;
 
-    try {
-      const amount = editAmount ? parseFloat(editAmount) : undefined;
-      const number = editNumber || undefined;
+    const amount = editAmount ? parseFloat(editAmount) : undefined;
+    const number = editNumber || undefined;
+    const status = editStatus || undefined;
 
-      if (!amount && !number) {
-        toast.error("Please enter amount or number to edit");
-        return;
-      }
-
-      if (amount && amount <= 0) {
-        toast.error("Amount must be greater than 0");
-        return;
-      }
-
-      await updateBidMutation.mutateAsync({
-        id: editingBidId,
-        data: {
-          ...(amount ? { amount } : {}),
-          ...(number ? { number } : {}),
-        },
-      });
-    } catch (error) {
-      console.error("[Edit Bid] Error:", error);
+    if (!amount && !number && !status) {
+      toast.error("Please change at least one field");
+      return;
     }
+
+    if (amount && amount <= 0) {
+      toast.error("Amount must be greater than 0");
+      return;
+    }
+
+    const payload: any = {};
+    if (amount) payload.amount = amount;
+    if (number) payload.number = number;
+    if (status) payload.status = status;
+
+    updateBid(
+      { id: editingBidId, data: payload },
+      {
+        onSuccess: () => {
+          toast.success("Bid updated successfully!");
+          setEditingBidId(null);
+          setEditAmount("");
+          setEditNumber("");
+          setEditStatus("");
+          queryClient.invalidateQueries({ queryKey: getGetBidsQueryKey() });
+        },
+        onError: (error: any) => {
+          toast.error(error?.message || "Failed to update bid");
+        },
+      }
+    );
   };
 
   return (
@@ -131,7 +149,7 @@ export default function Bids() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={status} onValueChange={setStatus}>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40 rounded-xl bg-card border-border/50">
               <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
@@ -143,6 +161,93 @@ export default function Bids() {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* Date Filter Buttons */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={dateFilterType === 'today' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('today')}
+          >
+            Today
+          </Button>
+          <Button
+            variant={dateFilterType === 'yesterday' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('yesterday')}
+          >
+            Yesterday
+          </Button>
+          <Button
+            variant={dateFilterType === 'last3days' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('last3days')}
+          >
+            Last 3 Days
+          </Button>
+          <Button
+            variant={dateFilterType === 'last7days' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('last7days')}
+          >
+            Last 7 Days
+          </Button>
+          <Button
+            variant={dateFilterType === 'lastMonth' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('lastMonth')}
+          >
+            This Month
+          </Button>
+          <Button
+            variant={dateFilterType === 'custom' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleDateFilterClick('custom')}
+          >
+            Custom Date
+          </Button>
+          {dateFilterType && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full"
+              onClick={clearDateFilter}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {dateFilterType === 'custom' && (
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Label htmlFor="fromDate" className="text-xs mb-1 block">From Date</Label>
+              <Input
+                id="fromDate"
+                type="datetime-local"
+                value={customDateFrom}
+                onChange={(e) => setCustomDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="toDate" className="text-xs mb-1 block">To Date</Label>
+              <Input
+                id="toDate"
+                type="datetime-local"
+                value={customDateTo}
+                onChange={(e) => setCustomDateTo(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
@@ -246,13 +351,14 @@ export default function Bids() {
           setEditingBidId(null);
           setEditAmount("");
           setEditNumber("");
+          setEditStatus("");
         }
       }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Bid #{editingBidId}</DialogTitle>
             <DialogDescription>
-              Update the amount and/or bid number for this pending bid.
+              Update the amount, bid number, and/or status for this bid.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -278,6 +384,19 @@ export default function Bids() {
                 placeholder="Enter new bid number"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -286,22 +405,19 @@ export default function Bids() {
                 setEditingBidId(null);
                 setEditAmount("");
                 setEditNumber("");
+                setEditStatus("");
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={updateBidMutation.isPending}
             >
-              {updateBidMutation.isPending ? "Saving..." : "Save Changes"}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-      </Card>
     </div>
   );
 }
