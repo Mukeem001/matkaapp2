@@ -1004,6 +1004,69 @@ export declare const GetBidsResponse: zod.ZodObject<{
     }[];
 }>;
 /**
+ * @summary Edit a pending bid - allows users to change amount and/or number
+ */
+export declare const UpdateBidParams: zod.ZodObject<{
+    id: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    id?: number;
+}, {
+    id?: number;
+}>;
+export declare const UpdateBidBody: zod.ZodObject<{
+    amount: zod.ZodOptional<zod.ZodNumber>;
+    number: zod.ZodOptional<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    number?: string;
+    amount?: number;
+}, {
+    number?: string;
+    amount?: number;
+}>;
+export declare const UpdateBidResponse: zod.ZodObject<{
+    id: zod.ZodNumber;
+    userId: zod.ZodNumber;
+    userName: zod.ZodOptional<zod.ZodString>;
+    marketId: zod.ZodNumber;
+    marketName: zod.ZodString;
+    gameType: zod.ZodString;
+    amount: zod.ZodNumber;
+    digit: zod.ZodString;
+    openTime: zod.ZodOptional<zod.ZodString>;
+    closeTime: zod.ZodOptional<zod.ZodString>;
+    currentTime: zod.ZodOptional<zod.ZodString>;
+    status: zod.ZodString;
+    createdAt: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    marketId?: number;
+    marketName?: string;
+    gameType?: string;
+    amount?: number;
+    digit?: string;
+    openTime?: string;
+    closeTime?: string;
+    currentTime?: string;
+}, {
+    status?: string;
+    id?: number;
+    createdAt?: string;
+    userId?: number;
+    userName?: string;
+    marketId?: number;
+    marketName?: string;
+    gameType?: string;
+    amount?: number;
+    digit?: string;
+    openTime?: string;
+    closeTime?: string;
+    currentTime?: string;
+}>;
+/**
  * @summary List deposit requests with optional date filters
  */
 export declare const GetDepositsQueryParams: zod.ZodObject<{

@@ -400,6 +400,35 @@ export const GetBidsResponse = zod.object({
 
 
 /**
+ * @summary Edit a pending bid - allows users to change amount and/or number
+ */
+export const UpdateBidParams = zod.object({
+  "id": zod.coerce.number().describe('Bid ID')
+})
+
+export const UpdateBidBody = zod.object({
+  "amount": zod.number().optional().describe('New bid amount (must be > 0)'),
+  "number": zod.string().optional().describe('New bid number')
+})
+
+export const UpdateBidResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "marketId": zod.number(),
+  "marketName": zod.string(),
+  "gameType": zod.string(),
+  "amount": zod.number(),
+  "digit": zod.string(),
+  "openTime": zod.string().optional(),
+  "closeTime": zod.string().optional(),
+  "currentTime": zod.string().optional(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary List deposit requests with optional date filters
  */
 export const GetDepositsQueryParams = zod.object({

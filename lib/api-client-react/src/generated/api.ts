@@ -22,6 +22,7 @@ import type {
 import type {
   Admin,
   AppSettings,
+  Bid,
   BidListResponse,
   CreateMarketRequest,
   CreateNoticeRequest,
@@ -49,6 +50,8 @@ import type {
   SignupRequest,
   SignupResponse,
   SuccessResponse,
+  UpdateBid400,
+  UpdateBidBody,
   UpdateUserRequest,
   User,
   UserListResponse,
@@ -1559,6 +1562,78 @@ export function useGetBids<TData = Awaited<ReturnType<typeof getBids>>, TError =
 
 
 
+
+/**
+ * @summary Edit a pending bid - allows users to change amount and/or number
+ */
+export const getUpdateBidUrl = (id: number,) => {
+
+
+
+
+  return `/api/bids/${id}`
+}
+
+export const updateBid = async (id: number,
+    updateBidBody: UpdateBidBody, options?: RequestInit): Promise<Bid> => {
+
+  return customFetch<Bid>(getUpdateBidUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateBidBody,)
+  }
+);}
+
+
+
+
+export const getUpdateBidMutationOptions = <TError = ErrorType<UpdateBid400 | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{id: number;data: BodyType<UpdateBidBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{id: number;data: BodyType<UpdateBidBody>}, TContext> => {
+
+const mutationKey = ['updateBid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBid>>, {id: number;data: BodyType<UpdateBidBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBid(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBidMutationResult = NonNullable<Awaited<ReturnType<typeof updateBid>>>
+    export type UpdateBidMutationBody = BodyType<UpdateBidBody>
+    export type UpdateBidMutationError = ErrorType<UpdateBid400 | void>
+
+    /**
+ * @summary Edit a pending bid - allows users to change amount and/or number
+ */
+export const useUpdateBid = <TError = ErrorType<UpdateBid400 | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{id: number;data: BodyType<UpdateBidBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBid>>,
+        TError,
+        {id: number;data: BodyType<UpdateBidBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateBidMutationOptions(options));
+    }
 
 /**
  * @summary List deposit requests with optional date filters

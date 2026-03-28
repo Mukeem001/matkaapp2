@@ -288,6 +288,17 @@ userId?: number;
 status?: string;
 };
 
+export type UpdateBidBody = {
+  /** New bid amount (must be > 0) */
+  amount?: number;
+  /** New bid number */
+  number?: string;
+};
+
+export type UpdateBid400 = {
+  error?: string;
+};
+
 export type GetDepositsParams = {
 status?: string;
 /**

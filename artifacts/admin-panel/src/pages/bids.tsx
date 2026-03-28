@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
-import { useGetDashboardStats } from "@workspace/api-client-react";
+import { useGetDashboardStats, useUpdateBid } from "@workspace/api-client-react";
 import { format } from "date-fns";
 
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,12 +22,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function Bids() {
   const [status, setStatus] = useState("all");
+  const [editingBidId, setEditingBidId] = useState<number | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editNumber, setEditNumber] = useState("");
 
   // 🔥 SAME API AS DASHBOARD
   const { data: stats, isLoading, refetch } = useGetDashboardStats();
+
+  // 🔄 Update bid mutation
+  const updateBidMutation = useUpdateBid({
+    mutation: {
+      onSuccess: () => {
+        toast.success("Bid updated successfully!");
+        setEditingBidId(null);
+        setEditAmount("");
+        setEditNumber("");
+        refetch();
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.error || "Failed to update bid");
+      },
+    },
+  });
 
   // 🔎 frontend filter (same UI)
   const bids = useMemo(() => {
@@ -51,6 +82,43 @@ export default function Bids() {
       console.log("[Bids] Cleared auto-refresh interval");
     };
   }, [refetch]);
+
+  // Handle edit button click
+  const handleEditClick = (bid: any) => {
+    setEditingBidId(bid.id);
+    setEditAmount(bid.amount.toString());
+    setEditNumber(bid.number);
+  };
+
+  // Handle save edit
+  const handleSaveEdit = async () => {
+    if (!editingBidId) return;
+
+    try {
+      const amount = editAmount ? parseFloat(editAmount) : undefined;
+      const number = editNumber || undefined;
+
+      if (!amount && !number) {
+        toast.error("Please enter amount or number to edit");
+        return;
+      }
+
+      if (amount && amount <= 0) {
+        toast.error("Amount must be greater than 0");
+        return;
+      }
+
+      await updateBidMutation.mutateAsync({
+        id: editingBidId,
+        data: {
+          ...(amount ? { amount } : {}),
+          ...(number ? { number } : {}),
+        },
+      });
+    } catch (error) {
+      console.error("[Edit Bid] Error:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -89,19 +157,20 @@ export default function Bids() {
               <TableHead className="text-center">Open - Close</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead className="pr-6 text-right">Status</TableHead>
+              <TableHead className="text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : bids.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                   No bids found.
                 </TableCell>
               </TableRow>
@@ -150,11 +219,88 @@ export default function Bids() {
                       {bid.status.toUpperCase()}
                     </Badge>
                   </TableCell>
+
+                  <TableCell className="text-center">
+                    {bid.status === "pending" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(bid)}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editingBidId !== null} onOpenChange={(open) => {
+        if (!open) {
+          setEditingBidId(null);
+          setEditAmount("");
+          setEditNumber("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Bid #{editingBidId}</DialogTitle>
+            <DialogDescription>
+              Update the amount and/or bid number for this pending bid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="amount">Amount (₹)</Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="Enter new amount"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="number">Bid Number</Label>
+              <Input
+                id="number"
+                type="text"
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+                placeholder="Enter new bid number"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingBidId(null);
+                setEditAmount("");
+                setEditNumber("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateBidMutation.isPending}
+            >
+              {updateBidMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
       </Card>
     </div>
   );

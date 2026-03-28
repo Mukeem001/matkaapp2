@@ -501,6 +501,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/BidListResponse"
 
+  /bids/{id}:
+    patch:
+      operationId: updateBid
+      tags: [bids]
+      summary: Edit a pending bid - allows users to change amount and/or number
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Bid ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  description: New bid amount (must be > 0)
+                number:
+                  type: string
+                  description: New bid number
+      responses:
+        "200":
+          description: Updated bid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+        "400":
+          description: Bad request or cannot edit non-pending bid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Bid not found
+
   /deposits:
     get:
       operationId: getDeposits

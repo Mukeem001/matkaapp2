@@ -39,6 +39,7 @@ export * from './scraperStatus';
 export * from './signupRequest';
 export * from './signupResponse';
 export * from './successResponse';
+export * from './updateBid400';
 export * from './updateUserRequest';
 export * from './user';
 export * from './userListResponse';

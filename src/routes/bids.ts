@@ -222,4 +222,73 @@ router.post("/process-now/:marketId", authMiddleware, async (req, res): Promise<
   }
 });
 
+/**
+ * PATCH /bids/:id
+ * Edit a pending bid - allows users to change amount and/or number
+ * Only pending bids can be edited
+ */
+router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
+  try {
+    const bidId = parseInt(req.params.id as string, 10);
+    const { amount, number } = req.body;
+
+    if (isNaN(bidId)) {
+      res.status(400).json({ error: "Invalid bid ID" });
+      return;
+    }
+
+    const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, bidId));
+    if (!bid) {
+      res.status(404).json({ error: "Bid not found" });
+      return;
+    }
+
+    if (bid.status !== "pending") {
+      res.status(400).json({ error: `Cannot edit ${bid.status} bid` });
+      return;
+    }
+
+    // Validate and prepare updates
+    const updates: any = {};
+    
+    if (amount !== undefined) {
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        res.status(400).json({ error: "Invalid amount - must be greater than 0" });
+        return;
+      }
+      updates.amount = numAmount.toString();
+    }
+    
+    if (number !== undefined) {
+      if (typeof number !== 'string' || number.trim() === '') {
+        res.status(400).json({ error: "Invalid number - must be non-empty string" });
+        return;
+      }
+      updates.number = number.trim();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+
+    // Update bid
+    const [updatedBid] = await db.update(bidsTable)
+      .set(updates)
+      .where(eq(bidsTable.id, bidId))
+      .returning();
+
+    console.log(`[Edit Bid] Bid ${bidId} updated:`, updates);
+    
+    res.json({
+      ...updatedBid,
+      amount: parseFloat(updatedBid.amount as string),
+    });
+  } catch (err) {
+    console.error("[Edit Bid] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;
