@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { db, marketsTable, markets2Table } from "@workspace/db";
 import { updateMarketActivityStatus } from "../lib/scheduler.js";
+import { updateMarket2ActivityStatus } from "../lib/scraper2.js";
 
 const router: IRouter = Router();
 
@@ -25,6 +26,7 @@ router.get("/debug/check-market-status", async (_req, res) => {
     
     // Manually update market status
     await updateMarketActivityStatus();
+    await updateMarket2ActivityStatus();
     
     // Fetch updated markets
     const market1s = await db.select().from(marketsTable);
