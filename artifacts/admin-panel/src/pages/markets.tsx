@@ -203,6 +203,12 @@ export default function Markets() {
   const [autoConfigMarket, setAutoConfigMarket] = useState<Market | null>(null);
   const [fetchingId, setFetchingId] = useState<number | null>(null);
 
+  // Effect 0: Force immediate refetch on mount to ensure fresh data
+  useEffect(() => {
+    console.log("[Markets] Component mounted - forcing initial refetch");
+    refetch();
+  }, []);
+
   // Memoized values
   const displayDate = useMemo(() => {
     const date = new Date(selectedDate);

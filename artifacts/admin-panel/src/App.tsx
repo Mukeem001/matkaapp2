@@ -22,7 +22,20 @@ import Notices from "@/pages/notices";
 import Logs from "@/pages/logs";
 import Settings from "@/pages/settings";
 
-const queryClient = new QueryClient();
+// Configure React Query with aggressive cache busting for market status updates
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0, // Data is immediately stale
+      refetchInterval: 60000, // Auto-refetch every 60 seconds
+      refetchOnMount: 'stale', // Refetch on mount if data is stale
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchOnReconnect: true, // Refetch when connection is restored
+      cacheTime: 5000, // Keep unused data in cache for only 5 seconds
+      retry: 1, // Retry failed requests once
+    },
+  },
+});
 
 function Router() {
   return (
