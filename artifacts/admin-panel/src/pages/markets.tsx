@@ -188,7 +188,7 @@ export default function Markets() {
   // SECTION 1: ALL HOOKS DECLARED HERE - NO CONDITIONAL LOGIC ABOVE THIS POINT
   // ============================================================================
 
-  const { data: markets, isLoading, error } = useGetMarkets();
+  const { data: markets, isLoading, error, refetch } = useGetMarkets();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteMarket();
@@ -367,15 +367,16 @@ export default function Markets() {
     fetchLiveResults();
   }, [markets]);
 
-  // Effect 4: Auto-refresh market data every 1 minute
+  // Effect 4: Auto-refresh market data every 1 minute (CRITICAL for isActive status)
   useEffect(() => {
     const autoRefreshInterval = setInterval(() => {
-      console.log("[Markets] Auto-refreshing market data and status...");
-      queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
-    }, 60000); // Changed from 120000 (2 min) to 60000 (1 min)
+      console.log("[Markets] Auto-refetching markets data for isActive status update...");
+      // Use refetch directly - more reliable than queryClient.refetchQueries
+      refetch();
+    }, 60000); // 60 seconds
 
     return () => clearInterval(autoRefreshInterval);
-  }, [queryClient]);
+  }, [refetch]);
 
   // Effect 5: Auto-refresh current results every 1 minute
   useEffect(() => {
