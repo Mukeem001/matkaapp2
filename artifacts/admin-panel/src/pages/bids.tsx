@@ -102,7 +102,7 @@ export default function Bids() {
     if (!editingBidId) return;
 
     const amount = editAmount ? parseFloat(editAmount) : undefined;
-    const number = editNumber || undefined;
+    const number = editNumber?.trim() || undefined;
     const status = editStatus || undefined;
 
     if (!amount && !number && !status) {
@@ -116,9 +116,14 @@ export default function Bids() {
     }
 
     const payload: any = {};
-    if (amount) payload.amount = amount;
-    if (number) payload.number = number;
-    if (status) payload.status = status;
+    if (amount !== undefined && amount > 0) payload.amount = amount;
+    if (number !== undefined && number.length > 0) payload.number = number;
+    if (status !== undefined && status.length > 0) payload.status = status;
+
+    if (Object.keys(payload).length === 0) {
+      toast.error("Please provide valid changes");
+      return;
+    }
 
     updateBid(
       { id: editingBidId, data: payload },
@@ -132,7 +137,8 @@ export default function Bids() {
           queryClient.invalidateQueries({ queryKey: getGetBidsQueryKey() });
         },
         onError: (error: any) => {
-          toast.error(error?.message || "Failed to update bid");
+          const errorMsg = error?.response?.data?.error || error?.message || "Failed to update bid";
+          toast.error(errorMsg);
         },
       }
     );
@@ -326,17 +332,13 @@ export default function Bids() {
                   </TableCell>
 
                   <TableCell className="text-center">
-                    {bid.status === "pending" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditClick(bid)}
-                      >
-                        Edit
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditClick(bid)}
+                    >
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
