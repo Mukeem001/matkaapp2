@@ -227,7 +227,8 @@ function getRandomUserAgent(): string {
 function isAfterCloseWindow(closeTime: string): boolean {
   try {
     const now = new Date();
-    const current = now.getHours() * 60 + now.getMinutes();
+    const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const current = istTime.getHours() * 60 + istTime.getMinutes();
 
     const [h, m] = closeTime.split(":").map(Number);
     const close = h * 60 + m;
@@ -245,7 +246,8 @@ async function updateMarket2ActivityStatus() {
   try {
     const markets = await db.select().from(markets2Table);
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const currentTime = istTime.getHours() * 60 + istTime.getMinutes();
 
     for (const market of markets) {
       const [closeH, closeM] = market.closeTime.split(":").map(Number);

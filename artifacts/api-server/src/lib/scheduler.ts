@@ -16,10 +16,12 @@ function parseTimeString(timeStr: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-// Helper function to get current time in minutes since midnight
+// Helper function to get current time in minutes since midnight (IST)
 function getCurrentTimeInMinutes(): number {
   const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+  // Convert to IST timezone for consistent time calculations
+  const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  return istTime.getHours() * 60 + istTime.getMinutes();
 }
 
 // Helper function to convert hours and minutes to minutes since midnight
