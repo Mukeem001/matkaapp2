@@ -26,6 +26,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   process.env.FRONTEND_URL_WWW,
+  process.env.HOSTINGER_URL, // Hostinger admin panel URL
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -34,6 +35,7 @@ const allowedOrigins = [
   'http://localhost:5178',
   'http://localhost:3000',
   'http://localhost:4000',
+  'https://kalyan-matka.online', // Add your Hostinger domain
 ].filter(Boolean);
 
 app.use(cors({
@@ -52,12 +54,15 @@ app.use(cors({
       }
     }
     
-    // In production, check against whitelist
-    if (allowedOrigins.includes(origin)) {
+    // In production, check against whitelist OR allow same-domain requests
+    if (allowedOrigins.includes(origin) || origin.includes('localhost')) {
       callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+    
+    // Log CORS rejections for debugging
+    console.warn(`[CORS] Rejected request from: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
