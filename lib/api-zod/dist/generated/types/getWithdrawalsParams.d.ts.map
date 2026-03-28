@@ -1,1 +1,1 @@
-{"version":3,"file":"getWithdrawalsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/getWithdrawalsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,oBAAoB,GAAG;IACjC,MAAM,CAAC,EAAE,MAAM,CAAC;CACjB,CAAC"}
+{"version":3,"file":"getWithdrawalsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/getWithdrawalsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,oBAAoB,GAAG;IACnC,MAAM,CAAC,EAAE,MAAM,CAAC;CACf,CAAC"}

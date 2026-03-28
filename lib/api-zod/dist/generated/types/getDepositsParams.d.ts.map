@@ -1,1 +1,1 @@
-{"version":3,"file":"getDepositsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/getDepositsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,iBAAiB,GAAG;IAC9B,MAAM,CAAC,EAAE,MAAM,CAAC;CACjB,CAAC"}
+{"version":3,"file":"getDepositsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/getDepositsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,iBAAiB,GAAG;IAChC,MAAM,CAAC,EAAE,MAAM,CAAC;CACf,CAAC"}

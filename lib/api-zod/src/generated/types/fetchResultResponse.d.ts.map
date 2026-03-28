@@ -1,1 +1,0 @@
-{"version":3,"file":"fetchResultResponse.d.ts","sourceRoot":"","sources":["fetchResultResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,mBAAmB;IAClC,OAAO,EAAE,OAAO,CAAC;IACjB,OAAO,EAAE,MAAM,CAAC;IAChB,UAAU,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC3B,WAAW,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC5B,UAAU,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CAC5B"}
