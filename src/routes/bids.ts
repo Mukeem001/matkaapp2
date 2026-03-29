@@ -91,9 +91,26 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
     // Build the query
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const bidsResult = whereCondition
-      ? await db.select().from(bidsTable).where(whereCondition).limit(limit)
-      : await db.select().from(bidsTable).limit(limit);
+    const bidsResult = await db
+      .select({
+        id: bidsTable.id,
+        userId: bidsTable.userId,
+        userName: usersTable.name,
+        marketId: bidsTable.marketId,
+        marketName: bidsTable.marketName,
+        gameType: bidsTable.gameType,
+        amount: bidsTable.amount,
+        number: bidsTable.number,
+        openTime: bidsTable.openTime,
+        closeTime: bidsTable.closeTime,
+        currentTime: bidsTable.currentTime,
+        status: bidsTable.status,
+        createdAt: bidsTable.createdAt,
+      })
+      .from(bidsTable)
+      .leftJoin(usersTable, eq(bidsTable.userId, usersTable.id))
+      .where(whereCondition)
+      .limit(limit);
 
     const totalResult = whereCondition
       ? await db.select({ count: sql`count(*)` }).from(bidsTable).where(whereCondition)
@@ -104,7 +121,7 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
     const bids = bidsResult.map((b: any) => ({
       id: b.id,
       userId: b.userId,
-      userName: "User " + b.userId,
+      userName: b.userName ?? "Unknown",
       marketId: b.marketId,
       marketName: b.marketName || "Unknown",
       gameType: b.gameType,
