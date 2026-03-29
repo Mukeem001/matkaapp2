@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, resultsTable, marketsTable } from "@workspace/db";
 import { GetResultsQueryParams, DeclareResultBody } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
@@ -10,7 +10,19 @@ const router: IRouter = Router();
 router.get("/results", authMiddleware, async (req, res): Promise<void> => {
   const query = GetResultsQueryParams.safeParse(req.query);
 
-  const results = await db
+  let conditions: any[] = [];
+
+  // Filter by marketId if provided
+  if (query.data?.marketId) {
+    conditions.push(eq(resultsTable.marketId, query.data.marketId));
+  }
+
+  // Filter by date if provided
+  if (query.data?.date) {
+    conditions.push(eq(resultsTable.resultDate, query.data.date));
+  }
+
+  let selectQuery: any = db
     .select({
       id: resultsTable.id,
       marketId: resultsTable.marketId,
@@ -24,6 +36,13 @@ router.get("/results", authMiddleware, async (req, res): Promise<void> => {
     })
     .from(resultsTable)
     .leftJoin(marketsTable, eq(resultsTable.marketId, marketsTable.id));
+
+  // Apply conditions if any
+  if (conditions.length > 0) {
+    selectQuery = selectQuery.where(and(...conditions));
+  }
+
+  const results = await selectQuery;
 
   res.json(results.map(r => ({
     ...r,

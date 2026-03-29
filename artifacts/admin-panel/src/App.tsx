@@ -13,6 +13,7 @@ import Dashboard from "@/pages/dashboard";
 import Markets from "@/pages/markets";
 import Markets2 from "@/pages/markets2";
 import Results from "@/pages/results";
+import MarketResultHistory from "@/pages/market-result-history";
 import GameRates from "@/pages/game-rates";
 import Users from "@/pages/users";
 import Bids from "@/pages/bids";
@@ -57,6 +58,9 @@ function Router() {
       </Route>
       <Route path="/results">
         <ProtectedRoute component={() => <Layout><Results /></Layout>} />
+      </Route>
+      <Route path="/market-result-history">
+        <ProtectedRoute component={() => <Layout><MarketResultHistory /></Layout>} />
       </Route>
       <Route path="/game-rates">
         <ProtectedRoute component={() => <Layout><GameRates /></Layout>} />
