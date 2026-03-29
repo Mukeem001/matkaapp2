@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@workspace/api-client-react/dist/generated/api.schemas";
@@ -348,6 +348,9 @@ export default function Users() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Permanently remove this user and all associated data. This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
           <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
             <p className="text-sm text-red-900 mb-3">
