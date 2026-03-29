@@ -105,6 +105,8 @@ export default function Bids() {
     const number = editNumber?.trim() || undefined;
     const status = editStatus || undefined;
 
+    console.log("[Bids Edit] Attempting save:", { editingBidId, amount, number, status });
+
     if (!amount && !number && !status) {
       toast.error("Please change at least one field");
       return;
@@ -120,15 +122,20 @@ export default function Bids() {
     if (number !== undefined && number.length > 0) payload.number = number;
     if (status !== undefined && status.length > 0) payload.status = status;
 
+    console.log("[Bids Edit] Payload to send:", payload);
+
     if (Object.keys(payload).length === 0) {
       toast.error("Please provide valid changes");
       return;
     }
 
+    console.log("[Bids Edit] Calling API with:", { id: editingBidId, data: payload });
+
     updateBid(
       { id: editingBidId, data: payload },
       {
-        onSuccess: () => {
+        onSuccess: (res: any) => {
+          console.log("[Bids Edit] Success response:", res);
           toast.success("Bid updated successfully!");
           setEditingBidId(null);
           setEditAmount("");
@@ -137,6 +144,7 @@ export default function Bids() {
           queryClient.invalidateQueries({ queryKey: getGetBidsQueryKey() });
         },
         onError: (error: any) => {
+          console.error("[Bids Edit] Error:", error);
           const errorMsg = error?.response?.data?.error || error?.message || "Failed to update bid";
           toast.error(errorMsg);
         },
@@ -348,15 +356,18 @@ export default function Bids() {
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={editingBidId !== null} onOpenChange={(open) => {
-        if (!open) {
-          setEditingBidId(null);
-          setEditAmount("");
-          setEditNumber("");
-          setEditStatus("");
-        }
-      }}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog open={editingBidId !== null}>
+        <DialogContent 
+          className="sm:max-w-[425px]"
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingBidId(null);
+              setEditAmount("");
+              setEditNumber("");
+              setEditStatus("");
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit Bid #{editingBidId}</DialogTitle>
             <DialogDescription>
@@ -413,7 +424,12 @@ export default function Bids() {
               Cancel
             </Button>
             <Button
-              onClick={handleSaveEdit}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSaveEdit();
+              }}
+              className="gap-2"
             >
               Save Changes
             </Button>

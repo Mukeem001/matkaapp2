@@ -304,6 +304,7 @@ router.post("/process-now/:marketId", authMiddleware, async (req, res): Promise<
  * Only pending bids can be edited
  */
 router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
+  console.log(`[DEBUG PATCH] Received PATCH request for /bids/:id with params:`, req.params);
   try {
     const bidId = parseInt(req.params.id as string, 10);
     const { amount, number, status } = req.body;
