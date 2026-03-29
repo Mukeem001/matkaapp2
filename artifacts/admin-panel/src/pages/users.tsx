@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGetUsers, useUpdateUser, getGetUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Ban, CheckCircle2, Wallet, History, X } from "lucide-react";
+import { Search, Ban, CheckCircle2, Wallet, History, X, Trash2 } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,8 @@ type DateFilterType = 'today' | 'yesterday' | 'last3days' | 'last7days' | 'lastM
 export default function Users() {
   const [search, setSearch] = useState("");
   const [walletDialog, setWalletDialog] = useState<User | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
@@ -67,6 +69,34 @@ export default function Users() {
         setWalletDialog(null);
       }
     });
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteDialog) return;
+    
+    setIsDeleting(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      const response = await fetch(`${apiUrl}/users/${deleteDialog.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+
+      toast({ title: "User deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: getGetUsersQueryKey() });
+      setDeleteDialog(null);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleDateFilterClick = (type: DateFilterType) => {
@@ -247,6 +277,14 @@ export default function Users() {
                       {user.isBlocked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
                       {user.isBlocked ? 'Unblock' : 'Block'}
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
+                      onClick={() => setDeleteDialog(user)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -282,6 +320,37 @@ export default function Users() {
               Confirm Update
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteDialog} onOpenChange={(o) => !o && setDeleteDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
+            <p className="text-sm text-red-900 mb-3">
+              Are you sure you want to delete <span className="font-bold">{deleteDialog?.name}</span>? This action cannot be undone.
+            </p>
+            <p className="text-xs text-red-700">User ID: {deleteDialog?.id} | Email: {deleteDialog?.email}</p>
+          </div>
+          <div className="flex gap-2 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialog(null)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              {isDeleting ? "Deleting..." : "Delete User"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

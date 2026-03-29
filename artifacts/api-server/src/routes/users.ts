@@ -155,4 +155,20 @@ router.patch("/users/:id", authMiddleware, async (req, res): Promise<void> => {
   res.json({ ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() });
 });
 
+router.delete("/users/:id", authMiddleware, async (req, res): Promise<void> => {
+  const params = UpdateUserParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+
+  const [user] = await db.delete(usersTable).where(eq(usersTable.id, params.data.id)).returning();
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  res.json({ message: "User deleted successfully", user: { ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() } });
+});
+
 export default router;
