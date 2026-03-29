@@ -76,12 +76,12 @@ export default function Users() {
     
     setIsDeleting(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
       const userId = typeof deleteDialog.id === 'string' ? parseInt(deleteDialog.id, 10) : deleteDialog.id;
       
-      console.log(`[Delete User] Attempting to delete user ${deleteDialog.id} (${deleteDialog.name}) from endpoint: ${apiUrl}/users/${userId}`);
+      console.log(`[Delete User] Attempting to delete user ${deleteDialog.id} (${deleteDialog.name}) from endpoint: ${apiUrl}/api/users/${userId}`);
       
-      const response = await fetch(`${apiUrl}/users/${userId}`, {
+      const response = await fetch(`${apiUrl}/api/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
