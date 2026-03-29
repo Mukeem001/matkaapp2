@@ -104,7 +104,7 @@ router.delete("/markets/:id", authMiddleware, async (req, res): Promise<void> =>
   }
 });
 
-router.get("/markets/:id/chart", userAuthMiddleware, async (req, res): Promise<void> => {
+router.get("/markets/:id/chart", async (req, res): Promise<void> => {
   const params = GetMarketByIdParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid ID" });
