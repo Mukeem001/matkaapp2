@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, ilike, or, count, gte, lte, and } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, bidsTable, depositsTable, withdrawalsTable } from "@workspace/db";
 import { GetUsersQueryParams, GetUserByIdParams, UpdateUserParams, UpdateUserBody } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
 
@@ -161,6 +161,18 @@ router.delete("/users/:id", authMiddleware, async (req, res): Promise<void> => {
     const userId = params.data.id;
     console.log(`[Delete User] Attempting to delete user with ID: ${userId}`);
 
+    // Delete all related records (cascade delete)
+    console.log(`[Delete User] Deleting related bids...`);
+    await db.delete(bidsTable).where(eq(bidsTable.userId, userId));
+
+    console.log(`[Delete User] Deleting related deposits...`);
+    await db.delete(depositsTable).where(eq(depositsTable.userId, userId));
+
+    console.log(`[Delete User] Deleting related withdrawals...`);
+    await db.delete(withdrawalsTable).where(eq(withdrawalsTable.userId, userId));
+
+    // Now delete the user
+    console.log(`[Delete User] Deleting user record...`);
     const [user] = await db.delete(usersTable).where(eq(usersTable.id, userId)).returning();
     if (!user) {
       console.log(`[Delete User] User not found with ID: ${userId}`);
@@ -168,8 +180,8 @@ router.delete("/users/:id", authMiddleware, async (req, res): Promise<void> => {
       return;
     }
 
-    console.log(`[Delete User] Successfully deleted user: ${user.id} (${user.email})`);
-    res.json({ message: "User deleted successfully", user: { ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() } });
+    console.log(`[Delete User] Successfully deleted user: ${user.id} (${user.email}) and all related records`);
+    res.json({ message: "User and related records deleted successfully", user: { ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() } });
   } catch (err) {
     console.error("[Delete User] Error:", err);
     res.status(500).json({ error: (err as Error).message });
