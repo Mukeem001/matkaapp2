@@ -114,20 +114,25 @@ router.get("/markets/:id/chart", async (req, res): Promise<void> => {
       return;
     }
 
-    // Get all results for this market, sorted by date
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get all results for this market except today's, sorted by date
     const results = await db
       .select()
       .from(resultsTable)
       .where(eq(resultsTable.marketId, params.data.id))
       .orderBy(resultsTable.resultDate);
 
-    // Format results for chart
-    const chartData = results.map((result) => ({
-      date: result.resultDate,
-      open: result.openResult,
-      jodi: result.jodiResult,
-      close: result.closeResult,
-    }));
+    // Filter out today's results and format for chart
+    const chartData = results
+      .filter((result) => result.resultDate !== today)
+      .map((result) => ({
+        date: result.resultDate,
+        open: result.openResult,
+        jodi: result.jodiResult,
+        close: result.closeResult,
+      }));
 
     res.json({
       market: formatMarket(market),
