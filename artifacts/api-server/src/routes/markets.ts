@@ -99,4 +99,44 @@ router.delete("/markets/:id", authMiddleware, async (req, res): Promise<void> =>
   }
 });
 
+router.get("/markets/:id/chart", userAuthMiddleware, async (req, res): Promise<void> => {
+  const params = GetMarketByIdParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+
+  try {
+    // Verify market exists
+    const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, params.data.id));
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Get all results for this market, sorted by date
+    const results = await db
+      .select()
+      .from(resultsTable)
+      .where(eq(resultsTable.marketId, params.data.id))
+      .orderBy(resultsTable.resultDate);
+
+    // Format results for chart
+    const chartData = results.map((result) => ({
+      date: result.resultDate,
+      open: result.openResult,
+      jodi: result.jodiResult,
+      close: result.closeResult,
+    }));
+
+    res.json({
+      market: formatMarket(market),
+      chartData,
+    });
+  } catch (error: any) {
+    console.error("Get market chart error:", error);
+    res.status(500).json({ error: "Internal server error", details: error?.message });
+  }
+});
+
 export default router;
