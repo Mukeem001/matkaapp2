@@ -119,8 +119,13 @@ router.get("/markets/:id/chart", async (req, res): Promise<void> => {
       return;
     }
 
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's date in IST (Asia/Kolkata) in YYYY-MM-DD format
+    const now = new Date();
+    const istDateObj = new Date(now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+    const year = istDateObj.getFullYear();
+    const month = String(istDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(istDateObj.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
 
     // Get all results for this market except today's, sorted by date
     const results = await db
