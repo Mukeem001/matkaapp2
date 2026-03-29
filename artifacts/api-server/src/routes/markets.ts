@@ -114,12 +114,13 @@ router.get("/markets/:id/chart", async (req, res): Promise<void> => {
       return;
     }
 
-    // Get today's date in IST (Asia/Kolkata) in YYYY-MM-DD format
+    // Get today's date in IST (UTC+5:30) in YYYY-MM-DD format
     const now = new Date();
-    const istDateObj = new Date(now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
-    const year = istDateObj.getFullYear();
-    const month = String(istDateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(istDateObj.getDate()).padStart(2, '0');
+    // IST is UTC+5:30
+    const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const year = istTime.getUTCFullYear();
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istTime.getUTCDate()).padStart(2, '0');
     const today = `${year}-${month}-${day}`;
 
     // Get all results for this market except today's, sorted by date
