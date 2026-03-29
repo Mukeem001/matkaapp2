@@ -79,6 +79,8 @@ export default function Users() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
       const userId = typeof deleteDialog.id === 'string' ? parseInt(deleteDialog.id, 10) : deleteDialog.id;
       
+      console.log(`[Delete User] Attempting to delete user ${deleteDialog.id} (${deleteDialog.name}) from endpoint: ${apiUrl}/users/${userId}`);
+      
       const response = await fetch(`${apiUrl}/users/${userId}`, {
         method: 'DELETE',
         headers: {
@@ -87,12 +89,23 @@ export default function Users() {
         },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to delete user (Status: ${response.status})`);
+      const responseText = await response.text();
+      let errorData: any = {};
+      
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { error: responseText || `HTTP ${response.status}` };
       }
 
-      toast({ title: "User deleted successfully" });
+      if (!response.ok) {
+        console.error(`[Delete User] Delete failed:`, { status: response.status, response: errorData });
+        const errorMessage = errorData.error || errorData.message || `Failed to delete user (Status: ${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      console.log(`[Delete User] Successfully deleted user ${userId}`);
+      toast({ title: "User deleted successfully", description: `${deleteDialog.name} has been removed.` });
       queryClient.invalidateQueries({ queryKey: getGetUsersQueryKey() });
       setDeleteDialog(null);
     } catch (error) {
