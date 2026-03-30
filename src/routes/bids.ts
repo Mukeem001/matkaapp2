@@ -389,4 +389,53 @@ router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * GET /bids/debug/pending
+ * Debug endpoint to check all pending bids (no auth required)
+ */
+router.get("/debug/pending", async (req, res): Promise<void> => {
+  try {
+    const pendingBids = await db
+      .select({
+        id: bidsTable.id,
+        userId: bidsTable.userId,
+        userName: usersTable.name,
+        marketId: bidsTable.marketId,
+        marketName: bidsTable.marketName,
+        gameType: bidsTable.gameType,
+        amount: bidsTable.amount,
+        number: bidsTable.number,
+        status: bidsTable.status,
+        currentTime: bidsTable.currentTime,
+        createdAt: bidsTable.createdAt,
+      })
+      .from(bidsTable)
+      .leftJoin(usersTable, eq(bidsTable.userId, usersTable.id))
+      .where(eq(bidsTable.status, "pending"))
+      .orderBy(bidsTable.createdAt);
+
+    const formatted = pendingBids.map((b: any) => ({
+      id: b.id,
+      userId: b.userId,
+      userName: b.userName ?? "Unknown",
+      marketId: b.marketId,
+      marketName: b.marketName || "Unknown",
+      gameType: b.gameType,
+      amount: typeof b.amount === "string" ? parseFloat(b.amount) : b.amount,
+      number: b.number,
+      status: b.status,
+      currentTime: typeof b.currentTime === "string" ? b.currentTime : (b.currentTime?.toISOString?.() ?? new Date().toISOString()),
+      createdAt: typeof b.createdAt === "string" ? b.createdAt : (b.createdAt?.toISOString?.() ?? new Date().toISOString()),
+    }));
+
+    res.json({
+      total: formatted.length,
+      pendingBids: formatted,
+    });
+  } catch (err) {
+    console.error("[Debug Pending Bids] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;
