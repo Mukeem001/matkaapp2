@@ -473,19 +473,21 @@ router.post("/auto-process", async (req, res): Promise<void> => {
     console.log(`[Auto Process] Found ${pendingBids.length} pending bids`);
 
     if (pendingBids.length === 0) {
-      return res.json({
+      res.json({
         success: true,
         message: "No pending bids to process",
         processed: 0,
         won: 0,
         lost: 0,
       });
+      return;
     }
 
     // Get game rates
     const [rates] = await db.select().from(gameRatesTable).limit(1);
     if (!rates) {
-      return res.status(500).json({ error: "Game rates not found" });
+      res.status(500).json({ error: "Game rates not found" });
+      return;
     }
 
     const gameRates: any = {
