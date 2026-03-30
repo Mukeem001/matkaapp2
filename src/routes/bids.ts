@@ -438,4 +438,164 @@ router.get("/debug/pending", async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * POST /bids/auto-process
+ * Automatically process all pending bids that have market results available
+ * No auth required - can be called by scheduler/cron
+ */
+router.post("/auto-process", async (req, res): Promise<void> => {
+  try {
+    console.log("[Auto Process] Starting auto-process of pending bids...");
+
+    // Get all pending bids
+    const pendingBids = await db
+      .select({
+        id: bidsTable.id,
+        userId: bidsTable.userId,
+        marketId: bidsTable.marketId,
+        gameType: bidsTable.gameType,
+        amount: bidsTable.amount,
+        number: bidsTable.number,
+        createdAt: bidsTable.createdAt,
+      })
+      .from(bidsTable)
+      .where(eq(bidsTable.status, "pending"));
+
+    console.log(`[Auto Process] Found ${pendingBids.length} pending bids`);
+
+    if (pendingBids.length === 0) {
+      return res.json({
+        success: true,
+        message: "No pending bids to process",
+        processed: 0,
+        won: 0,
+        lost: 0,
+      });
+    }
+
+    // Get game rates
+    const [rates] = await db.select().from(gameRatesTable).limit(1);
+    if (!rates) {
+      return res.status(500).json({ error: "Game rates not found" });
+    }
+
+    const gameRates: any = {
+      singleDigit: parseFloat(rates.singleDigit as string),
+      jodiDigit: parseFloat(rates.jodiDigit as string),
+      singlePanna: parseFloat(rates.singlePanna as string),
+      doublePanna: parseFloat(rates.doublePanna as string),
+      triplePanna: parseFloat(rates.triplePanna as string),
+      halfSangam: parseFloat(rates.halfSangam as string),
+      fullSangam: parseFloat(rates.fullSangam as string),
+    };
+
+    let processedCount = 0;
+    let wonCount = 0;
+    let lostCount = 0;
+    const failedBids = [];
+
+    // Process each pending bid
+    for (const bid of pendingBids) {
+      try {
+        // Get the bid creation date (treating it as result date)
+        const bidDate = new Date(bid.createdAt);
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istDate = new Date(bidDate.getTime() + istOffset);
+        const year = istDate.getUTCFullYear();
+        const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(istDate.getUTCDate()).padStart(2, '0');
+        const resultDate = `${year}-${month}-${day}`;
+
+        // Find market result for this bid
+        const [result] = await db
+          .select()
+          .from(resultsTable)
+          .where(
+            and(
+              eq(resultsTable.marketId, bid.marketId),
+              eq(resultsTable.resultDate, resultDate)
+            )
+          );
+
+        if (!result || !result.openResult || !result.closeResult) {
+          console.log(`[Auto Process] Bid ${bid.id}: No result found for market ${bid.marketId} on ${resultDate}`);
+          failedBids.push({ bidId: bid.id, reason: "Result not found" });
+          continue;
+        }
+
+        // Check if bid is winner
+        const marketResult = {
+          openResult: result.openResult,
+          closeResult: result.closeResult,
+          jodiResult: result.jodiResult || undefined,
+          pannaResult: result.pannaResult || undefined,
+        };
+
+        const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+
+        if (isWinner) {
+          // Calculate winnings
+          const gameTypeMap: Record<string, keyof typeof gameRates> = {
+            "single_digit": "singleDigit",
+            "jodi": "jodiDigit",
+            "single_panna": "singlePanna",
+            "double_panna": "doublePanna",
+            "triple_panna": "triplePanna",
+            "half_sangam": "halfSangam",
+            "full_sangam": "fullSangam",
+          };
+          const rateKey = gameTypeMap[bid.gameType] || "singleDigit";
+          const bidAmount = parseFloat(bid.amount as string);
+          const winnings = bidAmount * gameRates[rateKey];
+          const totalWinnings = bidAmount + winnings;
+
+          // Update bid and user wallet in transaction
+          await db.transaction(async (tx) => {
+            await tx.update(bidsTable)
+              .set({ status: "won" })
+              .where(eq(bidsTable.id, bid.id));
+
+            await tx.update(usersTable)
+              .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
+              .where(eq(usersTable.id, bid.userId));
+          });
+
+          console.log(`[Auto Process] Bid ${bid.id}: WON! Added ${totalWinnings} to user ${bid.userId}`);
+          wonCount++;
+        } else {
+          // Update bid status to lost
+          await db.update(bidsTable)
+            .set({ status: "lost" })
+            .where(eq(bidsTable.id, bid.id));
+
+          console.log(`[Auto Process] Bid ${bid.id}: LOST`);
+          lostCount++;
+        }
+
+        processedCount++;
+      } catch (bidError) {
+        console.error(`[Auto Process] Error processing bid ${bid.id}:`, bidError);
+        failedBids.push({ bidId: bid.id, reason: (bidError as Error).message });
+      }
+    }
+
+    console.log(
+      `[Auto Process] Complete: Processed ${processedCount}, Won ${wonCount}, Lost ${lostCount}, Failed ${failedBids.length}`
+    );
+
+    res.json({
+      success: true,
+      message: `Auto-processed ${processedCount} bids`,
+      processed: processedCount,
+      won: wonCount,
+      lost: lostCount,
+      failed: failedBids.length,
+      failedBids: failedBids.length > 0 ? failedBids : undefined,
+    });
+  } catch (err) {
+    console.error("[Auto Process] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;
