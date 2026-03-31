@@ -416,6 +416,114 @@ router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
 });
 
 /**
+ * GET /bids/process-bid/:bidId
+ * Manual endpoint to process a single bid
+ * Debug only - processes bid 103 specifically
+ */
+router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
+  try {
+    const bidId = parseInt(req.params.bidId as string, 10);
+    
+    if (isNaN(bidId)) {
+      res.status(400).json({ error: "Invalid bid ID" });
+      return;
+    }
+
+    // Get the bid
+    const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, bidId));
+    if (!bid) {
+      res.status(404).json({ error: "Bid not found" });
+      return;
+    }
+
+    // Get the market
+    const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, bid.marketId));
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Get the LATEST result for this market
+    const [result] = await db.select().from(resultsTable)
+      .where(eq(resultsTable.marketId, bid.marketId))
+      .orderBy((t) => sql`${t.resultDate} DESC`)
+      .limit(1);
+
+    if (!result || !result.openResult || !result.closeResult) {
+      res.json({
+        success: false,
+        message: `No result found for market ${bid.marketId}`,
+        bid: { id: bid.id, number: bid.number, gameType: bid.gameType, status: bid.status },
+      });
+      return;
+    }
+
+    const marketResult = {
+      openResult: result.openResult,
+      closeResult: result.closeResult,
+      jodiResult: result.jodiResult || undefined,
+      pannaResult: result.pannaResult || undefined,
+    };
+
+    // Check if winner
+    const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+
+    if (isWinner) {
+      // Calculate winnings
+      const [rates] = await db.select().from(gameRatesTable).limit(1);
+      const gameTypeMap: Record<string, keyof typeof gameRatesTable.$inferSelect> = {
+        "single_digit": "singleDigit",
+        "jodi": "jodiDigit",
+        "single_panna": "singlePanna",
+        "double_panna": "doublePanna",
+        "triple_panna": "triplePanna",
+        "half_sangam": "halfSangam",
+        "full_sangam": "fullSangam",
+      };
+      const rateKey = gameTypeMap[bid.gameType] || "singleDigit";
+      const rate = parseFloat((rates as any)[rateKey] as string);
+      const bidAmount = parseFloat(bid.amount as string);
+      const winnings = bidAmount * rate;
+      const totalWinnings = bidAmount + winnings;
+
+      // Update to won
+      await db.update(bidsTable)
+        .set({ status: "won" })
+        .where(eq(bidsTable.id, bidId));
+
+      // Credit wallet
+      await db.update(usersTable)
+        .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
+        .where(eq(usersTable.id, bid.userId));
+
+      res.json({
+        success: true,
+        action: "WON",
+        bid: { id: bid.id, userId: bid.userId, number: bid.number, gameType: bid.gameType, amount: bidAmount },
+        marketResult,
+        winnings: { rate, winnings, totalCredited: totalWinnings },
+      });
+    } else {
+      // Update to lost
+      await db.update(bidsTable)
+        .set({ status: "lost" })
+        .where(eq(bidsTable.id, bidId));
+
+      res.json({
+        success: true,
+        action: "LOST",
+        bid: { id: bid.id, userId: bid.userId, number: bid.number, gameType: bid.gameType, amount: bid.amount },
+        marketResult,
+        message: `Bid did not match. Expected: ${bid.gameType === "single_digit" ? `first digit ${marketResult.jodiResult?.charAt(0)}` : marketResult.jodiResult}, Got: ${bid.number}`,
+      });
+    }
+  } catch (err) {
+    console.error("[Process Bid] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /bids/debug/pending
  * Debug endpoint to check all pending bids (no auth required)
  */
