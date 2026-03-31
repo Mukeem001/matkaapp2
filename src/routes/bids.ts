@@ -1068,4 +1068,48 @@ router.post("/process-market/:marketId", async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * POST /admin/bids/mark-lost
+ * Admin endpoint to mark bids as lost (for emergency fixes)
+ * Body: { bidIds: [111, 125] }
+ */
+router.post("/admin/bids/mark-lost", async (req, res): Promise<void> => {
+  try {
+    const { bidIds } = req.body;
+
+    if (!Array.isArray(bidIds) || bidIds.length === 0) {
+      res.status(400).json({ error: "bidIds array required" });
+      return;
+    }
+
+    let markedCount = 0;
+    const results = [];
+
+    for (const bidId of bidIds) {
+      try {
+        const updateResult = await db.update(bidsTable)
+          .set({ status: "lost" })
+          .where(eq(bidsTable.id, parseInt(bidId, 10)));
+
+        console.log(`[Admin] Bid ${bidId} marked as LOST`);
+        results.push({ bidId, status: "marked_lost" });
+        markedCount++;
+      } catch (error) {
+        console.error(`[Admin] Error marking bid ${bidId} as lost:`, error);
+        results.push({ bidId, status: "error", error: (error as Error).message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Marked ${markedCount}/${bidIds.length} bids as lost`,
+      marked: markedCount,
+      results,
+    });
+  } catch (err) {
+    console.error("[Admin] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;
