@@ -8,6 +8,23 @@ import { processMarketBidsPreClose, isBidWinner, calculateWinnings } from "../li
 
 const router: IRouter = Router();
 
+/**
+ * GET /bids/version
+ * Simple deployment verification endpoint - returns current server time in IST
+ * Use this to verify new code has been deployed to production
+ */
+router.get("/version", (req, res): void => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  res.json({
+    status: "ok",
+    deploymentTime: new Date().toISOString(),
+    istTime: istTime.toISOString(),
+    message: "✅ New deployment verified - bids routes are live"
+  });
+});
+
 // Helper function for date range calculation
 function getDateRangeForType(type: string): { from: Date; to: Date } | null {
   const now = new Date();
