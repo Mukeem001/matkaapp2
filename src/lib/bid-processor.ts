@@ -31,28 +31,20 @@ export function isBidWinner(bidNumber: string, gameType: string, result: MarketR
 
   switch (gameType) {
     case "single_digit":
-      // Single digit matches the last digit of sum (open + close)
-      if (openResult && closeResult) {
-        // Extract last digits and sum them
-        const openLastDigit = parseInt(openResult.slice(-1));
-        const closeLastDigit = parseInt(closeResult.slice(-1));
-        const sum = openLastDigit + closeLastDigit;
-        const lastDigit = sum % 10;
-        const result = bidNumber === lastDigit.toString();
-        console.log(`Single digit check: ${openLastDigit} + ${closeLastDigit} = ${sum}, last digit = ${lastDigit}, bid = ${bidNumber}, match = ${result}`);
+      // Single digit matches the FIRST digit of jodiResult
+      if (jodiResult && jodiResult.length > 0) {
+        const firstDigit = jodiResult.charAt(0);
+        const result = bidNumber === firstDigit;
+        console.log(`Single digit check: jodiResult = ${jodiResult}, first digit = ${firstDigit}, bid = ${bidNumber}, match = ${result}`);
         return result;
       }
       return false;
 
     case "jodi":
-      // Jodi matches the exact sum of last digits of open + close
-      if (openResult && closeResult) {
-        const openLastDigit = parseInt(openResult.slice(-1));
-        const closeLastDigit = parseInt(closeResult.slice(-1));
-        const sum = openLastDigit + closeLastDigit;
-        const jodi = sum.toString().padStart(2, '0'); // Ensure 2 digits
-        const result = bidNumber === jodi;
-        console.log(`Jodi check: ${openLastDigit} + ${closeLastDigit} = ${sum}, jodi = ${jodi}, bid = ${bidNumber}, match = ${result}`);
+      // Jodi matches the jodiResult exactly
+      if (jodiResult) {
+        const result = bidNumber === jodiResult;
+        console.log(`Jodi check: jodiResult = ${jodiResult}, bid = ${bidNumber}, match = ${result}`);
         return result;
       }
       return false;
