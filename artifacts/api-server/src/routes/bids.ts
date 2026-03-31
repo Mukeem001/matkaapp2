@@ -567,7 +567,6 @@ router.post("/fix-and-process/:bidId", async (req, res): Promise<void> => {
         openResult: market.openResult,
         closeResult: market.closeResult,
         jodiResult: market.jodiResult || undefined,
-        pannaResult: market.pannaResult || undefined,
       }).returning();
       result = inserted;
     }
