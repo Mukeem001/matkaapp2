@@ -234,17 +234,37 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
 
     // Get TODAY's result for this market (in IST)
     const today = getTodayDateIST();
-    const [result] = await db.select().from(resultsTable).where(
+    let result = await db.select().from(resultsTable).where(
       and(
         eq(resultsTable.marketId, marketId),
         eq(resultsTable.resultDate, today)
       )
-    );
+    )
+      .then(rows => rows[0]);
+
+    // If not found, try yesterday (for UTC/IST timezone shift)
+    if (!result) {
+      const yesterdayDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const yesterdayIST = new Date(yesterdayDate.getTime() + istOffset);
+      const yesterdayYear = yesterdayIST.getUTCFullYear();
+      const yesterdayMonth = String(yesterdayIST.getUTCMonth() + 1).padStart(2, '0');
+      const yesterdayDay = String(yesterdayIST.getUTCDate()).padStart(2, '0');
+      const yesterdayResultDate = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+
+      result = await db.select().from(resultsTable).where(
+        and(
+          eq(resultsTable.marketId, marketId),
+          eq(resultsTable.resultDate, yesterdayResultDate)
+        )
+      )
+        .then(rows => rows[0]);
+    }
 
     if (!result || !result.openResult || !result.closeResult) {
       return {
         success: false,
-        message: `Today's result not found for ${market.name}. Result needs openResult and closeResult.`,
+        message: `Result not found for ${market.name}. Result needs openResult and closeResult.`,
       };
     }
 

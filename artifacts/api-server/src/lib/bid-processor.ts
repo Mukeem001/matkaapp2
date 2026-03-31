@@ -232,39 +232,39 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
       return { success: false, message: "Market not found" };
     }
 
-    // Parse closeTime
-    const [closeHour, closeMin] = market.closeTime.split(":").map(Number);
-    const closeTimeInMinutes = closeHour * 60 + closeMin;
-    const preCloseWindowMinutes = closeTimeInMinutes - 20; // 20 min BEFORE close
-
-    // Get current time in minutes
-    const now = new Date();
-    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // Check if current time is >= closeTime - 20 min
-    if (currentTimeInMinutes < preCloseWindowMinutes) {
-      const preCloseHrs = Math.floor(preCloseWindowMinutes / 60);
-      const preCloseMins = preCloseWindowMinutes % 60;
-      const preCloseStr = `${String(preCloseHrs).padStart(2, '0')}:${String(preCloseMins).padStart(2, '0')}`;
-      return {
-        success: false,
-        message: `Can process bids only from ${preCloseStr} onwards (closeTime: ${market.closeTime} - 20 min)`,
-      };
-    }
-
     // Get TODAY's result for this market (in IST)
     const today = getTodayDateIST();
-    const [result] = await db.select().from(resultsTable).where(
+    let result = await db.select().from(resultsTable).where(
       and(
         eq(resultsTable.marketId, marketId),
         eq(resultsTable.resultDate, today)
       )
-    );
+    )
+      .then(rows => rows[0]);
+
+    // If not found, try yesterday (for UTC/IST timezone shift)
+    if (!result) {
+      const yesterdayDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const yesterdayIST = new Date(yesterdayDate.getTime() + istOffset);
+      const yesterdayYear = yesterdayIST.getUTCFullYear();
+      const yesterdayMonth = String(yesterdayIST.getUTCMonth() + 1).padStart(2, '0');
+      const yesterdayDay = String(yesterdayIST.getUTCDate()).padStart(2, '0');
+      const yesterdayResultDate = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+
+      result = await db.select().from(resultsTable).where(
+        and(
+          eq(resultsTable.marketId, marketId),
+          eq(resultsTable.resultDate, yesterdayResultDate)
+        )
+      )
+        .then(rows => rows[0]);
+    }
 
     if (!result || !result.openResult || !result.closeResult) {
       return {
         success: false,
-        message: `Today's result not found for ${market.name}. Result needs openResult and closeResult.`,
+        message: `Result not found for ${market.name}. Result needs openResult and closeResult.`,
       };
     }
 
