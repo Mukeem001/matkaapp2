@@ -603,6 +603,7 @@ router.post("/auto-process", async (req, res): Promise<void> => {
 /**
  * POST /bids/process-market/:marketId
  * Process all pending bids for a specific market that has declared results
+ * Manually trigger bid processing by market
  */
 router.post("/process-market/:marketId", async (req, res): Promise<void> => {
   try {
