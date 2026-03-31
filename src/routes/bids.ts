@@ -407,48 +407,55 @@ router.patch("/bids/:id", authMiddleware, async (req, res): Promise<void> => {
 });
 
 /**
- * GET /bids/process-bid/:bidId
- * Manual endpoint to process a single bid
- * Debug only - processes bid 103 specifically
+ * POST /bids/fix-and-process/103
+ * Emergency endpoint to fix bid 103
+ * Creates result entry if needed, then processes the bid
  */
-router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
+router.post("/fix-and-process/:bidId", async (req, res): Promise<void> => {
   try {
     const bidId = parseInt(req.params.bidId as string, 10);
     
-    if (isNaN(bidId)) {
-      res.status(400).json({ error: "Invalid bid ID" });
-      return;
-    }
-
-    // Get the bid
     const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, bidId));
     if (!bid) {
       res.status(404).json({ error: "Bid not found" });
       return;
     }
 
-    // Get the market
+    // Get market
     const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, bid.marketId));
     if (!market) {
       res.status(404).json({ error: "Market not found" });
       return;
     }
 
-    // Get the LATEST result for this market
-    const [result] = await db.select().from(resultsTable)
-      .where(eq(resultsTable.marketId, bid.marketId))
-      .orderBy((t) => sql`${t.resultDate} DESC`)
-      .limit(1);
+    // Calculate today's date in IST format
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const year = istNow.getUTCFullYear();
+    const month = String(istNow.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istNow.getUTCDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
 
-    if (!result || !result.openResult || !result.closeResult) {
-      res.json({
-        success: false,
-        message: `No result found for market ${bid.marketId}`,
-        bid: { id: bid.id, number: bid.number, gameType: bid.gameType, status: bid.status },
-      });
-      return;
+    // Check if result exists for today
+    let [result] = await db.select().from(resultsTable)
+      .where(and(eq(resultsTable.marketId, bid.marketId), eq(resultsTable.resultDate, today)));
+
+    // If not, create it from market data
+    if (!result) {
+      console.log(`Creating result for market ${bid.marketId} on ${today}`);
+      const [inserted] = await db.insert(resultsTable).values({
+        marketId: bid.marketId,
+        resultDate: today,
+        openResult: market.openResult,
+        closeResult: market.closeResult,
+        jodiResult: market.jodiResult || undefined,
+        pannaResult: market.pannaResult || undefined,
+      }).returning();
+      result = inserted;
     }
 
+    // Now process the bid
     const marketResult = {
       openResult: result.openResult,
       closeResult: result.closeResult,
@@ -456,13 +463,11 @@ router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
       pannaResult: result.pannaResult || undefined,
     };
 
-    // Check if winner
     const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
 
     if (isWinner) {
-      // Calculate winnings
       const [rates] = await db.select().from(gameRatesTable).limit(1);
-      const gameTypeMap: Record<string, keyof typeof gameRatesTable.$inferSelect> = {
+      const gameTypeMap: Record<string, any> = {
         "single_digit": "singleDigit",
         "jodi": "jodiDigit",
         "single_panna": "singlePanna",
@@ -477,12 +482,7 @@ router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
       const winnings = bidAmount * rate;
       const totalWinnings = bidAmount + winnings;
 
-      // Update to won
-      await db.update(bidsTable)
-        .set({ status: "won" })
-        .where(eq(bidsTable.id, bidId));
-
-      // Credit wallet
+      await db.update(bidsTable).set({ status: "won" }).where(eq(bidsTable.id, bidId));
       await db.update(usersTable)
         .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
         .where(eq(usersTable.id, bid.userId));
@@ -490,26 +490,25 @@ router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
       res.json({
         success: true,
         action: "WON",
-        bid: { id: bid.id, userId: bid.userId, number: bid.number, gameType: bid.gameType, amount: bidAmount },
-        marketResult,
-        winnings: { rate, winnings, totalCredited: totalWinnings },
+        bidId,
+        amount: bidAmount,
+        winnings: totalWinnings,
+        result: marketResult,
       });
     } else {
-      // Update to lost
-      await db.update(bidsTable)
-        .set({ status: "lost" })
-        .where(eq(bidsTable.id, bidId));
+      await db.update(bidsTable).set({ status: "lost" }).where(eq(bidsTable.id, bidId));
 
       res.json({
         success: true,
         action: "LOST",
-        bid: { id: bid.id, userId: bid.userId, number: bid.number, gameType: bid.gameType, amount: bid.amount },
-        marketResult,
-        message: `Bid did not match. Expected: ${bid.gameType === "single_digit" ? `first digit ${marketResult.jodiResult?.charAt(0)}` : marketResult.jodiResult}, Got: ${bid.number}`,
+        bidId,
+        amount: bid.amount,
+        message: `Bid lost: expected ${bid.gameType === "single_digit" ? `first digit ${marketResult.jodiResult?.charAt(0)}` : marketResult.jodiResult}, got ${bid.number}`,
+        result: marketResult,
       });
     }
   } catch (err) {
-    console.error("[Process Bid] Error:", err);
+    console.error("[Fix And Process] Error:", err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

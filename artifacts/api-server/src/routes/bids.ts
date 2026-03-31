@@ -524,6 +524,113 @@ router.get("/process-bid/:bidId", async (req, res): Promise<void> => {
 });
 
 /**
+ * POST /bids/fix-and-process/:bidId
+ * Emergency endpoint to fix bid 
+ * Creates result entry if needed, then processes the bid
+ */
+router.post("/fix-and-process/:bidId", async (req, res): Promise<void> => {
+  try {
+    const bidId = parseInt(req.params.bidId as string, 10);
+    
+    const [bid] = await db.select().from(bidsTable).where(eq(bidsTable.id, bidId));
+    if (!bid) {
+      res.status(404).json({ error: "Bid not found" });
+      return;
+    }
+
+    // Get market
+    const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, bid.marketId));
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Calculate today's date in IST format
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const year = istNow.getUTCFullYear();
+    const month = String(istNow.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istNow.getUTCDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
+
+    // Check if result exists for today
+    let [result] = await db.select().from(resultsTable)
+      .where(and(eq(resultsTable.marketId, bid.marketId), eq(resultsTable.resultDate, today)));
+
+    // If not, create it from market data
+    if (!result) {
+      console.log(`Creating result for market ${bid.marketId} on ${today}`);
+      const [inserted] = await db.insert(resultsTable).values({
+        marketId: bid.marketId,
+        resultDate: today,
+        openResult: market.openResult,
+        closeResult: market.closeResult,
+        jodiResult: market.jodiResult || undefined,
+        pannaResult: market.pannaResult || undefined,
+      }).returning();
+      result = inserted;
+    }
+
+    // Now process the bid
+    const marketResult = {
+      openResult: result.openResult,
+      closeResult: result.closeResult,
+      jodiResult: result.jodiResult || undefined,
+      pannaResult: result.pannaResult || undefined,
+    };
+
+    const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+
+    if (isWinner) {
+      const [rates] = await db.select().from(gameRatesTable).limit(1);
+      const gameTypeMap: Record<string, any> = {
+        "single_digit": "singleDigit",
+        "jodi": "jodiDigit",
+        "single_panna": "singlePanna",
+        "double_panna": "doublePanna",
+        "triple_panna": "triplePanna",
+        "half_sangam": "halfSangam",
+        "full_sangam": "fullSangam",
+      };
+      const rateKey = gameTypeMap[bid.gameType] || "singleDigit";
+      const rate = parseFloat((rates as any)[rateKey] as string);
+      const bidAmount = parseFloat(bid.amount as string);
+      const winnings = bidAmount * rate;
+      const totalWinnings = bidAmount + winnings;
+
+      await db.update(bidsTable).set({ status: "won" }).where(eq(bidsTable.id, bidId));
+      await db.update(usersTable)
+        .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
+        .where(eq(usersTable.id, bid.userId));
+
+      res.json({
+        success: true,
+        action: "WON",
+        bidId,
+        amount: bidAmount,
+        winnings: totalWinnings,
+        result: marketResult,
+      });
+    } else {
+      await db.update(bidsTable).set({ status: "lost" }).where(eq(bidsTable.id, bidId));
+
+      res.json({
+        success: true,
+        action: "LOST",
+        bidId,
+        amount: bid.amount,
+        message: `Bid lost: expected ${bid.gameType === "single_digit" ? `first digit ${marketResult.jodiResult?.charAt(0)}` : marketResult.jodiResult}, got ${bid.number}`,
+        result: marketResult,
+      });
+    }
+  } catch (err) {
+    console.error("[Fix And Process] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * GET /bids/debug/pending
  * Debug endpoint to check all pending bids (no auth required)
  */
