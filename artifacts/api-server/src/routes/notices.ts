@@ -32,103 +32,118 @@ router.get("/notices/user/:userId", async (req, res): Promise<void> => {
 
 // POST create a global broadcast notice (send to all users)
 router.post("/notices/broadcast", authMiddleware, async (req, res): Promise<void> => {
-  const body = CreateNoticeBody.safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+  try {
+    const body = CreateNoticeBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid request", details: body.error });
+      return;
+    }
+
+    const [notice] = await db.insert(noticesTable)
+      .values({
+        title: body.data.title,
+        content: body.data.content,
+        isActive: body.data.isActive ?? true,
+        userId: null, // NULL = broadcast to all users
+      } as any)
+      .returning();
+
+    res.status(201).json({ 
+      ...notice, 
+      createdAt: notice.createdAt.toISOString(),
+      broadcastType: "all_users"
+    });
+  } catch (error) {
+    console.error("[Notice Broadcast Error]", error);
+    res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
   }
-
-  const [notice] = await db.insert(noticesTable)
-    .values({
-      title: body.data.title,
-      content: body.data.content,
-      isActive: body.data.isActive ?? true,
-      userId: null, // NULL = broadcast to all users
-    } as any)
-    .returning();
-
-  res.status(201).json({ 
-    ...notice, 
-    createdAt: notice.createdAt.toISOString(),
-    broadcastType: "all_users"
-  });
 });
 
 // POST create a notice for specific user by ID
 router.post("/notices/user/:userId", authMiddleware, async (req, res): Promise<void> => {
-  const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
-  const userIdNum = parseInt(userId, 10);
-  
-  if (isNaN(userIdNum)) {
-    res.status(400).json({ error: "Invalid user ID" });
-    return;
+  try {
+    const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+    const userIdNum = parseInt(userId, 10);
+    
+    if (isNaN(userIdNum)) {
+      res.status(400).json({ error: "Invalid user ID" });
+      return;
+    }
+
+    const body = CreateNoticeBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    // Verify user exists
+    const user = await db.select().from(usersTable).where(eq(usersTable.id, userIdNum));
+    if (user.length === 0) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const [notice] = await db.insert(noticesTable)
+      .values({
+        title: body.data.title,
+        content: body.data.content,
+        isActive: body.data.isActive ?? true,
+        userId: userIdNum,
+      } as any)
+      .returning();
+
+    res.status(201).json({ 
+      ...notice, 
+      createdAt: notice.createdAt.toISOString(),
+      broadcastType: "specific_user",
+      recipientId: userIdNum
+    });
+  } catch (error) {
+    console.error("[Notice User ID Error]", error);
+    res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
   }
-
-  const body = CreateNoticeBody.safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-
-  // Verify user exists
-  const user = await db.select().from(usersTable).where(eq(usersTable.id, userIdNum));
-  if (user.length === 0) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  const [notice] = await db.insert(noticesTable)
-    .values({
-      title: body.data.title,
-      content: body.data.content,
-      isActive: body.data.isActive ?? true,
-      userId: userIdNum,
-    } as any)
-    .returning();
-
-  res.status(201).json({ 
-    ...notice, 
-    createdAt: notice.createdAt.toISOString(),
-    broadcastType: "specific_user",
-    recipientId: userIdNum
-  });
 });
 
 // POST create a notice for specific user by name
 router.post("/notices/user/name/:userName", authMiddleware, async (req, res): Promise<void> => {
-  const userName = Array.isArray(req.params.userName) ? req.params.userName[0] : req.params.userName;
+  try {
+    const userName = Array.isArray(req.params.userName) ? req.params.userName[0] : req.params.userName;
 
-  const body = CreateNoticeBody.safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+    const body = CreateNoticeBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    // Find user by name
+    const allUsers = await db.select().from(usersTable);
+    const user = allUsers.find(u => u.name === userName);
+    
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const [notice] = await db.insert(noticesTable)
+      .values({
+        title: body.data.title,
+        content: body.data.content,
+        isActive: body.data.isActive ?? true,
+        userId: user.id,
+      } as any)
+      .returning();
+
+    res.status(201).json({ 
+      ...notice, 
+      createdAt: notice.createdAt.toISOString(),
+      broadcastType: "specific_user",
+      recipientId: user.id,
+      recipientName: user.name
+    });
+  } catch (error) {
+    console.error("[Notice User Name Error]", error);
+    res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
   }
-
-  // Find user by name
-  const allUsers = await db.select().from(usersTable);
-  const user = allUsers.find(u => u.name === userName);
-  
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  const [notice] = await db.insert(noticesTable)
-    .values({
-      title: body.data.title,
-      content: body.data.content,
-      isActive: body.data.isActive ?? true,
-      userId: user.id,
-    } as any)
-    .returning();
-
-  res.status(201).json({ 
-    ...notice, 
-    createdAt: notice.createdAt.toISOString(),
-    broadcastType: "specific_user",
-    recipientId: user.id,
-    recipientName: user.name
-  });
 });
 
 // DELETE a notice
