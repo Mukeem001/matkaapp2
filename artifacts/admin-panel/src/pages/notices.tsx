@@ -20,6 +20,9 @@ const noticeSchema = z.object({
   title: z.string().min(1, "Title required"),
   content: z.string().min(1, "Content required"),
   isActive: z.boolean().default(true),
+  recipientType: z.enum(["broadcast", "userId", "userName"]).default("broadcast"),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
 });
 
 export default function Notices() {
@@ -33,18 +36,64 @@ export default function Notices() {
 
   const form = useForm<z.infer<typeof noticeSchema>>({
     resolver: zodResolver(noticeSchema),
-    defaultValues: { title: "", content: "", isActive: true }
+    defaultValues: { 
+      title: "", 
+      content: "", 
+      isActive: true,
+      recipientType: "broadcast",
+      userId: "",
+      userName: ""
+    }
   });
 
-  const onSubmit = (data: z.infer<typeof noticeSchema>) => {
-    create({ data }, {
-      onSuccess: () => {
-        toast({ title: "Notice published!" });
-        queryClient.invalidateQueries({ queryKey: getGetNoticesQueryKey() });
-        setDialogOpen(false);
-        form.reset();
+  const recipientType = form.watch("recipientType");
+
+  const onSubmit = async (data: z.infer<typeof noticeSchema>) => {
+    try {
+      const token = localStorage.getItem("token") || "";
+      let endpoint = "/api/notices";
+      
+      if (data.recipientType === "broadcast") {
+        endpoint = "/api/notices/broadcast";
+      } else if (data.recipientType === "userId") {
+        endpoint = `/api/notices/user/${data.userId}`;
+      } else if (data.recipientType === "userName") {
+        endpoint = `/api/notices/user/name/${encodeURIComponent(data.userName || "")}`;
       }
-    });
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content,
+          isActive: data.isActive,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create notice");
+      }
+
+      toast({ 
+        title: data.recipientType === "broadcast" 
+          ? "Broadcast notice published to all users!" 
+          : `Notice sent to ${data.recipientType === "userId" ? `user ID ${data.userId}` : `user ${data.userName}`}!` 
+      });
+      queryClient.invalidateQueries({ queryKey: getGetNoticesQueryKey() });
+      setDialogOpen(false);
+      form.reset({ recipientType: "broadcast", userId: "", userName: "" });
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to create notice",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -70,25 +119,87 @@ export default function Notices() {
               <Plus className="w-4 h-4" /> New Notice
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Publish New Notice</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Send To</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => form.setValue("recipientType", "broadcast")}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      recipientType === "broadcast"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    📢 All Users
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => form.setValue("recipientType", "userId")}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      recipientType === "userId"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    👤 User ID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => form.setValue("recipientType", "userName")}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      recipientType === "userName"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    📝 Username
+                  </button>
+                </div>
+              </div>
+
+              {recipientType === "userId" && (
+                <div className="space-y-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <Label className="text-sm">User ID</Label>
+                  <Input
+                    type="number"
+                    {...form.register("userId")}
+                    placeholder="e.g. 5"
+                    className="rounded-lg"
+                  />
+                </div>
+              )}
+
+              {recipientType === "userName" && (
+                <div className="space-y-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <Label className="text-sm">Username</Label>
+                  <Input
+                    {...form.register("userName")}
+                    placeholder="e.g. mukeem"
+                    className="rounded-lg"
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Title</Label>
                 <Input {...form.register("title")} className="rounded-xl" placeholder="e.g. Holiday Update" />
               </div>
               <div className="space-y-2">
                 <Label>Message Content</Label>
-                <Textarea {...form.register("content")} className="rounded-xl min-h-[120px]" />
+                <Textarea {...form.register("content")} className="rounded-xl min-h-[100px]" />
               </div>
               <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30">
                 <Label className="cursor-pointer">Active Status</Label>
                 <Switch checked={form.watch("isActive")} onCheckedChange={(c) => form.setValue("isActive", c)} />
               </div>
               <Button type="submit" className="w-full btn-primary-gradient mt-2" disabled={isPending}>
-                Publish
+                {isPending ? "Publishing..." : "Publish"}
               </Button>
             </form>
           </DialogContent>
@@ -107,10 +218,12 @@ export default function Notices() {
           <Card key={notice.id} className="overflow-hidden border-border/50 shadow-sm relative group">
             <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${notice.isActive ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
             <CardContent className="p-6 pl-8 flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-bold text-lg">{notice.title}</h3>
                   {!notice.isActive && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>}
+                  {notice.userId && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">User #{notice.userId}</span>}
+                  {!notice.userId && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Broadcast</span>}
                 </div>
                 <p className="text-muted-foreground">{notice.content}</p>
                 <p className="text-xs text-muted-foreground/60 mt-3 font-medium uppercase tracking-wider">
