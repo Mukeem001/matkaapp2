@@ -39,20 +39,40 @@ router.post("/notices/broadcast", authMiddleware, async (req, res): Promise<void
       return;
     }
 
-    const [notice] = await db.insert(noticesTable)
-      .values({
-        title: body.data.title,
-        content: body.data.content,
-        isActive: body.data.isActive ?? true,
-        userId: null, // NULL = broadcast to all users
-      } as any)
-      .returning();
+    try {
+      // Try with new schema that includes userId
+      const [notice] = await db.insert(noticesTable)
+        .values({
+          title: body.data.title,
+          content: body.data.content,
+          isActive: body.data.isActive ?? true,
+          userId: null,
+        } as any)
+        .returning();
 
-    res.status(201).json({ 
-      ...notice, 
-      createdAt: notice.createdAt.toISOString(),
-      broadcastType: "all_users"
-    });
+      res.status(201).json({ 
+        ...notice, 
+        createdAt: notice.createdAt.toISOString(),
+        broadcastType: "all_users"
+      });
+    } catch (innerError) {
+      // If userId column doesn't exist, try without it
+      console.warn("[Notice Migration] userId column might not exist yet, retrying without it:", innerError);
+      const [notice] = await db.insert(noticesTable)
+        .values({
+          title: body.data.title,
+          content: body.data.content,
+          isActive: body.data.isActive ?? true,
+        } as any)
+        .returning();
+
+      res.status(201).json({ 
+        ...notice, 
+        createdAt: notice.createdAt.toISOString(),
+        broadcastType: "all_users",
+        warning: "Database schema migration pending - user_id column not yet available"
+      });
+    }
   } catch (error) {
     console.error("[Notice Broadcast Error]", error);
     res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
