@@ -25,52 +25,88 @@ router.get("/version", (req, res): void => {
   });
 });
 
-// Helper function for date range calculation
+// Helper function for date range calculation (IST timezone aware)
 function getDateRangeForType(type: string): { from: Date; to: Date } | null {
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  const istNow = new Date(now.getTime() + istOffset);
+
+  // Get today's date in IST format (YYYY-MM-DD)
+  const istDate = new Date(now.getTime() + istOffset);
+  const istYear = istDate.getUTCFullYear();
+  const istMonth = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+  const istDay = String(istDate.getUTCDate()).padStart(2, '0');
+  const todayIST = `${istYear}-${istMonth}-${istDay}`;
 
   switch (type) {
-    case "today":
-      const todayStart = new Date(istNow);
-      todayStart.setUTCHours(0, 0, 0, 0);
-      const todayEnd = new Date(istNow);
-      todayEnd.setUTCHours(23, 59, 59, 999);
-      return { from: todayStart, to: todayEnd };
+    case "today": {
+      // Today in IST: 00:00:00 to 23:59:59 IST
+      // Which is: (today - 5:30) to (today + 18:30) in UTC
+      const startIST = new Date(`${todayIST}T00:00:00Z`);
+      const endIST = new Date(`${todayIST}T23:59:59Z`);
+      return { 
+        from: new Date(startIST.getTime() - istOffset), 
+        to: new Date(endIST.getTime() - istOffset) 
+      };
+    }
 
-    case "yesterday":
-      const yesterdayDate = new Date(istNow);
-      yesterdayDate.setUTCDate(istNow.getUTCDate() - 1);
-      const yesterdayStart = new Date(yesterdayDate);
-      yesterdayStart.setUTCHours(0, 0, 0, 0);
-      const yesterdayEnd = new Date(yesterdayDate);
-      yesterdayEnd.setUTCHours(23, 59, 59, 999);
-      return { from: yesterdayStart, to: yesterdayEnd };
+    case "yesterday": {
+      const yesterdayDate = new Date(istDate.getTime() - 24 * 60 * 60 * 1000);
+      const yYear = yesterdayDate.getUTCFullYear();
+      const yMonth = String(yesterdayDate.getUTCMonth() + 1).padStart(2, '0');
+      const yDay = String(yesterdayDate.getUTCDate()).padStart(2, '0');
+      const yesterdayIST = `${yYear}-${yMonth}-${yDay}`;
+      
+      const startIST = new Date(`${yesterdayIST}T00:00:00Z`);
+      const endIST = new Date(`${yesterdayIST}T23:59:59Z`);
+      return { 
+        from: new Date(startIST.getTime() - istOffset), 
+        to: new Date(endIST.getTime() - istOffset) 
+      };
+    }
 
-    case "last3days":
-      const last3End = new Date(istNow);
-      last3End.setUTCHours(23, 59, 59, 999);
-      const last3Start = new Date(istNow);
-      last3Start.setUTCDate(istNow.getUTCDate() - 2);
-      last3Start.setUTCHours(0, 0, 0, 0);
-      return { from: last3Start, to: last3End };
+    case "last3days": {
+      const last3StartDate = new Date(istDate.getTime() - 2 * 24 * 60 * 60 * 1000);
+      const s3Year = last3StartDate.getUTCFullYear();
+      const s3Month = String(last3StartDate.getUTCMonth() + 1).padStart(2, '0');
+      const s3Day = String(last3StartDate.getUTCDate()).padStart(2, '0');
+      const last3StartIST = `${s3Year}-${s3Month}-${s3Day}`;
+      
+      const startIST = new Date(`${last3StartIST}T00:00:00Z`);
+      const endIST = new Date(`${todayIST}T23:59:59Z`);
+      return { 
+        from: new Date(startIST.getTime() - istOffset), 
+        to: new Date(endIST.getTime() - istOffset) 
+      };
+    }
 
-    case "last7days":
-      const last7End = new Date(istNow);
-      last7End.setUTCHours(23, 59, 59, 999);
-      const last7Start = new Date(istNow);
-      last7Start.setUTCDate(istNow.getUTCDate() - 6);
-      last7Start.setUTCHours(0, 0, 0, 0);
-      return { from: last7Start, to: last7End };
+    case "last7days": {
+      const last7StartDate = new Date(istDate.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const s7Year = last7StartDate.getUTCFullYear();
+      const s7Month = String(last7StartDate.getUTCMonth() + 1).padStart(2, '0');
+      const s7Day = String(last7StartDate.getUTCDate()).padStart(2, '0');
+      const last7StartIST = `${s7Year}-${s7Month}-${s7Day}`;
+      
+      const startIST = new Date(`${last7StartIST}T00:00:00Z`);
+      const endIST = new Date(`${todayIST}T23:59:59Z`);
+      return { 
+        from: new Date(startIST.getTime() - istOffset), 
+        to: new Date(endIST.getTime() - istOffset) 
+      };
+    }
 
-    case "lastMonth":
-      const lastMonthEnd = new Date(istNow);
-      lastMonthEnd.setUTCHours(23, 59, 59, 999);
-      const lastMonthStart = new Date(istNow);
-      lastMonthStart.setUTCDate(1);
-      lastMonthStart.setUTCHours(0, 0, 0, 0);
-      return { from: lastMonthStart, to: lastMonthEnd };
+    case "lastMonth": {
+      const monthStartDate = new Date(istDate.getUTCFullYear(), istDate.getUTCMonth(), 1);
+      const mYear = monthStartDate.getUTCFullYear();
+      const mMonth = String(monthStartDate.getUTCMonth() + 1).padStart(2, '0');
+      const lastMonthIST = `${mYear}-${mMonth}-01`;
+      
+      const startIST = new Date(`${lastMonthIST}T00:00:00Z`);
+      const endIST = new Date(`${todayIST}T23:59:59Z`);
+      return { 
+        from: new Date(startIST.getTime() - istOffset), 
+        to: new Date(endIST.getTime() - istOffset) 
+      };
+    }
 
     default:
       return null;
