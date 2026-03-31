@@ -456,6 +456,153 @@ router.get("/debug/pending", async (req, res): Promise<void> => {
 });
 
 /**
+ * POST /bids/manual-process/:marketId
+ * Process all pending bids for a specific market using the LATEST result available
+ * No auth required - for manual intervention when auto-process doesn't pick up
+ * Looks for the most recent result regardless of date
+ */
+router.post("/manual-process/:marketId", async (req, res): Promise<void> => {
+  try {
+    const marketId = parseInt(req.params.marketId as string, 10);
+
+    if (isNaN(marketId)) {
+      res.status(400).json({ error: "Invalid market ID" });
+      return;
+    }
+
+    // Get market
+    const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, marketId));
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Get the MOST RECENT result for this market (not just today)
+    const [result] = await db.select().from(resultsTable)
+      .where(eq(resultsTable.marketId, marketId))
+      .orderBy((t) => sql`${t.resultDate} DESC`)
+      .limit(1);
+
+    if (!result || !result.openResult || !result.closeResult) {
+      res.json({
+        success: false,
+        message: `No results found for ${market.name}. Need openResult and closeResult.`,
+      });
+      return;
+    }
+
+    const marketResult = {
+      openResult: result.openResult,
+      closeResult: result.closeResult,
+      jodiResult: result.jodiResult || undefined,
+      pannaResult: result.pannaResult || undefined,
+    };
+
+    console.log(`[Manual Process] ${market.name}: ${JSON.stringify(marketResult)}`);
+
+    // Get game rates
+    const [rates] = await db.select().from(gameRatesTable).limit(1);
+    if (!rates) {
+      res.json({ success: false, message: "Game rates not found" });
+      return;
+    }
+
+    // Get all pending bids for this market
+    const pendingBids = await db.select({
+      id: bidsTable.id,
+      userId: bidsTable.userId,
+      gameType: bidsTable.gameType,
+      amount: bidsTable.amount,
+      number: bidsTable.number,
+    })
+      .from(bidsTable)
+      .where(and(
+        eq(bidsTable.marketId, marketId),
+        eq(bidsTable.status, "pending")
+      ));
+
+    if (pendingBids.length === 0) {
+      res.json({
+        success: true,
+        message: `No pending bids to process for ${market.name}`,
+        processed: 0,
+        won: 0,
+        lost: 0,
+      });
+      return;
+    }
+
+    let wonCount = 0;
+    let lostCount = 0;
+
+    // Convert game rates from strings to numbers
+    const gameRates = {
+      singleDigit: parseFloat(rates.singleDigit as string),
+      jodiDigit: parseFloat(rates.jodiDigit as string),
+      singlePanna: parseFloat(rates.singlePanna as string),
+      doublePanna: parseFloat(rates.doublePanna as string),
+      triplePanna: parseFloat(rates.triplePanna as string),
+      halfSangam: parseFloat(rates.halfSangam as string),
+      fullSangam: parseFloat(rates.fullSangam as string),
+    };
+
+    // Process each bid
+    for (const bid of pendingBids) {
+      const bidAmount = parseFloat(bid.amount as string);
+      const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+
+      if (isWinner) {
+        const gameTypeMap: Record<string, keyof typeof gameRates> = {
+          "single_digit": "singleDigit",
+          "jodi": "jodiDigit",
+          "single_panna": "singlePanna",
+          "double_panna": "doublePanna",
+          "triple_panna": "triplePanna",
+          "half_sangam": "halfSangam",
+          "full_sangam": "fullSangam",
+        };
+        const rateKey = gameTypeMap[bid.gameType] || "singleDigit";
+        const winnings = bidAmount * gameRates[rateKey];
+        const totalWinnings = bidAmount + winnings;
+
+        await db.transaction(async (tx) => {
+          await tx.update(bidsTable)
+            .set({ status: "won" })
+            .where(eq(bidsTable.id, bid.id));
+
+          await tx.update(usersTable)
+            .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
+            .where(eq(usersTable.id, bid.userId));
+        });
+
+        console.log(`[Manual Process] Bid ${bid.id} WON: +₹${totalWinnings}`);
+        wonCount++;
+      } else {
+        await db.update(bidsTable)
+          .set({ status: "lost" })
+          .where(eq(bidsTable.id, bid.id));
+
+        console.log(`[Manual Process] Bid ${bid.id} LOST`);
+        lostCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `✅ Manually processed ${pendingBids.length} bids for ${market.name}`,
+      resultDate: result.resultDate,
+      marketResult,
+      processed: pendingBids.length,
+      won: wonCount,
+      lost: lostCount,
+    });
+  } catch (err) {
+    console.error("[Manual Process] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * POST /bids/auto-process
  * Automatically process all pending bids that have market results available
  * No auth required - can be called by scheduler/cron
