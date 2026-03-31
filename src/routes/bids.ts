@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { db, bidsTable, usersTable, marketsTable, resultsTable, gameRatesTable } from "@workspace/db";
 import { GetBidsQueryParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
+import { getTodayDateIST } from "../lib/date-utils.js";
 import { processMarketBidsPreClose, isBidWinner, calculateWinnings } from "../lib/bid-processor.js";
 
 const router: IRouter = Router();
@@ -807,7 +808,6 @@ router.post("/auto-process", async (req, res): Promise<void> => {
       try {
         // Try both TODAY and YESTERDAY dates (for bids placed late evening UTC)
         // because IST is UTC+5:30, late UTC times map to next day IST
-        const { getTodayDateIST } = await import("../lib/date-utils.js");
         const todayIST = getTodayDateIST();
         
         // Get yesterday's date too
