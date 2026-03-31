@@ -805,17 +805,24 @@ router.post("/auto-process", async (req, res): Promise<void> => {
     // Process each pending bid
     for (const bid of pendingBids) {
       try {
-        // Get the bid creation date (treating it as result date)
-        const bidDate = new Date(bid.createdAt);
+        // Try both TODAY and YESTERDAY dates (for bids placed late evening UTC)
+        // because IST is UTC+5:30, late UTC times map to next day IST
+        const { getTodayDateIST } = await import("../lib/date-utils.js");
+        const todayIST = getTodayDateIST();
+        
+        // Get yesterday's date too
+        const yesterdayDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
         const istOffset = 5.5 * 60 * 60 * 1000;
-        const istDate = new Date(bidDate.getTime() + istOffset);
-        const year = istDate.getUTCFullYear();
-        const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(istDate.getUTCDate()).padStart(2, '0');
-        const resultDate = `${year}-${month}-${day}`;
+        const yesterdayIST = new Date(yesterdayDate.getTime() + istOffset);
+        const yesterdayYear = yesterdayIST.getUTCFullYear();
+        const yesterdayMonth = String(yesterdayIST.getUTCMonth() + 1).padStart(2, '0');
+        const yesterdayDay = String(yesterdayIST.getUTCDate()).padStart(2, '0');
+        const yesterdayResultDate = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+        
+        const resultDate = todayIST;
 
-        // Find market result for this bid
-        const [result] = await db
+        // Find market result for this bid - try TODAY first, then YESTERDAY
+        let result = await db
           .select()
           .from(resultsTable)
           .where(
@@ -823,10 +830,25 @@ router.post("/auto-process", async (req, res): Promise<void> => {
               eq(resultsTable.marketId, bid.marketId),
               eq(resultsTable.resultDate, resultDate)
             )
-          );
+          )
+          .then(rows => rows[0]);
+        
+        // If not found, try yesterday's date (for late UTC bids that map to next day IST)
+        if (!result) {
+          result = await db
+            .select()
+            .from(resultsTable)
+            .where(
+              and(
+                eq(resultsTable.marketId, bid.marketId),
+                eq(resultsTable.resultDate, yesterdayResultDate)
+              )
+            )
+            .then(rows => rows[0]);
+        }
 
         if (!result || !result.openResult || !result.closeResult) {
-          console.log(`[Auto Process] Bid ${bid.id}: No result found for market ${bid.marketId} on ${resultDate}`);
+          console.log(`[Auto Process] Bid ${bid.id}: No result found for market ${bid.marketId} on ${resultDate} or ${yesterdayResultDate}`);
           failedBids.push({ bidId: bid.id, reason: "Result not found" });
           continue;
         }
