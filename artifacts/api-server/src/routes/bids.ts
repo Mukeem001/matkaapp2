@@ -1250,4 +1250,162 @@ router.post("/admin/bids/mark-lost", async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * POST /force-process-market/:marketId
+ * Force process all pending bids for a specific market (no auth required)
+ * Useful when scheduler hasn't run yet or for immediate processing
+ */
+router.post("/force-process-market/:marketId", async (req, res): Promise<void> => {
+  try {
+    const marketId = parseInt(req.params.marketId as string, 10);
+    if (isNaN(marketId)) {
+      res.status(400).json({ error: "Invalid market ID" });
+      return;
+    }
+
+    // Get all pending bids for this market
+    const pendingBids = await db.select({
+      id: bidsTable.id,
+      userId: bidsTable.userId,
+      marketId: bidsTable.marketId,
+      gameType: bidsTable.gameType,
+      amount: bidsTable.amount,
+      number: bidsTable.number,
+      createdAt: bidsTable.createdAt,
+    })
+      .from(bidsTable)
+      .where(and(
+        eq(bidsTable.marketId, marketId),
+        eq(bidsTable.status, "pending")
+      ));
+
+    if (pendingBids.length === 0) {
+      res.json({ success: true, message: "No pending bids for this market", processed: 0 });
+      return;
+    }
+
+    // Get game rates
+    const [rates] = await db.select().from(gameRatesTable).limit(1);
+    if (!rates) {
+      res.status(500).json({ error: "Game rates not found" });
+      return;
+    }
+
+    const gameRates: any = {
+      singleDigit: parseFloat(rates.singleDigit as string),
+      jodiDigit: parseFloat(rates.jodiDigit as string),
+      singlePanna: parseFloat(rates.singlePanna as string),
+      doublePanna: parseFloat(rates.doublePanna as string),
+      triplePanna: parseFloat(rates.triplePanna as string),
+      halfSangam: parseFloat(rates.halfSangam as string),
+      fullSangam: parseFloat(rates.fullSangam as string),
+    };
+
+    let processedCount = 0;
+    let wonCount = 0;
+    let lostCount = 0;
+
+    // Process each pending bid
+    for (const bid of pendingBids) {
+      try {
+        const todayIST = getTodayDateIST();
+        
+        // Try today first, then yesterday
+        let result = await db.select()
+          .from(resultsTable)
+          .where(
+            and(
+              eq(resultsTable.marketId, marketId),
+              eq(resultsTable.resultDate, todayIST)
+            )
+          )
+          .then(rows => rows[0]);
+        
+        if (!result) {
+          const yesterdayDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
+          const istOffset = 5.5 * 60 * 60 * 1000;
+          const yesterdayIST = new Date(yesterdayDate.getTime() + istOffset);
+          const yesterdayYear = yesterdayIST.getUTCFullYear();
+          const yesterdayMonth = String(yesterdayIST.getUTCMonth() + 1).padStart(2, '0');
+          const yesterdayDay = String(yesterdayIST.getUTCDate()).padStart(2, '0');
+          const yesterdayResultDate = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+          
+          result = await db.select()
+            .from(resultsTable)
+            .where(
+              and(
+                eq(resultsTable.marketId, marketId),
+                eq(resultsTable.resultDate, yesterdayResultDate)
+              )
+            )
+            .then(rows => rows[0]);
+        }
+
+        if (!result) {
+          console.log(`[Force Process] Bid ${bid.id}: No result found for market ${marketId}`);
+          continue;
+        }
+
+        const marketResult = {
+          openResult: result.openResult,
+          closeResult: result.closeResult,
+          jodiResult: result.jodiResult || undefined,
+          pannaResult: result.pannaResult || undefined,
+        };
+
+        const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+
+        if (isWinner) {
+          const gameTypeMap: Record<string, keyof typeof gameRates> = {
+            "single_digit": "singleDigit",
+            "jodi": "jodiDigit",
+            "single_panna": "singlePanna",
+            "double_panna": "doublePanna",
+            "triple_panna": "triplePanna",
+            "half_sangam": "halfSangam",
+            "full_sangam": "fullSangam",
+          };
+          const rateKey = gameTypeMap[bid.gameType] || "singleDigit";
+          const bidAmount = parseFloat(bid.amount as string);
+          const winnings = bidAmount * gameRates[rateKey];
+          const totalWinnings = bidAmount + winnings;
+
+          await db.transaction(async (tx) => {
+            await tx.update(bidsTable)
+              .set({ status: "won" })
+              .where(eq(bidsTable.id, bid.id));
+
+            await tx.update(usersTable)
+              .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
+              .where(eq(usersTable.id, bid.userId));
+          });
+
+          wonCount++;
+        } else {
+          await db.update(bidsTable)
+            .set({ status: "lost" })
+            .where(eq(bidsTable.id, bid.id));
+
+          lostCount++;
+        }
+
+        processedCount++;
+      } catch (bidError) {
+        console.error(`[Force Process] Error processing bid ${bid.id}:`, bidError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Force-processed ${processedCount} bids for market ${marketId}`,
+      processed: processedCount,
+      won: wonCount,
+      lost: lostCount,
+    });
+  } catch (err) {
+    console.error("[Force Process Market] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;
