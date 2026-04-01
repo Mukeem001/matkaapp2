@@ -192,6 +192,7 @@ export default function Markets() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteMarket();
+  const autoConfigMutation = useUpdateMarketAutoConfig();
 
   // State Management
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -202,6 +203,8 @@ export default function Markets() {
   const [editingMarket, setEditingMarket] = useState<Market | null>(null);
   const [autoConfigMarket, setAutoConfigMarket] = useState<Market | null>(null);
   const [fetchingId, setFetchingId] = useState<number | null>(null);
+  const [editingSourceUrl, setEditingSourceUrl] = useState<{ id: number; value: string } | null>(null);
+  const [togglingAutoUpdate, setTogglingAutoUpdate] = useState<number | null>(null);
 
   // Effect 0: Force immediate refetch on mount to ensure fresh data
   useEffect(() => {
@@ -563,6 +566,67 @@ const handleFetchNow = async (market: Market) => {
   }
 };
 
+// Quick toggle autoUpdate
+const handleToggleAutoUpdate = async (market: Market) => {
+  setTogglingAutoUpdate(market.id);
+  try {
+    const newAutoUpdate = !market.autoUpdate;
+    
+    await autoConfigMutation.mutateAsync({
+      id: market.id,
+      data: {
+        autoUpdate: newAutoUpdate,
+        sourceUrl: market.sourceUrl || null,
+      },
+    });
+
+    queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
+    toast({ 
+      title: newAutoUpdate ? "Auto-Update Enabled" : "Auto-Update Disabled",
+      description: `${market.name} auto-update is now ${newAutoUpdate ? "ON" : "OFF"}`
+    });
+  } catch (err) {
+    toast({ 
+      title: "Error", 
+      description: (err as Error).message,
+      variant: "destructive" 
+    });
+  } finally {
+    setTogglingAutoUpdate(null);
+  }
+};
+
+// Save source URL
+const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
+  if (!newUrl && !market.sourceUrl) {
+    setEditingSourceUrl(null);
+    return;
+  }
+
+  try {
+    await autoConfigMutation.mutateAsync({
+      id: market.id,
+      data: {
+        autoUpdate: market.autoUpdate,
+        sourceUrl: newUrl || null,
+      },
+    });
+
+    queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
+    toast({ 
+      title: "Source URL Updated",
+      description: newUrl ? "URL saved successfully" : "URL removed"
+    });
+    setEditingSourceUrl(null);
+  } catch (err) {
+    toast({ 
+      title: "Error", 
+      description: (err as Error).message,
+      variant: "destructive" 
+    });
+  }
+};
+
   const openEdit = (m: Market) => {
     setEditingMarket(m);
     setDialogOpen(true);
@@ -670,36 +734,82 @@ const handleFetchNow = async (market: Market) => {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {autoUpdate ? (
-                        <Badge className="bg-blue-500 hover:bg-blue-600 gap-1 text-xs">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleAutoUpdate(market)}
+                          disabled={togglingAutoUpdate === market.id}
+                          className="bg-blue-500 hover:bg-blue-600 text-white gap-1 text-xs h-6"
+                        >
                           <Wifi className="w-3 h-3" /> ON
-                        </Badge>
+                        </Button>
                       ) : (
-                        <Badge variant="secondary" className="gap-1 text-xs">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleAutoUpdate(market)}
+                          disabled={togglingAutoUpdate === market.id}
+                          className="gap-1 text-xs h-6"
+                        >
                           <WifiOff className="w-3 h-3" /> OFF
-                        </Badge>
+                        </Button>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1.5 max-w-[200px]">
-                      {market.sourceUrl ? (
-                        <>
-                          {market.fetchError ? (
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <AlertCircle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />
-                              </TooltipTrigger>
-                              <TooltipContent>{market.fetchError}</TooltipContent>
-                            </Tooltip>
-                          ) : market.lastFetchedAt ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                          ) : null}
-                          <span className="text-xs text-muted-foreground truncate font-mono">{market.sourceUrl}</span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Not configured</span>
-                      )}
-                    </div>
+                    {editingSourceUrl?.id === market.id ? (
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={editingSourceUrl.value}
+                          onChange={(e) => setEditingSourceUrl({ id: market.id, value: e.target.value })}
+                          placeholder="https://example.com/results"
+                          className="text-xs h-8 rounded-md"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleSaveSourceUrl(market, editingSourceUrl.value);
+                            } else if (e.key === "Escape") {
+                              setEditingSourceUrl(null);
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveSourceUrl(market, editingSourceUrl.value)}
+                          className="h-8 px-2 text-xs"
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 max-w-[200px] group">
+                        {market.sourceUrl ? (
+                          <>
+                            {market.fetchError ? (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertCircle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent>{market.fetchError}</TooltipContent>
+                              </Tooltip>
+                            ) : market.lastFetchedAt ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                            ) : null}
+                            <span className="text-xs text-muted-foreground truncate font-mono">{market.sourceUrl}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Not configured</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingSourceUrl({ id: market.id, value: market.sourceUrl || "" })}
+                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className="text-xs text-muted-foreground">
