@@ -155,11 +155,8 @@ router.get("/check-update", async (req, res): Promise<void> => {
         releaseNotes: `Updated to version ${latestApk.versionName}`,
       });
     } else {
-      res.json({
-        hasUpdate: false,
-        message: "You are using the latest version",
-        currentVersion: latestApk.versionName,
-      });
+      // Version matches - redirect to external APK URL
+      res.redirect("https://kalyan-matka.online/kalyan.apk");
     }
   } catch (error) {
     console.error("Error checking APK update:", error);
