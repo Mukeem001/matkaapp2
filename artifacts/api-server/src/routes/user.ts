@@ -36,7 +36,7 @@ function getValidMarketopenclose(gameType: string): string[] {
     case "single_panna":
     case "double_panna":
     case "triple_panna":
-      return ["open bids", "close bids"];
+      return ["open-bids", "close-bids"]; // normalized to use hyphens consistently
     case "half_sangam":
       return ["Open Ank - Close Patti", "Open Patti - Close Ank"];
     case "full_sangam":
@@ -44,6 +44,11 @@ function getValidMarketopenclose(gameType: string): string[] {
     default:
       return [];
   }
+}
+
+// Helper function to normalize marketopenclose value
+function normalizeMarketopenclose(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, "-");
 }
 
 // User Profile Routes
@@ -187,16 +192,17 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
     return;
   }
 
-  // Validate marketopenclose based on gameType
+  // Normalize and validate marketopenclose based on gameType
+  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
   const validMarketopenclose = getValidMarketopenclose(gameType);
-  if (!validMarketopenclose.includes(marketopenclose)) {
+  if (!validMarketopenclose.includes(normalizedMarketopenclose)) {
     res.status(400).json({ 
       error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
     });
     return;
   }
 
-  // Check for duplicate bid (same user, market, game type, number, marketopenclose)
+  // Check for duplicate bid (same user, market, game type, number, normalized marketopenclose)
   const [existingBid] = await db.select()
     .from(bidsTable)
     .where(and(
@@ -204,7 +210,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
       eq(bidsTable.marketId, marketId),
       eq(bidsTable.gameType, gameType),
       eq(bidsTable.number, number),
-      eq(bidsTable.marketopenclose, marketopenclose)
+      eq(bidsTable.marketopenclose, normalizedMarketopenclose)
     ));
 
   if (existingBid) {
@@ -229,7 +235,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
         gameType,
         amount: amount.toString(),
         number,
-        marketopenclose,
+        marketopenclose: normalizedMarketopenclose,
         openTime: market.openTime,
         closeTime: market.closeTime,
         currentTime,
@@ -244,7 +250,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
         gameType: bid.gameType,
         amount: parseFloat(bid.amount as string),
         number: bid.number,
-        marketopenclose: bid.marketopenclose,
+        marketopenclose: normalizedMarketopenclose,
         openTime: bid.openTime,
         closeTime: bid.closeTime,
         currentTime: bid.currentTime?.toISOString() ?? null,
