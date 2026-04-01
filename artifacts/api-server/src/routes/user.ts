@@ -18,9 +18,9 @@ function isValidBidNumber(gameType: string, number: string): boolean {
     case "triple_panna":
       return /^\d{3}$/.test(number); // 3 digits
     case "half_sangam":
-      return /^\d{3}$/.test(number); // 3 digits
+      return /^\d{1,3}-\d{1,3}$/.test(number); // [Ank]-[Patti] or [Patti]-[Ank] format
     case "full_sangam":
-      return /^\d{6}$/.test(number); // 6 digits (3+3)
+      return /^\d{3}-\d{3}$/.test(number); // [Open Patti]-[Close Patti] format
     default:
       return false;
   }
@@ -155,7 +155,7 @@ const PlaceBidBody = z.object({
   marketId: z.number().int().positive(),
   gameType: z.enum(["single_digit", "jodi", "single_panna", "double_panna", "triple_panna", "half_sangam", "full_sangam"]),
   amount: z.number().positive().min(1).max(10000), // Min 1, max 10000
-  number: z.string().min(1).max(6), // Max 6 digits for full sangam
+  number: z.string().min(1).max(7), // Max 7 chars: supports formats like "106-168" (3-3) or "4-106" (1-3)
   marketopenclose: z.string().optional().default("open-bids"), // Market open/close type
 });
 
