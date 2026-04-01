@@ -75,8 +75,20 @@ export default function Notices() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create notice");
+        const contentType = response.headers.get("content-type");
+        let errorMessage = "Failed to create notice";
+        
+        if (contentType?.includes("application/json")) {
+          try {
+            const error = await response.json();
+            errorMessage = error.error || error.message || errorMessage;
+          } catch {
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        } else {
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       toast({ 
