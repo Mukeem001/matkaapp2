@@ -150,7 +150,7 @@ router.get("/check-update", async (req, res): Promise<void> => {
         hasUpdate: true,
         latestVersion: latestApk.versionName || "1.0.0",
         latestVersionCode: latestApk.versionCode || "0",
-        downloadUrl: `${process.env.APP_BASE_URL || "http://localhost:4000"}${latestApk.filepath}`,
+        downloadUrl: "https://kalyan-matka.online/kalyan.apk",
         filesize: latestApk.filesize,
         releaseNotes: `Updated to version ${latestApk.versionName}`,
       });
