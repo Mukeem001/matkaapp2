@@ -509,13 +509,14 @@ router.get("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, r
 
 // Alias route: POST /user/bids2 -> same as /user/markets2-bids for convenience
 router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = PlaceBids2Body.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
-    return;
-  }
+  try {
+    const parsed = PlaceBids2Body.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
 
-  const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
+    const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
   const userId = req.userId!;
 
   // Check if markets2 exists and is active
@@ -617,6 +618,10 @@ router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Pr
       },
     });
   });
+  } catch (error) {
+    console.error("[Bids2 Error]", error);
+    res.status(500).json({ error: "Failed to place bid", details: error instanceof Error ? error.message : "Unknown error" });
+  }
 });
 
 // Alias route: GET /user/bids2 -> same as /user/markets2-bids for convenience
