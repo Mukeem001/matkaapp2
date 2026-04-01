@@ -48,7 +48,14 @@ function getValidMarketopenclose(gameType: string): string[] {
 
 // Helper function to normalize marketopenclose value
 function normalizeMarketopenclose(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, "-");
+  return value.toLowerCase().replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
+// Helper function to validate marketopenclose
+function isValidMarketopenclose(gameType: string, value: string): boolean {
+  const normalized = normalizeMarketopenclose(value);
+  const validOptions = getValidMarketopenclose(gameType);
+  return validOptions.some(opt => normalizeMarketopenclose(opt) === normalized);
 }
 
 // User Profile Routes
@@ -192,15 +199,16 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
     return;
   }
 
-  // Normalize and validate marketopenclose based on gameType
-  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
-  const validMarketopenclose = getValidMarketopenclose(gameType);
-  if (!validMarketopenclose.includes(normalizedMarketopenclose)) {
+  // Validate marketopenclose based on gameType
+  if (!isValidMarketopenclose(gameType, marketopenclose)) {
+    const validMarketopenclose = getValidMarketopenclose(gameType);
     res.status(400).json({ 
       error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
     });
     return;
   }
+
+  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
 
   // Check for duplicate bid (same user, market, game type, number, normalized marketopenclose)
   const [existingBid] = await db.select()
@@ -354,15 +362,16 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  // Normalize and validate marketopenclose based on gameType
-  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
-  const validMarketopenclose = getValidMarketopenclose(gameType);
-  if (!validMarketopenclose.includes(normalizedMarketopenclose)) {
+  // Validate marketopenclose based on gameType
+  if (!isValidMarketopenclose(gameType, marketopenclose)) {
+    const validMarketopenclose = getValidMarketopenclose(gameType);
     res.status(400).json({ 
       error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
     });
     return;
   }
+
+  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
 
   // Check for duplicate bid - only against markets2 bids
   const [existingBid] = await db.select()
