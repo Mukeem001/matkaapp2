@@ -155,8 +155,14 @@ router.get("/check-update", async (req, res): Promise<void> => {
         releaseNotes: `Updated to version ${latestApk.versionName}`,
       });
     } else {
-      // Version matches - redirect to external APK URL
-      res.redirect("https://kalyan-matka.online/kalyan.apk");
+      // Version matches - return URL in JSON
+      res.json({
+        hasUpdate: true,
+        latestVersion: latestApk.versionName || "1.0.0",
+        latestVersionCode: latestApk.versionCode || "0",
+        downloadUrl: "https://kalyan-matka.online/kalyan.apk",
+        message: "Version is up-to-date",
+      });
     }
   } catch (error) {
     console.error("Error checking APK update:", error);
