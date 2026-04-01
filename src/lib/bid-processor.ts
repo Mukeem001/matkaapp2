@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { db, bidsTable, usersTable, gameRatesTable, resultsTable, marketsTable } from "@workspace/db";
-import { getTodayDateIST } from "./date-utils";
+import { getTodayDateIST, isMarketClosed } from "./date-utils";
 
 export interface MarketResult {
   openResult?: string;
@@ -231,6 +231,14 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
     const [market] = await db.select().from(marketsTable).where(eq(marketsTable.id, marketId));
     if (!market) {
       return { success: false, message: "Market not found" };
+    }
+
+    // Check if market closing time has passed
+    if (!isMarketClosed(market.closeTime)) {
+      return {
+        success: false,
+        message: `❌ Market hasn't closed yet. Close time: ${market.closeTime} IST. Please try after market closes.`,
+      };
     }
 
     // Get TODAY's result for this market (in IST)
