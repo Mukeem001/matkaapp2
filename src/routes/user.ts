@@ -13,6 +13,8 @@ function isValidBidNumber(gameType: string, number: string): boolean {
       return /^\d{1}$/.test(number); // 1 digit
     case "jodi":
       return /^\d{2}$/.test(number); // 2 digits
+    case "odd_even":
+      return /^([0-9],)*[0-9]+$/.test(number); // comma-separated digits like "0,2,4,6,8"
     case "single_panna":
     case "double_panna":
     case "triple_panna":
@@ -32,6 +34,8 @@ function getValidMarketopenclose(gameType: string): string[] {
     case "single_digit":
       return ["open-bids", "close-bids"];
     case "jodi":
+      return ["open-bids", "close-bids"];
+    case "odd_even":
       return ["open-bids", "close-bids"];
     case "single_panna":
     case "double_panna":
@@ -332,114 +336,119 @@ router.get("/user/bids", userAuthMiddleware, async (req: AuthRequest, res): Prom
 
 // Markets2 Bidding Routes (same as markets bidding)
 router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = PlaceBids2Body.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
-    return;
-  }
+  try {
+    const parsed = PlaceBids2Body.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
 
-  const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
-  const userId = req.userId!;
+    const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
+    const userId = req.userId!;
 
-  // Check if markets2 exists and is active
-  const [market] = await db.select().from(markets2Table).where(and(
-    eq(markets2Table.id, marketId),
-    eq(markets2Table.isActive, true)
-  ));
-
-  if (!market) {
-    res.status(404).json({ error: "Market not found or market is inactive" });
-    return;
-  }
-
-  // Check user balance and status
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user || user.isBlocked) {
-    res.status(403).json({ error: "User not found or blocked" });
-    return;
-  }
-
-  const currentBalance = parseFloat(user.walletBalance as string);
-  if (currentBalance < amount) {
-    res.status(400).json({ error: "Insufficient balance" });
-    return;
-  }
-
-  // Validate bid number format
-  if (!isValidBidNumber(gameType, number)) {
-    res.status(400).json({ error: "Invalid bid number for selected game type" });
-    return;
-  }
-
-  // Validate marketopenclose based on gameType
-  if (!isValidMarketopenclose(gameType, marketopenclose)) {
-    const validMarketopenclose = getValidMarketopenclose(gameType);
-    res.status(400).json({ 
-      error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
-    });
-    return;
-  }
-
-  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
-
-  // Check for duplicate bid - only against markets2 bids
-  const [existingBid] = await db.select()
-    .from(bidsTable)
-    .innerJoin(markets2Table, eq(bidsTable.marketId, markets2Table.id))
-    .where(and(
-      eq(bidsTable.userId, userId),
-      eq(bidsTable.marketId, marketId),
-      eq(bidsTable.gameType, gameType),
-      eq(bidsTable.number, number),
-      eq(bidsTable.marketopenclose, normalizedMarketopenclose)
+    // Check if markets2 exists and is active
+    const [market] = await db.select().from(markets2Table).where(and(
+      eq(markets2Table.id, marketId),
+      eq(markets2Table.isActive, true)
     ));
 
-  if (existingBid) {
-    res.status(409).json({ error: "Duplicate bid not allowed" });
-    return;
-  }
+    if (!market) {
+      res.status(404).json({ error: "Market not found or market is inactive" });
+      return;
+    }
 
-  // Deduct balance and create bid in transaction
-  await db.transaction(async (tx) => {
-    // Deduct balance
-    await tx.update(usersTable)
-      .set({ walletBalance: sql`${usersTable.walletBalance} - ${amount}` })
-      .where(eq(usersTable.id, userId));
+    // Check user balance and status
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user || user.isBlocked) {
+      res.status(403).json({ error: "User not found or blocked" });
+      return;
+    }
 
-    // Create bid
-    const currentTime = new Date();
-    const [bid] = await tx.insert(bidsTable)
-      .values({
-        userId,
-        marketId,
-        marketName: market.name,
-        gameType,
-        amount: amount.toString(),
-        number,
-        marketopenclose: normalizedMarketopenclose,
-        openTime: market.openTime,
-        closeTime: market.closeTime,
-        currentTime,
-      })
-      .returning();
+    const currentBalance = parseFloat(user.walletBalance as string);
+    if (currentBalance < amount) {
+      res.status(400).json({ error: "Insufficient balance" });
+      return;
+    }
 
-    res.status(201).json({
-      bid: {
-        id: bid.id,
-        marketId: bid.marketId,
-        marketName: bid.marketName,
-        gameType: bid.gameType,
-        amount: parseFloat(bid.amount as string),
-        number: bid.number,
-        marketopenclose: normalizedMarketopenclose,
-        openTime: bid.openTime,
-        closeTime: bid.closeTime,
-        currentTime: bid.currentTime?.toISOString() ?? null,
-        status: bid.status,
-        createdAt: bid.createdAt.toISOString(),
-      },
+    // Validate bid number format
+    if (!isValidBidNumber(gameType, number)) {
+      res.status(400).json({ error: "Invalid bid number for selected game type" });
+      return;
+    }
+
+    // Validate marketopenclose based on gameType
+    if (!isValidMarketopenclose(gameType, marketopenclose)) {
+      const validMarketopenclose = getValidMarketopenclose(gameType);
+      res.status(400).json({ 
+        error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
+      });
+      return;
+    }
+
+    const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
+
+    // Check for duplicate bid - only against markets2 bids
+    const [existingBid] = await db.select()
+      .from(bidsTable)
+      .innerJoin(markets2Table, eq(bidsTable.marketId, markets2Table.id))
+      .where(and(
+        eq(bidsTable.userId, userId),
+        eq(bidsTable.marketId, marketId),
+        eq(bidsTable.gameType, gameType),
+        eq(bidsTable.number, number),
+        eq(bidsTable.marketopenclose, normalizedMarketopenclose)
+      ));
+
+    if (existingBid) {
+      res.status(409).json({ error: "Duplicate bid not allowed" });
+      return;
+    }
+
+    // Deduct balance and create bid in transaction
+    await db.transaction(async (tx) => {
+      // Deduct balance
+      await tx.update(usersTable)
+        .set({ walletBalance: sql`${usersTable.walletBalance} - ${amount}` })
+        .where(eq(usersTable.id, userId));
+
+      // Create bid
+      const currentTime = new Date();
+      const [bid] = await tx.insert(bidsTable)
+        .values({
+          userId,
+          marketId,
+          marketName: market.name,
+          gameType,
+          amount: amount.toString(),
+          number,
+          marketopenclose: normalizedMarketopenclose,
+          openTime: market.openTime,
+          closeTime: market.closeTime,
+          currentTime,
+        })
+        .returning();
+
+      res.status(201).json({
+        bid: {
+          id: bid.id,
+          marketId: bid.marketId,
+          marketName: bid.marketName,
+          gameType: bid.gameType,
+          amount: parseFloat(bid.amount as string),
+          number: bid.number,
+          marketopenclose: normalizedMarketopenclose,
+          openTime: bid.openTime,
+          closeTime: bid.closeTime,
+          currentTime: bid.currentTime?.toISOString() ?? null,
+          status: bid.status,
+          createdAt: bid.createdAt.toISOString(),
+        },
+      });
     });
-  });
+  } catch (error) {
+    console.error("[Bids2 Error]", error);
+    res.status(500).json({ error: "Failed to place bid", details: error instanceof Error ? error.message : "Unknown error" });
+  }
 });
 
 // Markets2 Bid History

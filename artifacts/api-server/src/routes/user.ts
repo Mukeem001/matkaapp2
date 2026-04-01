@@ -13,6 +13,8 @@ function isValidBidNumber(gameType: string, number: string): boolean {
       return /^\d{1}$/.test(number); // 1 digit
     case "jodi":
       return /^\d{2}$/.test(number); // 2 digits
+    case "odd_even":
+      return /^([0-9],)*[0-9]+$/.test(number); // comma-separated digits like "0,2,4,6,8"
     case "single_panna":
     case "double_panna":
     case "triple_panna":
@@ -32,6 +34,8 @@ function getValidMarketopenclose(gameType: string): string[] {
     case "single_digit":
       return ["open-bids", "close-bids"];
     case "jodi":
+      return ["open-bids", "close-bids"];
+    case "odd_even":
       return ["open-bids", "close-bids"];
     case "single_panna":
     case "double_panna":
@@ -330,7 +334,8 @@ router.get("/user/bids", userAuthMiddleware, async (req: AuthRequest, res): Prom
 
 // Markets2 Bidding Routes (same as markets bidding)
 router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = PlaceBids2Body.safeParse(req.body);
+  try {
+    const parsed = PlaceBids2Body.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
@@ -423,7 +428,13 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
         createdAt: bid.createdAt.toISOString(),
       },
     });
-  });
+  });} catch (error) {
+    console.error("[Bids2 Error]", error);
+    res.status(500).json({ 
+      error: "Failed to place bid", 
+      details: error instanceof Error ? error.message : "Unknown error" 
+    });
+  }
 });
 
 // Markets2 Bid History
