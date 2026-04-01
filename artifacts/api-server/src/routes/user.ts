@@ -471,6 +471,174 @@ router.get("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, r
   });
 });
 
+// Alias route: POST /user/bids2 -> same as /user/markets2-bids for convenience
+router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  const parsed = PlaceBidBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    return;
+  }
+
+  const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
+  const userId = req.userId!;
+
+  // Check if markets2 exists and is active
+  const [market] = await db.select().from(markets2Table).where(and(
+    eq(markets2Table.id, marketId),
+    eq(markets2Table.isActive, true)
+  ));
+
+  if (!market) {
+    res.status(404).json({ error: "Market not found or market is inactive" });
+    return;
+  }
+
+  // Check user balance and status
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user || user.isBlocked) {
+    res.status(403).json({ error: "User not found or blocked" });
+    return;
+  }
+
+  const currentBalance = parseFloat(user.walletBalance as string);
+  if (currentBalance < amount) {
+    res.status(400).json({ error: "Insufficient balance" });
+    return;
+  }
+
+  // Validate bid number format
+  if (!isValidBidNumber(gameType, number)) {
+    res.status(400).json({ error: "Invalid bid number for selected game type" });
+    return;
+  }
+
+  // Validate marketopenclose based on gameType
+  if (!isValidMarketopenclose(gameType, marketopenclose)) {
+    const validMarketopenclose = getValidMarketopenclose(gameType);
+    res.status(400).json({ 
+      error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
+    });
+    return;
+  }
+
+  const normalizedMarketopenclose = normalizeMarketopenclose(marketopenclose);
+
+  // Check for duplicate bid - only against markets2 bids
+  const [existingBid] = await db.select()
+    .from(bidsTable)
+    .innerJoin(markets2Table, eq(bidsTable.marketId, markets2Table.id))
+    .where(and(
+      eq(bidsTable.userId, userId),
+      eq(bidsTable.marketId, marketId),
+      eq(bidsTable.gameType, gameType),
+      eq(bidsTable.number, number),
+      eq(bidsTable.marketopenclose, normalizedMarketopenclose)
+    ));
+
+  if (existingBid) {
+    res.status(409).json({ error: "Duplicate bid not allowed" });
+    return;
+  }
+
+  // Deduct balance and create bid in transaction
+  await db.transaction(async (tx) => {
+    // Deduct balance
+    await tx.update(usersTable)
+      .set({ walletBalance: sql`${usersTable.walletBalance} - ${amount}` })
+      .where(eq(usersTable.id, userId));
+
+    // Create bid
+    const currentTime = new Date();
+    const [bid] = await tx.insert(bidsTable)
+      .values({
+        userId,
+        marketId,
+        marketName: market.name,
+        gameType,
+        amount: amount.toString(),
+        number,
+        marketopenclose: normalizedMarketopenclose,
+        openTime: market.openTime,
+        closeTime: market.closeTime,
+        currentTime,
+      })
+      .returning();
+
+    res.status(201).json({
+      bid: {
+        id: bid.id,
+        marketId: bid.marketId,
+        marketName: bid.marketName,
+        gameType: bid.gameType,
+        amount: parseFloat(bid.amount as string),
+        number: bid.number,
+        marketopenclose: normalizedMarketopenclose,
+        openTime: bid.openTime,
+        closeTime: bid.closeTime,
+        currentTime: bid.currentTime?.toISOString() ?? null,
+        status: bid.status,
+        createdAt: bid.createdAt.toISOString(),
+      },
+    });
+  });
+});
+
+// Alias route: GET /user/bids2 -> same as /user/markets2-bids for convenience
+router.get("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const offset = (page - 1) * limit;
+
+  const userId = req.userId!;
+
+  // Get bids from markets2 only
+  const bids = await db.select({
+    id: bidsTable.id,
+    marketId: bidsTable.marketId,
+    marketName: bidsTable.marketName,
+    gameType: bidsTable.gameType,
+    amount: bidsTable.amount,
+    number: bidsTable.number,
+    marketopenclose: bidsTable.marketopenclose,
+    openTime: bidsTable.openTime,
+    closeTime: bidsTable.closeTime,
+    currentTime: bidsTable.currentTime,
+    status: bidsTable.status,
+    createdAt: bidsTable.createdAt,
+  })
+    .from(bidsTable)
+    .innerJoin(markets2Table, eq(bidsTable.marketId, markets2Table.id))
+    .where(eq(bidsTable.userId, userId))
+    .orderBy(desc(bidsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const [totalResult] = await db.select({ count: count() })
+    .from(bidsTable)
+    .innerJoin(markets2Table, eq(bidsTable.marketId, markets2Table.id))
+    .where(eq(bidsTable.userId, userId));
+
+  res.json({
+    bids: bids.map(b => ({
+      id: b.id,
+      marketId: b.marketId,
+      marketName: b.marketName,
+      gameType: b.gameType,
+      amount: parseFloat(b.amount as string),
+      number: b.number,
+      marketopenclose: b.marketopenclose,
+      openTime: b.openTime,
+      closeTime: b.closeTime,
+      currentTime: b.currentTime?.toISOString(),
+      status: b.status,
+      createdAt: b.createdAt.toISOString(),
+    })),
+    total: totalResult?.count ?? 0,
+    page,
+    limit,
+  });
+});
+
 // Markets2 Results (with automatic updates)
 router.get("/user/markets2-results", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
   const page = parseInt(req.query.page as string) || 1;
