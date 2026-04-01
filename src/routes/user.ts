@@ -357,6 +357,19 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
       return;
     }
 
+    // Ensure market exists in regular markets table (for FK constraint in bidsTable)
+    const [regularMarket] = await db.select().from(marketsTable).where(eq(marketsTable.id, marketId));
+    if (!regularMarket) {
+      // Market exists in markets2 but not in regular markets, so create it
+      await db.insert(marketsTable).values({
+        id: marketId,
+        name: market.name,
+        openTime: market.openTime,
+        closeTime: market.closeTime,
+        isActive: true,
+      }).onConflictDoNothing();
+    }
+
     // Check user balance and status
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user || user.isBlocked) {
@@ -528,6 +541,19 @@ router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Pr
   if (!market) {
     res.status(404).json({ error: "Market not found or market is inactive" });
     return;
+  }
+
+  // Ensure market exists in regular markets table (for FK constraint in bidsTable)
+  const [regularMarket] = await db.select().from(marketsTable).where(eq(marketsTable.id, marketId));
+  if (!regularMarket) {
+    // Market exists in markets2 but not in regular markets, so create it
+    await db.insert(marketsTable).values({
+      id: marketId,
+      name: market.name,
+      openTime: market.openTime,
+      closeTime: market.closeTime,
+      isActive: true,
+    }).onConflictDoNothing();
   }
 
   // Check user balance and status
