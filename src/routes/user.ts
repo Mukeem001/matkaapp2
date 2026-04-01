@@ -906,21 +906,38 @@ router.get("/user/leaderboard", userAuthMiddleware, async (req: AuthRequest, res
   });
 });
 
-// Notices/Announcements
+// Notices/Announcements - Get notices for current user (broadcast + user-specific)
 router.get("/user/notices", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const notices = await db.select()
-    .from(noticesTable)
-    .where(eq(noticesTable.isActive, true))
-    .orderBy(desc(noticesTable.createdAt));
+  try {
+    const userId = req.userId!;
+    
+    // Get all active notices
+    const allNotices = await db.select()
+      .from(noticesTable)
+      .where(eq(noticesTable.isActive, true))
+      .orderBy(desc(noticesTable.createdAt));
 
-  res.json({
-    notices: notices.map(notice => ({
-      id: notice.id,
-      title: notice.title,
-      content: notice.content,
-      createdAt: notice.createdAt.toISOString(),
-    })),
-  });
+    // Filter to show only:
+    // 1. Broadcast notices (userId is null)
+    // 2. Notices specific to this user (userId matches)
+    const userNotices = allNotices.filter(notice => 
+      notice.userId === null || notice.userId === userId
+    );
+
+    res.json({
+      total: userNotices.length,
+      notices: userNotices.map(notice => ({
+        id: notice.id,
+        title: notice.title,
+        content: notice.content,
+        type: notice.userId === null ? "broadcast" : "personal",
+        createdAt: notice.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    console.error("[User Notices] Error:", err);
+    res.status(500).json({ error: "Failed to fetch notices" });
+  }
 });
 
 // Get UPI Methods available for users

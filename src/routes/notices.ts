@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, noticesTable, usersTable } from "@workspace/db";
 import { CreateNoticeBody, DeleteNoticeParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
@@ -203,6 +203,33 @@ router.post("/notices/user/name/:userName", authMiddleware, async (req, res): Pr
   } catch (error) {
     console.error("[Notice User Name Error]", error);
     res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET public broadcast notices (no auth required - for public notice board)
+router.get("/notices/public/broadcast", async (req, res): Promise<void> => {
+  try {
+    const notices = await db.select()
+      .from(noticesTable)
+      .where(and(
+        eq(noticesTable.isActive, true),
+        eq(noticesTable.userId, null as any) // Only broadcast notices
+      ))
+      .orderBy((t) => desc(t.createdAt));
+
+    res.json({
+      total: notices.length,
+      notices: notices.map(n => ({ 
+        id: n.id,
+        title: n.title, 
+        content: n.content, 
+        createdAt: n.createdAt.toISOString(),
+        type: "broadcast"
+      })),
+    });
+  } catch (err) {
+    console.error("[Public Notices] Error:", err);
+    res.status(500).json({ error: "Failed to fetch notices" });
   }
 });
 
