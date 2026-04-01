@@ -26,6 +26,26 @@ function isValidBidNumber(gameType: string, number: string): boolean {
   }
 }
 
+// Helper function to get valid marketopenclose options based on game type
+function getValidMarketopenclose(gameType: string): string[] {
+  switch (gameType) {
+    case "single_digit":
+      return ["open-bids", "close-bids"];
+    case "jodi":
+      return ["open-bids", "close-bids"];
+    case "single_panna":
+    case "double_panna":
+    case "triple_panna":
+      return ["open bids", "close bids"];
+    case "half_sangam":
+      return ["Open Ank - Close Patti", "Open Patti - Close Ank"];
+    case "full_sangam":
+      return ["full-sangam"];
+    default:
+      return [];
+  }
+}
+
 // User Profile Routes
 router.get("/user/profile", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!));
@@ -124,6 +144,7 @@ const PlaceBidBody = z.object({
   gameType: z.enum(["single_digit", "jodi", "single_panna", "double_panna", "triple_panna", "half_sangam", "full_sangam"]),
   amount: z.number().positive().min(1).max(10000), // Min 1, max 10000
   number: z.string().min(1).max(6), // Max 6 digits for full sangam
+  marketopenclose: z.string().optional().default("open-bids"), // Market open/close type
 });
 
 router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
@@ -133,7 +154,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
     return;
   }
 
-  const { marketId, gameType, number, amount } = parsed.data;
+  const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
   const userId = req.userId!;
 
   // Check if market exists and is active
@@ -166,14 +187,24 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
     return;
   }
 
-  // Check for duplicate bid (same user, market, game type, number)
+  // Validate marketopenclose based on gameType
+  const validMarketopenclose = getValidMarketopenclose(gameType);
+  if (!validMarketopenclose.includes(marketopenclose)) {
+    res.status(400).json({ 
+      error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
+    });
+    return;
+  }
+
+  // Check for duplicate bid (same user, market, game type, number, marketopenclose)
   const [existingBid] = await db.select()
     .from(bidsTable)
     .where(and(
       eq(bidsTable.userId, userId),
       eq(bidsTable.marketId, marketId),
       eq(bidsTable.gameType, gameType),
-      eq(bidsTable.number, number)
+      eq(bidsTable.number, number),
+      eq(bidsTable.marketopenclose, marketopenclose)
     ));
 
   if (existingBid) {
@@ -198,6 +229,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
         gameType,
         amount: amount.toString(),
         number,
+        marketopenclose,
         openTime: market.openTime,
         closeTime: market.closeTime,
         currentTime,
@@ -212,6 +244,7 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
         gameType: bid.gameType,
         amount: parseFloat(bid.amount as string),
         number: bid.number,
+        marketopenclose: bid.marketopenclose,
         openTime: bid.openTime,
         closeTime: bid.closeTime,
         currentTime: bid.currentTime?.toISOString() ?? null,
@@ -240,6 +273,7 @@ router.get("/user/bids", userAuthMiddleware, async (req: AuthRequest, res): Prom
     gameType: bidsTable.gameType,
     amount: bidsTable.amount,
     number: bidsTable.number,
+    marketopenclose: bidsTable.marketopenclose,
     openTime: bidsTable.openTime,
     closeTime: bidsTable.closeTime,
     currentTime: bidsTable.currentTime,
@@ -260,6 +294,7 @@ router.get("/user/bids", userAuthMiddleware, async (req: AuthRequest, res): Prom
       gameType: bid.gameType,
       amount: parseFloat(bid.amount as string),
       number: bid.number,
+      marketopenclose: bid.marketopenclose,
       openTime: bid.openTime,
       closeTime: bid.closeTime,
       currentTime: bid.currentTime?.toISOString(),
@@ -280,7 +315,7 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
     return;
   }
 
-  const { marketId, gameType, number, amount } = parsed.data;
+  const { marketId, gameType, number, amount, marketopenclose } = parsed.data;
   const userId = req.userId!;
 
   // Check if markets2 exists and is active
@@ -313,6 +348,15 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
     return;
   }
 
+  // Validate marketopenclose based on gameType
+  const validMarketopenclose = getValidMarketopenclose(gameType);
+  if (!validMarketopenclose.includes(marketopenclose)) {
+    res.status(400).json({ 
+      error: `Invalid market open/close type for ${gameType}. Valid options: ${validMarketopenclose.join(", ")}` 
+    });
+    return;
+  }
+
   // Check for duplicate bid - only against markets2 bids
   const [existingBid] = await db.select()
     .from(bidsTable)
@@ -321,7 +365,8 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
       eq(bidsTable.userId, userId),
       eq(bidsTable.marketId, marketId),
       eq(bidsTable.gameType, gameType),
-      eq(bidsTable.number, number)
+      eq(bidsTable.number, number),
+      eq(bidsTable.marketopenclose, marketopenclose)
     ));
 
   if (existingBid) {
@@ -346,6 +391,7 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
         gameType,
         amount: amount.toString(),
         number,
+        marketopenclose,
         openTime: market.openTime,
         closeTime: market.closeTime,
         currentTime,
@@ -360,6 +406,7 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
         gameType: bid.gameType,
         amount: parseFloat(bid.amount as string),
         number: bid.number,
+        marketopenclose: bid.marketopenclose,
         openTime: bid.openTime,
         closeTime: bid.closeTime,
         currentTime: bid.currentTime?.toISOString() ?? null,
@@ -386,6 +433,7 @@ router.get("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, r
     gameType: bidsTable.gameType,
     amount: bidsTable.amount,
     number: bidsTable.number,
+    marketopenclose: bidsTable.marketopenclose,
     openTime: bidsTable.openTime,
     closeTime: bidsTable.closeTime,
     currentTime: bidsTable.currentTime,
@@ -412,6 +460,7 @@ router.get("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, r
       gameType: b.gameType,
       amount: parseFloat(b.amount as string),
       number: b.number,
+      marketopenclose: b.marketopenclose,
       openTime: b.openTime,
       closeTime: b.closeTime,
       currentTime: b.currentTime?.toISOString(),
