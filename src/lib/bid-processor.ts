@@ -22,79 +22,79 @@ export interface GameRates {
 }
 
 /**
- * Check if a bid number matches the result based on game type
+ * Check if a bid number matches the result based on game type and marketopenclose
  */
-export function isBidWinner(bidNumber: string, gameType: string, result: MarketResult): boolean {
+export function isBidWinner(bidNumber: string, gameType: string, result: MarketResult, marketopenclose?: string): boolean {
   const { openResult, closeResult, jodiResult, pannaResult } = result;
 
-  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, result=`, result);
+  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, marketopenclose=${marketopenclose}, result=`, result);
 
   switch (gameType) {
     case "single_digit":
       // Single digit matches the FIRST digit of jodiResult
       if (jodiResult && jodiResult.length > 0) {
         const firstDigit = jodiResult.charAt(0);
-        const result = bidNumber === firstDigit;
-        console.log(`Single digit check: jodiResult = ${jodiResult}, first digit = ${firstDigit}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+        const matchResult = bidNumber === firstDigit;
+        console.log(`Single digit check: jodiResult = ${jodiResult}, first digit = ${firstDigit}, bid = ${bidNumber}, match = ${matchResult}`);
+        return matchResult;
       }
       return false;
 
     case "jodi":
       // Jodi matches the jodiResult exactly
       if (jodiResult) {
-        const result = bidNumber === jodiResult;
-        console.log(`Jodi check: jodiResult = ${jodiResult}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+        const matchResult = bidNumber === jodiResult;
+        console.log(`Jodi check: jodiResult = ${jodiResult}, bid = ${bidNumber}, match = ${matchResult}`);
+        return matchResult;
       }
       return false;
 
     case "single_panna":
-      // Single panna matches the open result
-      if (openResult) {
-        const result = bidNumber === openResult;
-        console.log(`Single panna check: openResult = ${openResult}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+      // Single panna: open-bids matches openResult, close-bids matches closeResult
+      const resultForSinglePanna = marketopenclose === "close-bids" ? closeResult : openResult;
+      if (resultForSinglePanna) {
+        const matchResult = bidNumber === resultForSinglePanna;
+        console.log(`Single panna check: marketopenclose=${marketopenclose}, result=${resultForSinglePanna}, bid=${bidNumber}, match=${matchResult}`);
+        return matchResult;
       }
       return false;
 
     case "double_panna":
-      // Double panna - two digits are same
-      if (openResult && openResult.length === 3) {
-        const digits = openResult.split("");
+      // Double panna: open-bids matches openResult, close-bids matches closeResult (two same digits)
+      const resultForDoublePanna = marketopenclose === "close-bids" ? closeResult : openResult;
+      if (resultForDoublePanna && resultForDoublePanna.length === 3) {
+        const digits = resultForDoublePanna.split("");
         const uniqueDigits = [...new Set(digits)];
-        const result = uniqueDigits.length === 2 && bidNumber === openResult;
-        console.log(`Double panna check: openResult = ${openResult}, unique digits = ${uniqueDigits.length}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+        const matchResult = uniqueDigits.length === 2 && bidNumber === resultForDoublePanna;
+        console.log(`Double panna check: marketopenclose=${marketopenclose}, result=${resultForDoublePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
+        return matchResult;
       }
       return false;
 
     case "triple_panna":
-      // Triple panna - all digits different
-      if (openResult && openResult.length === 3) {
-        const digits = openResult.split("");
+      // Triple panna: open-bids matches openResult, close-bids matches closeResult (all different digits)
+      const resultForTriplePanna = marketopenclose === "close-bids" ? closeResult : openResult;
+      if (resultForTriplePanna && resultForTriplePanna.length === 3) {
+        const digits = resultForTriplePanna.split("");
         const uniqueDigits = [...new Set(digits)];
-        const result = uniqueDigits.length === 3 && bidNumber === openResult;
-        console.log(`Triple panna check: openResult = ${openResult}, unique digits = ${uniqueDigits.length}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+        const matchResult = uniqueDigits.length === 3 && bidNumber === resultForTriplePanna;
+        console.log(`Triple panna check: marketopenclose=${marketopenclose}, result=${resultForTriplePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
+        return matchResult;
       }
       return false;
 
     case "half_sangam":
-      // Half sangam - matches either open or close result
-      const openMatch = bidNumber === openResult;
-      const closeMatch = bidNumber === closeResult;
-      const result = openMatch || closeMatch;
-      console.log(`Half sangam check: openResult = ${openResult}, closeResult = ${closeResult}, bid = ${bidNumber}, match = ${result}`);
-      return result;
+      // Half sangam logic pending - return false for now
+      console.log(`Half sangam check: PENDING - bid=${bidNumber}`);
+      return false;
 
     case "full_sangam":
-      // Full sangam - matches both open and close results combined
-      if (openResult && closeResult && bidNumber.length === 6) {
-        const combined = `${openResult}${closeResult}`;
-        const result = bidNumber === combined;
-        console.log(`Full sangam check: combined = ${combined}, bid = ${bidNumber}, match = ${result}`);
-        return result;
+      // Full sangam: matches both openResult and closeResult combined (openResult-closeResult)
+      if (openResult && closeResult && bidNumber.includes("-")) {
+        const [openPart, closePart] = bidNumber.split("-");
+        const matchResult = openPart === openResult && closePart === closeResult;
+        console.log(`Full sangam check: openResult=${openResult}, closeResult=${closeResult}, bid openPart=${openPart}, bid closePart=${closePart}, match=${matchResult}`);
+        return matchResult;
       }
       return false;
 
@@ -158,6 +158,7 @@ export async function processMarketBids(marketId: number, result: MarketResult):
     gameType: bidsTable.gameType,
     amount: bidsTable.amount,
     number: bidsTable.number,
+    marketopenclose: bidsTable.marketopenclose,
   })
     .from(bidsTable)
     .where(and(
@@ -173,7 +174,7 @@ export async function processMarketBids(marketId: number, result: MarketResult):
   // Process each bid
   for (const bid of pendingBids) {
     const bidAmount = parseFloat(bid.amount as string);
-    const isWinner = isBidWinner(bid.number, bid.gameType, result);
+    const isWinner = isBidWinner(bid.number, bid.gameType, result, bid.marketopenclose);
 
     console.log(`Processing bid ${bid.id}: number=${bid.number}, gameType=${bid.gameType}, amount=${bidAmount}, isWinner=${isWinner}`);
 
@@ -300,6 +301,7 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
       gameType: bidsTable.gameType,
       amount: bidsTable.amount,
       number: bidsTable.number,
+      marketopenclose: bidsTable.marketopenclose,
     })
       .from(bidsTable)
       .where(and(
@@ -323,7 +325,7 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
     // Process each bid
     for (const bid of pendingBids) {
       const bidAmount = parseFloat(bid.amount as string);
-      const isWinner = isBidWinner(bid.number, bid.gameType, marketResult);
+      const isWinner = isBidWinner(bid.number, bid.gameType, marketResult, bid.marketopenclose);
 
       if (isWinner) {
         const winnings = calculateWinnings(bidAmount, bid.gameType, gameRates);
