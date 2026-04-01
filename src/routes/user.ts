@@ -13,9 +13,11 @@ function isValidBidNumber(gameType: string, number: string): boolean {
       return /^\d{1}$/.test(number); // 1 digit
     case "jodi":
       return /^\d{2}$/.test(number); // 2 digits
+    case "odd_even":
+      // For odd_even, accept comma-separated values or single digit
+      // Valid: "0,2,4,6,8" or "1,3,5,7,9" or single digit
+      return /^(\d,)*\d$/.test(number); // Comma-separated digits
     case "single_panna":
-    case "double_panna":
-    case "triple_panna":
       return /^\d{3}$/.test(number); // 3 digits
     case "half_sangam":
       return /^\d{1,3}-\d{1,3}$/.test(number); // [Ank]-[Patti] or [Patti]-[Ank] format
@@ -33,9 +35,9 @@ function getValidMarketopenclose(gameType: string): string[] {
       return ["open-bids", "close-bids"];
     case "jodi":
       return ["open-bids", "close-bids"];
+    case "odd_even":
+      return ["open-bids", "close-bids"];
     case "single_panna":
-    case "double_panna":
-    case "triple_panna":
       return ["open-bids", "close-bids"]; // normalized to use hyphens consistently
     case "half_sangam":
       return ["Open Ank - Close Patti", "Open Patti - Close Ank"];
@@ -151,6 +153,14 @@ router.get("/user/markets2", userAuthMiddleware, async (req, res): Promise<void>
 
 
 // Bidding Routes
+const PlaceBid2Body = z.object({
+  marketId: z.number().int().positive(),
+  gameType: z.enum(["single_digit", "jodi", "odd_even", "single_panna", "half_sangam", "full_sangam"]),
+  amount: z.number().positive().min(1).max(10000), // Min 1, max 10000
+  number: z.string().min(1).max(7), // Max 7 chars: supports formats like "0,2,4,6,8" or "4-106" or single digit
+  marketopenclose: z.string().optional().default("open-bids"), // Market open/close type
+});
+
 const PlaceBidBody = z.object({
   marketId: z.number().int().positive(),
   gameType: z.enum(["single_digit", "jodi", "single_panna", "double_panna", "triple_panna", "half_sangam", "full_sangam"]),
@@ -323,7 +333,7 @@ router.get("/user/bids", userAuthMiddleware, async (req: AuthRequest, res): Prom
 
 // Markets2 Bidding Routes (same as markets bidding)
 router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = PlaceBidBody.safeParse(req.body);
+  const parsed = PlaceBid2Body.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
@@ -491,7 +501,7 @@ router.get("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, r
 
 // Alias route: POST /user/bids2 -> same as /user/markets2-bids for convenience
 router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = PlaceBidBody.safeParse(req.body);
+  const parsed = PlaceBid2Body.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
     return;
@@ -601,7 +611,7 @@ router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Pr
   });
 });
 
-// Alias route: GET /user/bids2 -> same as /user/markets2-bids for convenience
+// Alias route: GET /user/bids2 -> same as /user/markets2-bids for convenience (READ-ONLY)
 router.get("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
