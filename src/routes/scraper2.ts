@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, and } from "drizzle-orm";
-import { format } from "date-fns";
-import { db, markets2Table, scraperLogsTable, resultsTable } from "@workspace/db";
+import { db, markets2Table, scraperLogsTable } from "@workspace/db";
 import { GetScraperLogsQueryParams, UpdateMarketAutoConfigParams, UpdateMarketAutoConfigBody, FetchMarketResultNowParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
 import { fetchAndUpdateMarketResult, scrapeLiveResults } from "../lib/scraper.js";
@@ -106,52 +105,8 @@ router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
     if (hasAnyResult) {
       console.log("🟢 [LIVE-RESULTS-Markets2] Saving to database");
       
-      // Save to database with TODAY'S DATE
-      const today = format(new Date(), "yyyy-MM-dd");
-      console.log("🟢 [LIVE-RESULTS-Markets2] Today's date:", today);
-      
       try {
-        const queryResult = await db
-          .select()
-          .from(resultsTable)
-          .where(
-            and(
-              eq(resultsTable.marketId, params.data.id),
-              eq(resultsTable.resultDate, today)
-            )
-          );
-        
-        const existingResult = queryResult[0];
-        console.log("🟢 [LIVE-RESULTS-Markets2] Query check completed, existing:", existingResult ? existingResult.id : "none");
-        
-        if (existingResult) {
-          console.log("🟢 [LIVE-RESULTS-Markets2] Updating existing result ID:", existingResult.id);
-          const updateData: any = {};
-          if (liveResult.openResult) updateData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) updateData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) updateData.closeResult = liveResult.closeResult;
-          updateData.declaredAt = new Date();
-          
-          console.log("🟢 [LIVE-RESULTS-Markets2] Update data:", updateData);
-          const updateResultDb = await db.update(resultsTable).set(updateData).where(eq(resultsTable.id, existingResult.id));
-          console.log("🟢 [LIVE-RESULTS-Markets2] Update completed:", updateResultDb);
-        } else {
-          console.log("🟢 [LIVE-RESULTS-Markets2] Creating new result for market", params.data.id);
-          const insertData: any = {
-            marketId: params.data.id,
-            resultDate: today,
-            declaredAt: new Date(),
-          };
-          if (liveResult.openResult) insertData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
-          
-          console.log("🟢 [LIVE-RESULTS-Markets2] Insert data:", insertData);
-          const insertResultDb = await db.insert(resultsTable).values(insertData);
-          console.log("🟢 [LIVE-RESULTS-Markets2] Insert completed:", insertResultDb);
-        }
-        
-        // 🟢 ALSO UPDATE MARKETS2 TABLE WITH LATEST RESULTS
+        // 🟢 UPDATE MARKETS2 TABLE WITH LATEST RESULTS
         console.log("🟢 [LIVE-RESULTS-Markets2] Updating markets2 table with latest results");
         const marketUpdateData: any = {};
         if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
@@ -217,17 +172,20 @@ router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
   }
 
   try {
-    const results = await db.select()
-      .from(resultsTable)
-      .where(and(
-        eq(resultsTable.marketId, marketId),
-        eq(resultsTable.resultDate, resultDate)
-      ));
+    // Markets2 results are stored directly in markets2Table, not in a separate resultsTable
+    const market = await db.select()
+      .from(markets2Table)
+      .where(eq(markets2Table.id, marketId))
+      .then(r => r[0]);
 
-    const result = results[0];
+    if (!market) {
+      res.status(404).json({ success: false, message: "Market not found", data: null });
+      return;
+    }
 
-    if (!result) {
-      res.json({ success: false, message: "No results found for this date", data: null });
+    // Check if results exist and lastFetchedAt matches the requested date
+    if (!market.openResult || !market.closeResult) {
+      res.json({ success: false, message: "No results declared for this market yet", data: null });
       return;
     }
 
@@ -235,14 +193,14 @@ router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
       success: true,
       message: "Results found",
       data: {
-        openResult: result.openResult,
-        closeResult: result.closeResult,
-        jodiResult: result.jodiResult,
+        openResult: market.openResult,
+        closeResult: market.closeResult,
+        jodiResult: market.jodiResult,
       },
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching results for date:", msg);
+    console.error("Error fetching markets2 results:", msg);
     res.status(500).json({ error: msg });
   }
 });
