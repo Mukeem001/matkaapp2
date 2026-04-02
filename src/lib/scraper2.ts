@@ -352,15 +352,17 @@ async function updateMarket2ActivityStatus() {
     const currentTime = istTime.getHours() * 60 + istTime.getMinutes();
 
     for (const market of markets) {
+      const [openH, openM] = market.openTime.split(":").map(Number);
       const [closeH, closeM] = market.closeTime.split(":").map(Number);
+      const openTimeInMinutes = openH * 60 + openM;
       const closeTimeInMinutes = closeH * 60 + closeM;
 
       // MARKETS2 BETTING WINDOW LOGIC:
-      // - isActive = TRUE: From 00:00 until (closeTime - 10 min) — market is open for bets
-      // - isActive = FALSE: Starting 10 minutes before closeTime — market automatically closed
-      // - Next day, cycle repeats at 00:00
+      // - isActive = TRUE: From openTime until (closeTime - 10 min) — market is open for bets
+      // - isActive = FALSE: Before openTime OR from (closeTime - 10 min) onwards — market is closed
+      // - Next day, cycle repeats
       const autoCloseTime = closeTimeInMinutes - 10;
-      const shouldBeActive = currentTime < autoCloseTime;
+      const shouldBeActive = (currentTime >= openTimeInMinutes) && (currentTime < autoCloseTime);
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
@@ -368,11 +370,12 @@ async function updateMarket2ActivityStatus() {
           .where(eq(markets2Table.id, market.id));
 
         const currentTimeStr = `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}`;
+        const openTimeStr = `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`;
         const closeTimeStr = `${String(closeH).padStart(2, '0')}:${String(closeM).padStart(2, '0')}`;
         const autoCloseStr = `${String(Math.floor(autoCloseTime / 60)).padStart(2, '0')}:${String(autoCloseTime % 60).padStart(2, '0')}`;
 
         console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
-        console.log(`  └─ Official close: ${closeTimeStr}, Auto-closes: ${autoCloseStr}, Current: ${currentTimeStr}`);
+        console.log(`  └─ Opens: ${openTimeStr}, Official closes: ${closeTimeStr}, Auto-closes: ${autoCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
