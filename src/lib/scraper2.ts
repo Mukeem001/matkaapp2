@@ -352,17 +352,15 @@ async function updateMarket2ActivityStatus() {
     const currentTime = istTime.getHours() * 60 + istTime.getMinutes();
 
     for (const market of markets) {
-      const [openH, openM] = market.openTime.split(":").map(Number);
       const [closeH, closeM] = market.closeTime.split(":").map(Number);
-      const openTimeInMinutes = openH * 60 + openM;
       const closeTimeInMinutes = closeH * 60 + closeM;
 
       // MARKETS2 BETTING WINDOW LOGIC:
-      // - isActive = TRUE: From openTime until (closeTime - 10 min) — market is open for bets
-      // - isActive = FALSE: Before openTime OR from (closeTime - 10 min) onwards — market is closed
-      // - Next day, cycle repeats
+      // - isActive = TRUE: From 00:00 until (closeTime - 10 min) — market is open for bets
+      // - isActive = FALSE: From (closeTime - 10 min) until 23:59 — market is closed
+      // - Next day at 00:00, cycle repeats
       const autoCloseTime = closeTimeInMinutes - 10;
-      const shouldBeActive = (currentTime >= openTimeInMinutes) && (currentTime < autoCloseTime);
+      const shouldBeActive = currentTime < autoCloseTime;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
