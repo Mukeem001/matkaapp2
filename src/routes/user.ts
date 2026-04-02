@@ -62,6 +62,31 @@ function isValidMarketopenclose(gameType: string, value: string): boolean {
   return validOptions.some(opt => normalizeMarketopenclose(opt) === normalized);
 }
 
+// Helper function to check if betting is allowed (not within 10 minutes of market close)
+function isBettingAllowed(closeTime: string): boolean {
+  try {
+    const now = new Date();
+    const [closeHour, closeMin] = closeTime.split(":").map(Number);
+    
+    const closeDate = new Date();
+    closeDate.setHours(closeHour, closeMin, 0, 0);
+    
+    // If close time is earlier than current time today, it means close time is tomorrow
+    if (closeDate < now) {
+      closeDate.setDate(closeDate.getDate() + 1);
+    }
+    
+    // Calculate 10 minutes before close time
+    const cutoffTime = new Date(closeDate.getTime() - 10 * 60 * 1000);
+    
+    // Betting is allowed if current time is before cutoff
+    return now < cutoffTime;
+  } catch (error) {
+    console.error("Error checking betting time:", error);
+    return true; // Allow betting if there's an error parsing time
+  }
+}
+
 // User Profile Routes
 router.get("/user/profile", userAuthMiddleware, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!));
@@ -190,6 +215,12 @@ router.post("/user/bids",  userAuthMiddleware, async (req: AuthRequest, res): Pr
 
   if (!market) {
     res.status(404).json({ error: "Market not found or market is inactive" });
+    return;
+  }
+
+  // Check if betting is allowed (not within 10 minutes of market close)
+  if (!isBettingAllowed(market.closeTime)) {
+    res.status(400).json({ error: "Betting not allowed - market is closing soon (within 10 minutes of close time)" });
     return;
   }
 
@@ -354,6 +385,12 @@ router.post("/user/markets2-bids", userAuthMiddleware, async (req: AuthRequest, 
 
     if (!market) {
       res.status(404).json({ error: "Market not found or market is inactive" });
+      return;
+    }
+
+    // Check if betting is allowed (not within 10 minutes of market close)
+    if (!isBettingAllowed(market.closeTime)) {
+      res.status(400).json({ error: "Betting not allowed - market is closing soon (within 10 minutes of close time)" });
       return;
     }
 
@@ -540,6 +577,12 @@ router.post("/user/bids2", userAuthMiddleware, async (req: AuthRequest, res): Pr
 
   if (!market) {
     res.status(404).json({ error: "Market not found or market is inactive" });
+    return;
+  }
+
+  // Check if betting is allowed (not within 10 minutes of market close)
+  if (!isBettingAllowed(market.closeTime)) {
+    res.status(400).json({ error: "Betting not allowed - market is closing soon (within 10 minutes of close time)" });
     return;
   }
 
