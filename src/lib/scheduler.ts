@@ -8,6 +8,7 @@ import { processMarketBidsPreClose } from "./bid-processor.js";
 let schedulerTask: cron.ScheduledTask | null = null;
 let midnightResetTask: cron.ScheduledTask | null = null;
 let lastRunAt: Date | null = null;
+let lastMidnightResetDate: string | null = null;  // Track last reset date (YYYY-MM-DD)
 let isRunning = false;
 
 // Helper function to parse time string (HH:MM format)
@@ -31,6 +32,7 @@ function timeToMinutes(hours: number, minutes: number): number {
 
 // Daily reset at midnight IST - set all markets to isActive = true
 // This allows betting to start from 00:00 when new day begins
+// Also handles case where server restarts during the day - ensures reset runs at least once per day
 async function resetMarketsAtMidnight() {
   try {
     // Get current time in IST
@@ -39,9 +41,14 @@ async function resetMarketsAtMidnight() {
     const hours = istTime.getHours();
     const minutes = istTime.getMinutes();
     
-    // Update ALL markets when it's 00:00-00:01 IST
-    if (hours === 0 && minutes <= 1) {
-      console.log(`[Midnight Reset] 🌙 IST Time: ${istTime.toLocaleTimeString()}`);
+    // Get today's date in IST (YYYY-MM-DD format)
+    const istDateStr = istTime.toISOString().split('T')[0];
+    
+    // Reset if: (1) it's 00:00-00:01 IST OR (2) we haven't reset today yet
+    const shouldReset = (hours === 0 && minutes <= 1) || (lastMidnightResetDate !== istDateStr);
+    
+    if (shouldReset) {
+      console.log(`[Midnight Reset] 🌙 IST Time: ${istTime.toLocaleTimeString()} (Date: ${istDateStr})`);
       
       // Reset Market1
       await db.update(marketsTable)
@@ -54,7 +61,10 @@ async function resetMarketsAtMidnight() {
         .set({ isActive: true });
       
       console.log(`[Midnight Reset] ✅ All Market2 reset to isActive = true`);
-      console.log(`[Midnight Reset] ✅ New day started! Betting enabled for all markets`);
+      
+      // Update last reset date
+      lastMidnightResetDate = istDateStr;
+      console.log(`[Midnight Reset] ✅ Reset completed for ${istDateStr}. Betting enabled for all markets`);
     }
   } catch (err) {
     console.error("[Midnight Reset] Error:", err);

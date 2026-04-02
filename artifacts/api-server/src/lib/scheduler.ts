@@ -8,6 +8,7 @@ import { processMarketBidsPreClose } from "./bid-processor.js";
 let schedulerTask: cron.ScheduledTask | null = null;
 let midnightResetTask: cron.ScheduledTask | null = null;
 let lastRunAt: Date | null = null;
+let lastMidnightResetDate: string | null = null;  // Track last reset date (YYYY-MM-DD)
 let isRunning = false;
 
 // Helper function to parse time string (HH:MM format)
@@ -30,15 +31,28 @@ function timeToMinutes(hours: number, minutes: number): number {
 }
 
 // Daily reset at midnight - set all markets to isActive = true
+// Also handles case where server restarts during the day
 async function resetMarketsAtMidnight() {
   try {
     const now = new Date();
-    const timeStr = now.toISOString();
+    const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const istDateStr = istTime.toISOString().split('T')[0];
     
-    const result = await db.update(marketsTable)
-      .set({ isActive: true });
+    // Reset if: (1) it's 00:00-00:01 IST OR (2) we haven't reset today yet
+    const hours = istTime.getHours();
+    const minutes = istTime.getMinutes();
+    const shouldReset = (hours === 0 && minutes <= 1) || (lastMidnightResetDate !== istDateStr);
     
-    console.log(`[Daily Reset] At ${timeStr}: All markets reset to isActive = true`);
+    if (shouldReset) {
+      await db.update(marketsTable)
+        .set({ isActive: true });
+      
+      await db.update(markets2Table)
+        .set({ isActive: true });
+      
+      lastMidnightResetDate = istDateStr;
+      console.log(`[Daily Reset] At ${now.toISOString()}: All markets reset to isActive = true (Date: ${istDateStr})`);
+    }
   } catch (err) {
     console.error("[Daily Reset] Error:", err);
   }
