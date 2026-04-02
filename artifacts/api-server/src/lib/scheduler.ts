@@ -45,22 +45,24 @@ async function resetMarketsAtMidnight() {
 }
 
 // Update market isActive status based on openTime only
-// Logic: Market is ACTIVE only BEFORE pre-open window (before openTime - 10 mins)
-// After pre-open starts, becomes INACTIVE for rest of day
+// Market closing logic: Auto-close at (closeTime - 10 minutes)
+// - isActive = TRUE: From 00:00 until (closeTime - 10 min) — market is open for bets
+// - isActive = FALSE: Starting 10 minutes before closeTime — market automatically closed
 async function updateMarketActivityStatus() {
   try {
     const markets = await db.select().from(marketsTable);
     const currentTimeInMinutes = getCurrentTimeInMinutes();
 
     for (const market of markets) {
-      const { hours: openHour, minutes: openMin } = parseTimeString(market.openTime);
-      const openTimeInMinutes = timeToMinutes(openHour, openMin);
+      const { hours: closeHour, minutes: closeMin } = parseTimeString(market.closeTime);
+      const closeTimeInMinutes = timeToMinutes(closeHour, closeMin);
 
-      // Calculate if should be active
-      // Active ONLY from midnight until 10 min before openTime
-      // Inactive from pre-open (10 min before) to end of day
-      const preOpenInactiveStart = openTimeInMinutes - 10;
-      const shouldBeActive = currentTimeInMinutes < preOpenInactiveStart;
+      // Market should close 10 minutes BEFORE official close time
+      const autoCloseTime = closeTimeInMinutes - 10;
+
+      // Market is ACTIVE only from 00:00 until (closeTime - 10 minutes)
+      // Once we reach 10 minutes before close, market automatically becomes inactive
+      const shouldBeActive = currentTimeInMinutes < autoCloseTime;
 
       // Update if status changed
       if (market.isActive !== shouldBeActive) {
@@ -69,7 +71,9 @@ async function updateMarketActivityStatus() {
           .where(eq(marketsTable.id, market.id));
         
         const currentTimeStr = `${String(Math.floor(currentTimeInMinutes / 60)).padStart(2, '0')}:${String(currentTimeInMinutes % 60).padStart(2, '0')}`;
-        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (openTime: ${market.openTime}, currentTime: ${currentTimeStr})`);
+        const closeTimeStr = `${String(Math.floor(closeTimeInMinutes / 60)).padStart(2, '0')}:${String(closeTimeInMinutes % 60).padStart(2, '0')}`;
+        const autoCloseStr = `${String(Math.floor(autoCloseTime / 60)).padStart(2, '0')}:${String(autoCloseTime % 60).padStart(2, '0')}`;
+        console.log(`[Market Activity] ${market.name}: isActive = ${shouldBeActive} (official close: ${closeTimeStr}, auto-closes: ${autoCloseStr}, current: ${currentTimeStr})`);
       }
     }
   } catch (err) {

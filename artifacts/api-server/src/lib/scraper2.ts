@@ -254,10 +254,11 @@ async function updateMarket2ActivityStatus() {
       const closeTimeInMinutes = closeH * 60 + closeM;
 
       // MARKETS2 BETTING WINDOW LOGIC:
-      // - isActive = TRUE: From 00:00 until closeTime — users can place bets
-      // - isActive = FALSE: From closeTime until 23:59 — no betting allowed
+      // - isActive = TRUE: From 00:00 until (closeTime - 10 min) — market is open for bets
+      // - isActive = FALSE: Starting 10 minutes before closeTime — market automatically closed
       // - Next day, cycle repeats at 00:00
-      const shouldBeActive = currentTime < closeTimeInMinutes;
+      const autoCloseTime = closeTimeInMinutes - 10;
+      const shouldBeActive = currentTime < autoCloseTime;
 
       if (market.isActive !== shouldBeActive) {
         await db.update(markets2Table)
@@ -266,9 +267,10 @@ async function updateMarket2ActivityStatus() {
 
         const currentTimeStr = `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}`;
         const closeTimeStr = `${String(closeH).padStart(2, '0')}:${String(closeM).padStart(2, '0')}`;
+        const autoCloseStr = `${String(Math.floor(autoCloseTime / 60)).padStart(2, '0')}:${String(autoCloseTime % 60).padStart(2, '0')}`;
 
         console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
-        console.log(`  └─ Close time: ${closeTimeStr}, Current: ${currentTimeStr}`);
+        console.log(`  └─ Official close: ${closeTimeStr}, Auto-closes: ${autoCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
