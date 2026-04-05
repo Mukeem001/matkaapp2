@@ -109,6 +109,109 @@ router.post("/bids2/place", authMiddleware, async (req: Request, res: Response):
 });
 
 /**
+ * POST /bids2 - Alias for /bids2/place (standard REST pattern)
+ * Place a bet on Market2
+ */
+router.post("/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { marketId, betType, number, amount } = req.body;
+    const userId = (req as any).user.id;
+
+    // Validation
+    if (!marketId || !betType || !number || !amount) {
+      res.status(400).json({ error: "Missing required fields" });
+      return;
+    }
+
+    if (amount <= 0) {
+      res.status(400).json({ error: "Amount must be greater than 0" });
+      return;
+    }
+
+    // Get market
+    const market = await db.select().from(markets2Table)
+      .where(eq(markets2Table.id, marketId))
+      .then(r => r[0]);
+
+    if (!market) {
+      res.status(404).json({ error: "Market2 not found" });
+      return;
+    }
+
+    if (!market.isActive) {
+      res.status(400).json({ error: "Market is currently inactive" });
+      return;
+    }
+
+    // Validate bet type and number
+    const validation = validateBet2(betType, number);
+    if (!validation.valid) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
+
+    // Get user wallet
+    const user = await db.select().from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .then(r => r[0]);
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const userBalance = parseFloat(user.walletBalance.toString());
+    if (userBalance < amount) {
+      res.status(400).json({ error: "Insufficient balance" });
+      return;
+    }
+
+    // Calculate multiplier
+    const multiplier = getBet2Multiplier(betType);
+
+    // Deduct amount from wallet
+    await db.update(usersTable)
+      .set({
+        walletBalance: sql.raw(`wallet_balance - ${amount}`)
+      })
+      .where(eq(usersTable.id, userId));
+
+    // Place bid
+    const [bid] = await db.insert(bids2Table)
+      .values({
+        userId,
+        marketId,
+        marketName: market.name,
+        betType,
+        number,
+        amount: amount.toString(),
+        multiplier,
+        closeTime: market.closeTime,
+        status: "pending"
+      })
+      .returning();
+
+    res.json({
+      success: true,
+      message: "Bid placed successfully",
+      bid: {
+        id: bid.id,
+        marketName: market.name,
+        betType,
+        number,
+        amount,
+        multiplier,
+        closingTime: market.closeTime,
+        createdAt: bid.createdAt
+      }
+    });
+  } catch (err) {
+    console.error("[Bids2] Error placing bid:", err);
+    res.status(500).json({ error: "Failed to place bid" });
+  }
+});
+
+/**
  * GET /bids2
  * Get all bids2 for authenticated user
  */
