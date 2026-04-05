@@ -148,56 +148,75 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
       const row = $(rows[i]);
       const cols = row.find("td");
 
-      if (cols.length >= 3) {
-        const cellText = $(cols[0]).text().trim();
+      if (cols.length >= 2) {
+        // Extract market name - could be in h3, span, or direct text
+        let cellText = "";
+        const firstCol = $(cols[0]);
+        
+        // Try multiple ways to extract text (for different HTML structures)
+        const h3 = firstCol.find("h3");
+        if (h3.length > 0) {
+          cellText = h3.text().trim(); // Inside <h3> tag
+        } else {
+          cellText = firstCol.text().trim(); // Direct text
+        }
+        
+        if (!cellText) continue; // Skip if no text found
+        
         const cleanName = cellText.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
         // Try multiple matching strategies WITH BETTER LOGGING
-        console.log(`[Scraper] Comparing: "${cellText}" (clean: "${cleanName}") vs "${marketName}" (clean: "${cleanTarget}")`);
+        console.log(`[Scraper] Row ${i}: "${cellText}" (clean: "${cleanName}") vs target: "${cleanTarget}"`);
         
-        // Enhanced matching to handle variations like "BIKANER SUPER at 02:20 AM"
+        // Enhanced matching to handle variations
         const isMatch = cleanName.includes(cleanTarget) || 
                        cleanTarget.includes(cleanName) || 
                        cellText.toLowerCase().includes(marketName.toLowerCase()) ||
                        cleanName.startsWith(cleanTarget) ||
-                       cleanTarget.startsWith(cleanName.split("at")[0]); // Handle "BIKANER SUPER at XX:XX" case
+                       cleanTarget.startsWith(cleanName.split("at")[0]);
         
         if (isMatch) {
           console.log(`✅ [Scraper] FOUND ${marketName} in row ${i}: "${cellText}"`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
-          // Try to find 2-digit result - AGGRESSIVE APPROACH
-          // First, collect ALL text from all columns
-          const allTexts: string[] = [];
-          for (let j = 0; j < cols.length; j++) {
-            const rawText = $(cols[j]).text().trim();
-            allTexts.push(rawText);
-            console.log(`[Scraper] Col${j}: raw="${rawText}"`);
-          }
-
-          // Priority order: try cols[1], cols[2], then any others
-          const colsToTry = [1, 2, 3, 4, 5];
+          // For this website: Col1 = yesterday result, Col2 = today result
+          // We want TODAY's result (Col2) first, then fallback to Col1
+          const colsToTry = [2, 1, 3, 4, 5]; // Try col2 (today) first, then col1 (yesterday)
           
           for (const colIdx of colsToTry) {
             if (colIdx >= cols.length) continue;
             
-            const rawText = allTexts[colIdx];
+            const col = $(cols[colIdx]);
             
-            // AGGRESSIVE CLEANING - try multiple strategies
-            let result = null;
-            
-            // Strategy 1: Direct 2-digit match
-            let match = rawText.match(/\d{2}/);
-            if (match) {
-              result = match[0];
-              console.log(`[Scraper] Col${colIdx} Strategy 1 (2-digit): "${rawText}" → "${result}"`);
+            // Extract from h3 if present, otherwise direct text
+            let colText = "";
+            const colH3 = col.find("h3");
+            if (colH3.length > 0) {
+              colText = colH3.text().trim();
+            } else {
+              colText = col.text().trim();
             }
             
-            // Strategy 2: Extract ALL digits and take first 2
-            if (!result) {
-              const allDigits = rawText.replace(/\D/g, "");
-              if (allDigits.length >= 2) {
-                result = allDigits.substring(0, 2);
+            console.log(`[Scraper] Col${colIdx}: "${colText}"`);
+            
+            // Try to extract 2-digit number
+            if (/^\d{2}$/.test(colText)) {
+              console.log(`✅ [Scraper] Found 2-digit result in Col${colIdx}: "${colText}"`);
+              return colText;
+            }
+            
+            // Also try XX
+            if (colText === "XX") {
+              console.log(`[Scraper] Found XX placeholder in Col${colIdx}`);
+              return "XX";
+            }
+          }
+          
+          console.log(`⚠️ [Scraper] No valid result found for ${marketName}`);
+          return null;
+        }
+      }
+    }
                 console.log(`[Scraper] Col${colIdx} Strategy 2 (extract digits): "${rawText}" → "${result}"`);
               }
             }
@@ -249,50 +268,50 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     }
 
     console.log(`❌ [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
-    console.log(`[Scraper] Debug: Looking for markets containing keywords from "${marketName}"`);
+    console.log(`[Scraper] DEBUG: Extracted market names from page:`);
     
-    // Log all market names found on the website for debugging
-    const allMarkets: string[] = [];
-    for (let i = 0; i < rows.length; i++) {
+    // Extract and log all market names found on page for debugging
+    const pageMarkets: string[] = [];
+    for (let i = 0; i < Math.min(rows.length, 50); i++) {
       const row = $(rows[i]);
-      const cols = row.find("td");
-      if (cols.length > 0) {
-        const cellText = $(cols[0]).text().trim();
-        if (cellText && /[A-Z]/.test(cellText)) { // Only log potential market names
-          allMarkets.push(cellText);
-        }
+      const firstCol = $(row.find("td")[0]);
+      
+      let marketNameFromPage = "";
+      const h3 = firstCol.find("h3");
+      if (h3.length > 0) {
+        marketNameFromPage = h3.text().trim();
+      } else {
+        marketNameFromPage = firstCol.text().trim();
+      }
+      
+      if (marketNameFromPage && /[A-Z]/.test(marketNameFromPage)) {
+        pageMarkets.push(marketNameFromPage);
       }
     }
-    console.log(`[Scraper] Markets found on website: ${allMarkets.slice(0, 10).join(", ")}`);
     
-    // 🔥 FALLBACK METHOD 2: REGEX-BASED EXTRACTION
-    console.log(`[Scraper] Falling back to REGEX extraction for "${marketName}"...`);
+    console.log(`[Scraper] Markets on page: ${pageMarkets.slice(0, 15).join(" | ")}`);
+    console.log(`[Scraper] Looking for: "${marketName}"`);
+    
+    // 🔥 FALLBACK METHOD 2: REGEX-BASED EXTRACTION (Page-wide search)
+    console.log(`[Scraper] Trying REGEX fallback for "${marketName}"...`);
     const pageText = $.text();
-    
-    // Try to find pattern: MARKET_NAME followed by numbers (anywhere on page)
-    // This is more lenient and catches results even if HTML structure is different
     const keywords = marketName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     
     for (const keyword of keywords) {
-      // Look for "KEYWORD ... XX" pattern where XX is 2 digits
-      const patterns = [
-        new RegExp(`${keyword}[^0-9]*?(\\d{2})(?:[^0-9]|$)`, 'i'),
-        new RegExp(`${keyword}[^0-9]*?([0-9]{2})[^0-9]*?(\\d{2})`, 'i'), // Look for 2 pairs of digits
-      ];
+      // Look for keyword followed by any 2-digit number
+      const pattern = new RegExp(`${keyword}[^0-9]*(\\d{2})(?:[^0-9]|$)`, 'i');
+      const match = pageText.match(pattern);
       
-      for (const pattern of patterns) {
-        const match = pageText.match(pattern);
-        if (match && match[1]) {
-          const result = match[1];
-          if (/^\d{2}$/.test(result) || result === "XX") {
-            console.log(`✅ [Scraper REGEX] Found result via fallback: "${marketName}" → "${result}"`);
-            return result;
-          }
+      if (match && match[1]) {
+        const result = match[1];
+        if (/^\d{2}$/.test(result) || result === "XX") {
+          console.log(`✅ [Scraper REGEX] Fallback found: "${marketName}" → "${result}"`);
+          return result;
         }
       }
     }
     
-    console.log(`❌ [Scraper] Could not extract result for "${marketName}" via any method`);
+    console.log(`❌ [Scraper] Could not find "${marketName}" anywhere on page`);
     return null;
 
   } catch (err) {
