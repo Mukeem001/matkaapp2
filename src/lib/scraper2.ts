@@ -265,6 +265,34 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     }
     console.log(`[Scraper] Markets found on website: ${allMarkets.slice(0, 10).join(", ")}`);
     
+    // 🔥 FALLBACK METHOD 2: REGEX-BASED EXTRACTION
+    console.log(`[Scraper] Falling back to REGEX extraction for "${marketName}"...`);
+    const pageText = $.text();
+    
+    // Try to find pattern: MARKET_NAME followed by numbers (anywhere on page)
+    // This is more lenient and catches results even if HTML structure is different
+    const keywords = marketName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    
+    for (const keyword of keywords) {
+      // Look for "KEYWORD ... XX" pattern where XX is 2 digits
+      const patterns = [
+        new RegExp(`${keyword}[^0-9]*?(\\d{2})(?:[^0-9]|$)`, 'i'),
+        new RegExp(`${keyword}[^0-9]*?([0-9]{2})[^0-9]*?(\\d{2})`, 'i'), // Look for 2 pairs of digits
+      ];
+      
+      for (const pattern of patterns) {
+        const match = pageText.match(pattern);
+        if (match && match[1]) {
+          const result = match[1];
+          if (/^\d{2}$/.test(result) || result === "XX") {
+            console.log(`✅ [Scraper REGEX] Found result via fallback: "${marketName}" → "${result}"`);
+            return result;
+          }
+        }
+      }
+    }
+    
+    console.log(`❌ [Scraper] Could not extract result for "${marketName}" via any method`);
     return null;
 
   } catch (err) {
