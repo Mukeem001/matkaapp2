@@ -161,9 +161,18 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
         const cellText = $(cols[0]).text().trim();
         const cleanName = cellText.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
-        // Try multiple matching strategies
-        if (cleanName.includes(cleanTarget) || cleanTarget.includes(cleanName) || cellText.toLowerCase().includes(marketName.toLowerCase())) {
-          console.log(`✅ [Scraper] FOUND ${marketName}`);
+        // Try multiple matching strategies WITH BETTER LOGGING
+        console.log(`[Scraper] Comparing: "${cellText}" (clean: "${cleanName}") vs "${marketName}" (clean: "${cleanTarget}")`);
+        
+        // Enhanced matching to handle variations like "BIKANER SUPER at 02:20 AM"
+        const isMatch = cleanName.includes(cleanTarget) || 
+                       cleanTarget.includes(cleanName) || 
+                       cellText.toLowerCase().includes(marketName.toLowerCase()) ||
+                       cleanName.startsWith(cleanTarget) ||
+                       cleanTarget.startsWith(cleanName.split("at")[0]); // Handle "BIKANER SUPER at XX:XX" case
+        
+        if (isMatch) {
+          console.log(`✅ [Scraper] FOUND ${marketName} in row ${i}: "${cellText}"`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
           // Try to find 2-digit result - AGGRESSIVE APPROACH
@@ -249,6 +258,22 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
     }
 
     console.log(`❌ [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
+    console.log(`[Scraper] Debug: Looking for markets containing keywords from "${marketName}"`);
+    
+    // Log all market names found on the website for debugging
+    const allMarkets: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = $(rows[i]);
+      const cols = row.find("td");
+      if (cols.length > 0) {
+        const cellText = $(cols[0]).text().trim();
+        if (cellText && /[A-Z]/.test(cellText)) { // Only log potential market names
+          allMarkets.push(cellText);
+        }
+      }
+    }
+    console.log(`[Scraper] Markets found on website: ${allMarkets.slice(0, 10).join(", ")}`);
+    
     return null;
 
   } catch (err) {
@@ -352,6 +377,7 @@ async function updateMarket2ActivityStatus() {
     const currentTime = istTime.getHours() * 60 + istTime.getMinutes();
 
     for (const market of markets) {
+      const [openH, openM] = market.openTime.split(":").map(Number);
       const [closeH, closeM] = market.closeTime.split(":").map(Number);
       const closeTimeInMinutes = closeH * 60 + closeM;
 
