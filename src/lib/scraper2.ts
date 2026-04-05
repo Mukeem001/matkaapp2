@@ -22,19 +22,10 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       return { success: false, message: `No sourceUrl configured for ${market.name}`, data: null };
     }
 
-    // ✅ Check if current time is AFTER closeTime (not openTime + 10)
-    if (!isAfterCloseTime(market.closeTime)) {
-      const [h, m] = market.closeTime.split(":").map(Number);
-      const closeTimeInMinutes = h * 60 + m;
-      const closeHrs = Math.floor(closeTimeInMinutes / 60) % 24;
-      const closeMins = closeTimeInMinutes % 60;
-      const windowTimeStr = `${String(closeHrs).padStart(2, '0')}:${String(closeMins).padStart(2, '0')}`;
-      return {
-        success: false,
-        message: `Can fetch only after ${windowTimeStr} (closeTime: ${market.closeTime})`,
-        data: null
-      };
-    }
+    // ✅ Check if current time is AFTER market opens (results usually available shortly after close time)
+    // Markets can show results from ~10-30 minutes after their official close time
+    // We allow fetching anytime to catch results when available
+    console.log(`[Market2] ${market.name}: Current time vs closeTime - attempting fetch...`);
 
     console.log(`[Market2] Scraping: ${market.name}`);
 
