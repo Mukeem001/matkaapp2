@@ -128,7 +128,7 @@ app.get("/api/app/check-update", async (_req, res): Promise<void> => {
       hasUpdate: true,
       latestVersion: activeApk.versionName || "1.0.0",
       latestVersionCode: activeApk.versionCode || "1",
-      downloadUrl: `${process.env.APP_URL || "https://matka-api-server.onrender.com"}${activeApk.filepath}`,
+      downloadUrl: `https://kalyan-matka.online/kalyan.apk`,
       isForceUpdate: false,
       whatsNew: `Updated to version ${activeApk.versionName}`,
     });
