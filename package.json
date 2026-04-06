@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "cd artifacts/api-server && npm run dev",
     "build": "tsc --build tsconfig.json",
-    "start": "cd artifacts/api-server && npx tsx ./src/index.ts",
+    "start": "cd artifacts/api-server && node dist/index.js",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
