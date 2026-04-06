@@ -7,6 +7,73 @@ const router: IRouter = Router();
 
 // ============= Helper Functions =============
 
+/**
+ * Normalize request body to support multiple payload formats
+ * Supports:
+ * 1. Old format: { marketId, betType, number, amount }
+ * 2. New format: { amount, gameType, marketId, marketopenclose, number }
+ */
+function normalizePayload(body: any): {
+  marketId: number;
+  betType: string;
+  number: string;
+  amount: number;
+  marketopenclose?: string;
+} {
+  // Already in expected format
+  if (body.betType) {
+    return {
+      marketId: body.marketId,
+      betType: body.betType,
+      number: body.number,
+      amount: body.amount,
+      marketopenclose: body.marketopenclose
+    };
+  }
+
+  // Convert new format to old format
+  if (body.gameType) {
+    let betType = "left_digit";
+    
+    // Map gameType to betType
+    switch (body.gameType?.toLowerCase()) {
+      case "single_digit":
+      case "left_digit":
+        betType = "left_digit";
+        break;
+      case "right_digit":
+        betType = "right_digit";
+        break;
+      case "odd_even":
+      case "odeven":
+        betType = "odd_even";
+        break;
+      case "jodi":
+        betType = "jodi";
+        break;
+      default:
+        betType = "left_digit"; // default fallback
+    }
+
+    return {
+      marketId: body.marketId,
+      betType: betType,
+      number: String(body.number),
+      amount: body.amount,
+      marketopenclose: body.marketopenclose
+    };
+  }
+
+  // Return as-is if can't determine
+  return {
+    marketId: body.marketId,
+    betType: body.betType || "left_digit",
+    number: String(body.number),
+    amount: body.amount,
+    marketopenclose: body.marketopenclose
+  };
+}
+
 function validateBet2(betType: string, number: string): { valid: boolean; error?: string } {
   const validBetTypes = ["left_digit", "right_digit", "odd_even", "jodi"];
 
@@ -56,17 +123,27 @@ function getBet2Multiplier(betType: string): number {
 
 /**
  * POST /api/bids2 - Place a new bid on Market2
- * Body: { marketId, betType, number, amount }
+ * Accepts multiple payload formats:
+ * 1. { marketId, betType, number, amount }
+ * 2. { amount, gameType, marketId, marketopenclose, number } (mobile format)
  * Returns: { success, message, bid }
  */
 router.post("/api/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { marketId, betType, number, amount } = req.body;
+    // Normalize payload to support both formats
+    const normalized = normalizePayload(req.body);
+    const { marketId, betType, number, amount, marketopenclose } = normalized;
     const userId = (req as any).user.id;
 
     // Validation
     if (!marketId || !betType || !number || !amount) {
-      res.status(400).json({ error: "Missing required fields: marketId, betType, number, amount" });
+      res.status(400).json({ 
+        error: "Missing required fields",
+        accepted_formats: [
+          { marketId: "number", betType: "string", number: "string", amount: "number" },
+          { marketId: "number", gameType: "string (single_digit|odd_even|jodi)", number: "string", amount: "number", marketopenclose: "string" }
+        ]
+      });
       return;
     }
 
