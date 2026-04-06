@@ -84,20 +84,63 @@ function validateBet2(betType: string, number: string): { valid: boolean; error?
   switch (betType) {
     case "left_digit":
     case "right_digit":
-      if (!/^\d$/.test(number) || parseInt(number) < 0 || parseInt(number) > 9) {
-        return { valid: false, error: "Digit must be between 0-9" };
+      // Support both single digit and comma-separated
+      if (number.includes(",")) {
+        // Multiple digits: "0,2,4,6,8"
+        const digits = number.split(",").map(d => d.trim());
+        for (const digit of digits) {
+          if (!/^\d$/.test(digit) || parseInt(digit) < 0 || parseInt(digit) > 9) {
+            return { valid: false, error: "Each digit must be between 0-9" };
+          }
+        }
+      } else {
+        // Single digit
+        if (!/^\d$/.test(number) || parseInt(number) < 0 || parseInt(number) > 9) {
+          return { valid: false, error: "Digit must be between 0-9" };
+        }
       }
       break;
 
     case "odd_even":
-      if (!["odd", "even"].includes(number)) {
-        return { valid: false, error: "Must be 'odd' or 'even'" };
+      // Support: "odd", "even" or comma-separated digits "0,2,4,6,8" or "1,3,5,7,9"
+      if (number.includes(",")) {
+        // Multiple digits format: "0,2,4,6,8"
+        const digits = number.split(",").map(d => d.trim());
+        // Verify all are single digits and validate odd/even pattern
+        const allDigits = digits.every(d => /^\d$/.test(d) && parseInt(d) >= 0 && parseInt(d) <= 9);
+        if (!allDigits) {
+          return { valid: false, error: "Each digit must be between 0-9" };
+        }
+        // Optional: Verify they're all odd or all even
+        const digitValues = digits.map(d => parseInt(d));
+        const allOdd = digitValues.every(d => d % 2 === 1);
+        const allEven = digitValues.every(d => d % 2 === 0);
+        if (!allOdd && !allEven) {
+          return { valid: false, error: "Digits must be all odd (1,3,5,7,9) or all even (0,2,4,6,8)" };
+        }
+      } else {
+        // Single value format: "odd" or "even"
+        if (!["odd", "even"].includes(number.toLowerCase())) {
+          return { valid: false, error: "Must be 'odd', 'even' or comma-separated digits (0,2,4,6,8 or 1,3,5,7,9)" };
+        }
       }
       break;
 
     case "jodi":
-      if (!/^\d{2}$/.test(number)) {
-        return { valid: false, error: "Jodi must be 2 digits (00-99)" };
+      // Support both single jodi and comma-separated
+      if (number.includes(",")) {
+        // Multiple jodie: "25,75,50,00"
+        const jodie = number.split(",").map(j => j.trim());
+        for (const j of jodie) {
+          if (!/^\d{2}$/.test(j)) {
+            return { valid: false, error: "Each jodi must be 2 digits (00-99)" };
+          }
+        }
+      } else {
+        // Single jodi
+        if (!/^\d{2}$/.test(number)) {
+          return { valid: false, error: "Jodi must be 2 digits (00-99) or comma-separated jodie (25,75,50,00)" };
+        }
       }
       break;
   }
