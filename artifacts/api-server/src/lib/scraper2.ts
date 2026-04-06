@@ -1,4 +1,4 @@
-import axios from "axios";
+ï»¿import axios from "axios";
 import * as cheerio from "cheerio";
 import { db, markets2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -22,7 +22,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       return { success: false, message: `No sourceUrl configured for ${market.name}`, data: null };
     }
 
-    // G£à Check if current time is AFTER market opens (results usually available shortly after close time)
+    // Î“Â£Ã  Check if current time is AFTER market opens (results usually available shortly after close time)
     // Markets can show results from ~10-30 minutes after their official close time
     // We allow fetching anytime to catch results when available
     console.log(`[Market2] ${market.name}: Current time vs closeTime - attempting fetch...`);
@@ -33,7 +33,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     console.log(`[Market2] Scraping result for ${market.name}: ${result ? result : 'NULL'}`);
 
-    // G£à Distinguish between different error types
+    // Î“Â£Ã  Distinguish between different error types
     if (!result) {
       const errorMsg = `Market not found on website or results not ready yet`;
       await db.update(markets2Table)
@@ -50,7 +50,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       };
     }
 
-    // G£à Validate result is exactly 2 digits OR "XX" (placeholder)
+    // Î“Â£Ã  Validate result is exactly 2 digits OR "XX" (placeholder)
     if (!isValidResult(result)) {
       const errorMsg = `Invalid result: got "${result}" (length: ${result.length}, chars: ${result.split('').map(c => c.charCodeAt(0)).join(',')}) - expected 2 digits (00-99) or XX`;
       
@@ -73,7 +73,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       };
     }
 
-    // G£à For 2-digit markets: openResult = closeResult = jodiResult = same value
+    // Î“Â£Ã  For 2-digit markets: openResult = closeResult = jodiResult = same value
     // Special handling for "XX" - mark as temporary/not ready
     const successMsg = result === "XX" 
       ? `Results not yet available on website (showing as XX - temporary placeholder)` 
@@ -111,7 +111,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * G£à ROBUST SCRAPER (TABLE BASED WITH TODAY'S DATE VALIDATION)
+ * Î“Â£Ã  ROBUST SCRAPER (TABLE BASED WITH TODAY'S DATE VALIDATION)
  * Fetches results for TODAY's date specifically
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
@@ -127,16 +127,16 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 
     const $ = cheerio.load(response.data);
 
-    // =ƒƒó Get today's date for validation
+    // â‰¡Æ’Æ’Ã³ Get today's date for validation
     const today = new Date();
     const todayDate = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
     console.log(`[Scraper] Looking for results for: ${todayDate}`);
 
-    // =ƒöÑ METHOD 1: TABLE BASED SCRAPING (Most Reliable)
+    // â‰¡Æ’Ã¶Ã‘ METHOD 1: TABLE BASED SCRAPING (Most Reliable)
     const rows = $("table tr");
     
     if (rows.length === 0) {
-      console.log(`GÜán+Å [Scraper] No tables found on page. URL: ${url}`);
+      console.log(`Î“ÃœÃ¡âˆ©â••Ã… [Scraper] No tables found on page. URL: ${url}`);
       return null;
     }
 
@@ -148,170 +148,151 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
       const row = $(rows[i]);
       const cols = row.find("td");
 
-      if (cols.length >= 2) {
-        // Extract market name - could be in h3, span, or direct text
-        let cellText = "";
-        const firstCol = $(cols[0]);
-        
-        // Try multiple ways to extract text (for different HTML structures)
-        const h3 = firstCol.find("h3");
-        if (h3.length > 0) {
-          cellText = h3.text().trim(); // Inside <h3> tag
-        } else {
-          cellText = firstCol.text().trim(); // Direct text
-        }
-        
-        if (!cellText) continue; // Skip if no text found
-        
+      if (cols.length >= 3) {
+        const cellText = $(cols[0]).text().trim();
         const cleanName = cellText.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
 
         // Try multiple matching strategies WITH BETTER LOGGING
-        console.log(`[Scraper] Row ${i}: "${cellText}" (clean: "${cleanName}") vs target: "${cleanTarget}"`);
+        console.log(`[Scraper] Comparing: "${cellText}" (clean: "${cleanName}") vs "${marketName}" (clean: "${cleanTarget}")`);
         
-        // Enhanced matching to handle variations
+        // Enhanced matching to handle variations like "BIKANER SUPER at 02:20 AM"
         const isMatch = cleanName.includes(cleanTarget) || 
                        cleanTarget.includes(cleanName) || 
                        cellText.toLowerCase().includes(marketName.toLowerCase()) ||
                        cleanName.startsWith(cleanTarget) ||
-                       cleanTarget.startsWith(cleanName.split("at")[0]);
+                       cleanTarget.startsWith(cleanName.split("at")[0]); // Handle "BIKANER SUPER at XX:XX" case
         
         if (isMatch) {
-          console.log(`G£à [Scraper] FOUND ${marketName} in row ${i}: "${cellText}"`);
+          console.log(`Î“Â£Ã  [Scraper] FOUND ${marketName} in row ${i}: "${cellText}"`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
 
-          // For this website: Col1 = yesterday result, Col2 = today result
-          // We want TODAY's result (Col2) first, then fallback to Col1
-          const colsToTry = [2, 1, 3, 4, 5]; // Try col2 (today) first, then col1 (yesterday)
+          // Try to find 2-digit result - AGGRESSIVE APPROACH
+          // First, collect ALL text from all columns
+          const allTexts: string[] = [];
+          for (let j = 0; j < cols.length; j++) {
+            const rawText = $(cols[j]).text().trim();
+            allTexts.push(rawText);
+            console.log(`[Scraper] Col${j}: raw="${rawText}"`);
+          }
+
+          // Priority order: try cols[1], cols[2], then any others
+          const colsToTry = [1, 2, 3, 4, 5];
           
           for (const colIdx of colsToTry) {
             if (colIdx >= cols.length) continue;
             
-            const col = $(cols[colIdx]);
+            const rawText = allTexts[colIdx];
             
-            // Extract from h3 if present, otherwise direct text
-            let colText = "";
-            const colH3 = col.find("h3");
-            if (colH3.length > 0) {
-              colText = colH3.text().trim();
-            } else {
-              colText = col.text().trim();
+            // AGGRESSIVE CLEANING - try multiple strategies
+            let result = null;
+            
+            // Strategy 1: Direct 2-digit match
+            let match = rawText.match(/\d{2}/);
+            if (match) {
+              result = match[0];
+              console.log(`[Scraper] Col${colIdx} Strategy 1 (2-digit): "${rawText}" Î“Ã¥Ã† "${result}"`);
             }
             
-            console.log(`[Scraper] Col${colIdx}: "${colText}"`);
-            
-            // Try to extract 2-digit number
-            if (/^\d{2}$/.test(colText)) {
-              console.log(`G£à [Scraper] Found 2-digit result in Col${colIdx}: "${colText}"`);
-              return colText;
-            }
-            
-            // Also try XX
-            if (colText === "XX") {
-              console.log(`[Scraper] Found XX placeholder in Col${colIdx}`);
-              return "XX";
-            }
-          }
-          
-          console.log(`GÜán+Å [Scraper] No valid result found for ${marketName}`);
-          return null;
-        }
-      }
-    }
-                console.log(`[Scraper] Col${colIdx} Strategy 2 (extract digits): "${rawText}" GåÆ "${result}"`);
+            // Strategy 2: Extract ALL digits and take first 2
+            if (!result) {
+              const allDigits = rawText.replace(/\D/g, "");
+              if (allDigits.length >= 2) {
+                result = allDigits.substring(0, 2);
+                console.log(`[Scraper] Col${colIdx} Strategy 2 (extract digits): "${rawText}" Î“Ã¥Ã† "${result}"`);
               }
             }
             
             // Strategy 3: Check for XX
             if (!result && (rawText.toUpperCase() === "XX" || rawText.toUpperCase().includes("XX"))) {
               result = "XX";
-              console.log(`[Scraper] Col${colIdx} Strategy 3 (XX placeholder): "${rawText}" GåÆ "${result}"`);
+              console.log(`[Scraper] Col${colIdx} Strategy 3 (XX placeholder): "${rawText}" Î“Ã¥Ã† "${result}"`);
             }
             
             // Validate result
             if (result) {
               if (isValidResult(result)) {
                 if (result !== "XX") {
-                  console.log(`G£à [Scraper] FOUND VALID RESULT in Col${colIdx}: ${result}`);
+                  console.log(`Î“Â£Ã  [Scraper] FOUND VALID RESULT in Col${colIdx}: ${result}`);
                   return result;
                 } else {
-                  console.log(`GÅ¦ [Scraper] Found XX placeholder in Col${colIdx}`);
+                  console.log(`Î“Ã…â”‚ [Scraper] Found XX placeholder in Col${colIdx}`);
                   // Don't return yet, try other columns first
                 }
               } else {
-                console.log(`G¥î [Scraper] Col${colIdx} failed validation: "${result}"`);
+                console.log(`Î“Â¥Ã® [Scraper] Col${colIdx} failed validation: "${result}"`);
               }
             }
           }
 
           // If nothing found, try to extract ANY 2 digits from entire row
-          console.log(`GÜán+Å [Scraper] Priority columns failed, searching entire row...`);
+          console.log(`Î“ÃœÃ¡âˆ©â••Ã… [Scraper] Priority columns failed, searching entire row...`);
           for (let j = 0; j < cols.length; j++) {
             const rawText = allTexts[j];
             const allDigits = rawText.replace(/\D/g, "");
             if (allDigits.length >= 2) {
               const extracted = allDigits.substring(0, 2);
               if (isValidResult(extracted) && extracted !== "XX") {
-                console.log(`G£à [Scraper] FOUND in Col${j} (fallback): "${rawText}" GåÆ "${extracted}"`);
+                console.log(`Î“Â£Ã  [Scraper] FOUND in Col${j} (fallback): "${rawText}" Î“Ã¥Ã† "${extracted}"`);
                 return extracted;
               }
             }
             if (rawText === "XX" || rawText.toUpperCase() === "XX") {
-              console.log(`GÅ¦ [Scraper] Found XX in Col${j} (fallback)`);
+              console.log(`Î“Ã…â”‚ [Scraper] Found XX in Col${j} (fallback)`);
               return "XX";
             }
           }
 
-          console.log(`GÜán+Å [Scraper] No valid result found for ${marketName}`);
+          console.log(`Î“ÃœÃ¡âˆ©â••Ã… [Scraper] No valid result found for ${marketName}`);
           return null;
         }
       }
     }
 
-    console.log(`G¥î [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
-    console.log(`[Scraper] DEBUG: Extracted market names from page:`);
+    console.log(`Î“Â¥Ã® [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
+    console.log(`[Scraper] Debug: Looking for markets containing keywords from "${marketName}"`);
     
-    // Extract and log all market names found on page for debugging
-    const pageMarkets: string[] = [];
-    for (let i = 0; i < Math.min(rows.length, 50); i++) {
+    // Log all market names found on the website for debugging
+    const allMarkets: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
       const row = $(rows[i]);
-      const firstCol = $(row.find("td")[0]);
-      
-      let marketNameFromPage = "";
-      const h3 = firstCol.find("h3");
-      if (h3.length > 0) {
-        marketNameFromPage = h3.text().trim();
-      } else {
-        marketNameFromPage = firstCol.text().trim();
-      }
-      
-      if (marketNameFromPage && /[A-Z]/.test(marketNameFromPage)) {
-        pageMarkets.push(marketNameFromPage);
+      const cols = row.find("td");
+      if (cols.length > 0) {
+        const cellText = $(cols[0]).text().trim();
+        if (cellText && /[A-Z]/.test(cellText)) { // Only log potential market names
+          allMarkets.push(cellText);
+        }
       }
     }
+    console.log(`[Scraper] Markets found on website: ${allMarkets.slice(0, 10).join(", ")}`);
     
-    console.log(`[Scraper] Markets on page: ${pageMarkets.slice(0, 15).join(" | ")}`);
-    console.log(`[Scraper] Looking for: "${marketName}"`);
-    
-    // =ƒöÑ FALLBACK METHOD 2: REGEX-BASED EXTRACTION (Page-wide search)
-    console.log(`[Scraper] Trying REGEX fallback for "${marketName}"...`);
+    // â‰¡Æ’Ã¶Ã‘ FALLBACK METHOD 2: REGEX-BASED EXTRACTION
+    console.log(`[Scraper] Falling back to REGEX extraction for "${marketName}"...`);
     const pageText = $.text();
+    
+    // Try to find pattern: MARKET_NAME followed by numbers (anywhere on page)
+    // This is more lenient and catches results even if HTML structure is different
     const keywords = marketName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     
     for (const keyword of keywords) {
-      // Look for keyword followed by any 2-digit number
-      const pattern = new RegExp(`${keyword}[^0-9]*(\\d{2})(?:[^0-9]|$)`, 'i');
-      const match = pageText.match(pattern);
+      // Look for "KEYWORD ... XX" pattern where XX is 2 digits
+      const patterns = [
+        new RegExp(`${keyword}[^0-9]*?(\\d{2})(?:[^0-9]|$)`, 'i'),
+        new RegExp(`${keyword}[^0-9]*?([0-9]{2})[^0-9]*?(\\d{2})`, 'i'), // Look for 2 pairs of digits
+      ];
       
-      if (match && match[1]) {
-        const result = match[1];
-        if (/^\d{2}$/.test(result) || result === "XX") {
-          console.log(`G£à [Scraper REGEX] Fallback found: "${marketName}" GåÆ "${result}"`);
-          return result;
+      for (const pattern of patterns) {
+        const match = pageText.match(pattern);
+        if (match && match[1]) {
+          const result = match[1];
+          if (/^\d{2}$/.test(result) || result === "XX") {
+            console.log(`Î“Â£Ã  [Scraper REGEX] Found result via fallback: "${marketName}" Î“Ã¥Ã† "${result}"`);
+            return result;
+          }
         }
       }
     }
     
-    console.log(`G¥î [Scraper] Could not find "${marketName}" anywhere on page`);
+    console.log(`Î“Â¥Ã® [Scraper] Could not extract result for "${marketName}" via any method`);
     return null;
 
   } catch (err) {
@@ -322,7 +303,7 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
 }
 
 /**
- * G£à RESULT CLEANING - AGGRESSIVE MULTI-STRATEGY
+ * Î“Â£Ã  RESULT CLEANING - AGGRESSIVE MULTI-STRATEGY
  * Tries multiple approaches to extract 2-digit number
  */
 function cleanResult(val: string): string {
@@ -342,7 +323,7 @@ function cleanResult(val: string): string {
   }
 
   // Strategy 2: Look for single digits separated by space/dash/underscore
-  // e.g. "4 5" GåÆ "45", "4-5" GåÆ "45"
+  // e.g. "4 5" Î“Ã¥Ã† "45", "4-5" Î“Ã¥Ã† "45"
   let separatedMatch = trimmed.match(/(\d)\s*[-\s_]*(\d)/);
   if (separatedMatch && separatedMatch.length >= 3) {
     const num1 = separatedMatch[1];
@@ -368,7 +349,7 @@ function cleanResult(val: string): string {
 }
 
 /**
- * G£à RESULT VALIDATION
+ * Î“Â£Ã  RESULT VALIDATION
  * Accepts 2-digit numbers (00-99) and "XX" as temporary placeholder
  */
 function isValidResult(val: string): boolean {
@@ -378,7 +359,7 @@ function isValidResult(val: string): boolean {
 }
 
 /**
- * G£à RANDOM USER AGENT (ANTI-BLOCK)
+ * Î“Â£Ã  RANDOM USER AGENT (ANTI-BLOCK)
  */
 function getRandomUserAgent(): string {
   const agents = [
@@ -420,8 +401,8 @@ async function updateMarket2ActivityStatus() {
       const closeTimeInMinutes = closeH * 60 + closeM;
 
       // MARKETS2 BETTING WINDOW LOGIC:
-      // - isActive = TRUE: From 00:00 until (closeTime - 10 min) GÇö market is open for bets
-      // - isActive = FALSE: From (closeTime - 10 min) until 23:59 GÇö market is closed
+      // - isActive = TRUE: From 00:00 until (closeTime - 10 min) Î“Ã‡Ã¶ market is open for bets
+      // - isActive = FALSE: From (closeTime - 10 min) until 23:59 Î“Ã‡Ã¶ market is closed
       // - Next day at 00:00, cycle repeats
       const autoCloseTime = closeTimeInMinutes - 10;
       const shouldBeActive = currentTime < autoCloseTime;
@@ -437,7 +418,7 @@ async function updateMarket2ActivityStatus() {
         const autoCloseStr = `${String(Math.floor(autoCloseTime / 60)).padStart(2, '0')}:${String(autoCloseTime % 60).padStart(2, '0')}`;
 
         console.log(`[Market2 Activity] ${market.name}: isActive = ${shouldBeActive}`);
-        console.log(`  GööGöÇ Opens: ${openTimeStr}, Official closes: ${closeTimeStr}, Auto-closes: ${autoCloseStr}, Current: ${currentTimeStr}`);
+        console.log(`  Î“Ã¶Ã¶Î“Ã¶Ã‡ Opens: ${openTimeStr}, Official closes: ${closeTimeStr}, Auto-closes: ${autoCloseStr}, Current: ${currentTimeStr}`);
       }
     }
   } catch (err) {
@@ -451,3 +432,4 @@ export {
   isAfterCloseTime,
   updateMarket2ActivityStatus
 };
+
