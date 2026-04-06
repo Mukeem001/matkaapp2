@@ -29,7 +29,7 @@ router.post("/markets", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [market] = await db.insert(marketsTable).values(body.data).returning();
+  const [market] = await db.insert(marketsTable).values({ name: body.data.name ?? "", openTime: body.data.openTime ?? "", closeTime: body.data.closeTime ?? "", isActive: body.data.isActive ?? true }).returning();
   res.status(201).json(formatMarket(market));
 });
 
@@ -156,3 +156,4 @@ router.get("/markets/:id/chart", async (req, res): Promise<void> => {
 });
 
 export default router;
+

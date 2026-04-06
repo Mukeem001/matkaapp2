@@ -30,7 +30,7 @@ router.post("/markets2", authMiddleware, async (req, res): Promise<void> => {
       return;
     }
 
-    const result = await db.insert(markets2Table).values(body.data).returning();
+    const result = await db.insert(markets2Table).values({ name: body.data.name ?? "", openTime: body.data.openTime ?? "", closeTime: body.data.closeTime ?? "", isActive: body.data.isActive ?? true }).returning();
     const market = result[0];
     res.status(201).json(formatMarkets2(market));
   } catch (error) {
@@ -113,3 +113,4 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
 });
 
 export default router;
+

@@ -5,7 +5,7 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "../../src",
     "skipLibCheck": true,
     "baseUrl": "../../",
     "paths": {
@@ -14,7 +14,7 @@
       "@workspace/api-client-react": ["lib/api-client-react/src/index.ts"]
     }
   },
-  "include": ["src"],
+  "include": ["../../src"],
   "references": [
     { "path": "../../lib/db" },
     { "path": "../../lib/api-zod" }
