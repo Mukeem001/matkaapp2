@@ -1,7 +1,7 @@
 import { Router, type IRouter, Request, Response } from "express";
 import { db, bids2Table, markets2Table, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { authMiddleware } from "../middlewares/auth.js";
+import { userAuthMiddleware, type AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
@@ -128,12 +128,12 @@ function getBet2Multiplier(betType: string): number {
  * 2. { amount, gameType, marketId, marketopenclose, number } (mobile format)
  * Returns: { success, message, bid }
  */
-router.post("/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.post("/bids2", userAuthMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     // Normalize payload to support both formats
     const normalized = normalizePayload(req.body);
     const { marketId, betType, number, amount, marketopenclose } = normalized;
-    const userId = (req as any).user.id;
+    const userId = req.userId;
 
     // Validation
     if (!marketId || !betType || !number || !amount) {
@@ -243,9 +243,9 @@ router.post("/bids2", authMiddleware, async (req: Request, res: Response): Promi
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { bids: [], total, page, limit, totalPages }
  */
-router.get("/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2", userAuthMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.userId;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20));
 
@@ -291,10 +291,10 @@ router.get("/bids2", authMiddleware, async (req: Request, res: Response): Promis
  * GET /bids2/:bidId - Get a specific bid by ID
  * Returns: { bid }
  */
-router.get("/bids2/:bidId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/:bidId", userAuthMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const bidId = parseInt(req.params.bidId as string);
-    const userId = (req as any).user.id;
+    const userId = req.userId;
 
     if (isNaN(bidId)) {
       res.status(400).json({ error: "Invalid bid ID" });
@@ -342,7 +342,7 @@ router.get("/bids2/:bidId", authMiddleware, async (req: Request, res: Response):
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { marketId, bids: [], total, totalPages }
  */
-router.get("/bids2/market/:marketId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/market/:marketId", userAuthMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const marketId = parseInt(req.params.marketId as string);
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -395,9 +395,9 @@ router.get("/bids2/market/:marketId", authMiddleware, async (req: Request, res: 
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { status, bids: [], total, totalPages }
  */
-router.get("/bids2/status/:status", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/status/:status", userAuthMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.userId;
     const status = (req.params.status as string).toLowerCase();
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20));
