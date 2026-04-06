@@ -217,55 +217,6 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
         }
       }
     }
-                console.log(`[Scraper] Col${colIdx} Strategy 2 (extract digits): "${rawText}" → "${result}"`);
-              }
-            }
-            
-            // Strategy 3: Check for XX
-            if (!result && (rawText.toUpperCase() === "XX" || rawText.toUpperCase().includes("XX"))) {
-              result = "XX";
-              console.log(`[Scraper] Col${colIdx} Strategy 3 (XX placeholder): "${rawText}" → "${result}"`);
-            }
-            
-            // Validate result
-            if (result) {
-              if (isValidResult(result)) {
-                if (result !== "XX") {
-                  console.log(`✅ [Scraper] FOUND VALID RESULT in Col${colIdx}: ${result}`);
-                  return result;
-                } else {
-                  console.log(`⏳ [Scraper] Found XX placeholder in Col${colIdx}`);
-                  // Don't return yet, try other columns first
-                }
-              } else {
-                console.log(`❌ [Scraper] Col${colIdx} failed validation: "${result}"`);
-              }
-            }
-          }
-
-          // If nothing found, try to extract ANY 2 digits from entire row
-          console.log(`⚠️ [Scraper] Priority columns failed, searching entire row...`);
-          for (let j = 0; j < cols.length; j++) {
-            const rawText = allTexts[j];
-            const allDigits = rawText.replace(/\D/g, "");
-            if (allDigits.length >= 2) {
-              const extracted = allDigits.substring(0, 2);
-              if (isValidResult(extracted) && extracted !== "XX") {
-                console.log(`✅ [Scraper] FOUND in Col${j} (fallback): "${rawText}" → "${extracted}"`);
-                return extracted;
-              }
-            }
-            if (rawText === "XX" || rawText.toUpperCase() === "XX") {
-              console.log(`⏳ [Scraper] Found XX in Col${j} (fallback)`);
-              return "XX";
-            }
-          }
-
-          console.log(`⚠️ [Scraper] No valid result found for ${marketName}`);
-          return null;
-        }
-      }
-    }
 
     console.log(`❌ [Scraper] Market "${marketName}" not found in table. Checked ${rows.length} rows.`);
     console.log(`[Scraper] DEBUG: Extracted market names from page:`);
