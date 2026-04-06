@@ -179,7 +179,7 @@ router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
  * POST /api/markets2/:id/fetch-now
  * Example: POST /api/markets2/10/fetch-now
  */
-router.post("/markets2/:id/fetch-now", authMiddleware, async (req, res): Promise<void> => {
+router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
   try {
     const { id } = req.params;
     const marketId = parseInt(id, 10);
