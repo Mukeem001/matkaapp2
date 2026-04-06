@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
 import { authMiddleware, userAuthMiddleware } from "../middlewares/auth.js";
+import { fetchAndUpdateMarkets2Result } from "../lib/scraper2.js";
 
 const router: IRouter = Router();
 
@@ -170,6 +171,58 @@ router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
   } catch (error) {
     console.error("Error fetching market2 results by date:", error);
     res.status(500).json({ error: "Failed to fetch results" });
+  }
+});
+
+/**
+ * Manually trigger a fetch for a specific market
+ * POST /api/markets2/:id/fetch-now
+ * Example: POST /api/markets2/10/fetch-now
+ */
+router.post("/markets2/:id/fetch-now", authMiddleware, async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const marketId = parseInt(id, 10);
+
+    if (isNaN(marketId)) {
+      res.status(400).json({ error: "Invalid market ID" });
+      return;
+    }
+
+    // Check if market exists
+    const market = await db
+      .select()
+      .from(markets2Table)
+      .where(eq(markets2Table.id, marketId))
+      .then(r => r[0]);
+
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Trigger the fetch
+    const result = await fetchAndUpdateMarkets2Result(marketId);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        data: result.data,
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+        data: result.data,
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching market2 now:", error);
+    res.status(500).json({
+      success: false,
+      message: `Fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 });
 
