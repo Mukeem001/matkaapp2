@@ -201,6 +201,15 @@ router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
       return;
     }
 
+    // Check if sourceUrl is configured
+    if (!market.sourceUrl) {
+      res.status(400).json({
+        success: false,
+        message: `Market "${market.name}" does not have a sourceUrl configured. Please set a source URL first.`,
+      });
+      return;
+    }
+
     // Trigger the fetch
     const result = await fetchAndUpdateMarkets2Result(marketId);
 
@@ -211,6 +220,7 @@ router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
         data: result.data,
       });
     } else {
+      // Return 400 with detailed error for debugging
       res.status(400).json({
         success: false,
         message: result.message,
