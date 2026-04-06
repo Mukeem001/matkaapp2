@@ -122,13 +122,13 @@ function getBet2Multiplier(betType: string): number {
 // ============= API Routes =============
 
 /**
- * POST /api/bids2 - Place a new bid on Market2
+ * POST /bids2 - Place a new bid on Market2
  * Accepts multiple payload formats:
  * 1. { marketId, betType, number, amount }
  * 2. { amount, gameType, marketId, marketopenclose, number } (mobile format)
  * Returns: { success, message, bid }
  */
-router.post("/api/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.post("/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     // Normalize payload to support both formats
     const normalized = normalizePayload(req.body);
@@ -239,11 +239,11 @@ router.post("/api/bids2", authMiddleware, async (req: Request, res: Response): P
 
 
 /**
- * GET /api/bids2 - Get all bids for authenticated user (with pagination)
+ * GET /bids2 - Get all bids for authenticated user (with pagination)
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { bids: [], total, page, limit, totalPages }
  */
-router.get("/api/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -288,10 +288,10 @@ router.get("/api/bids2", authMiddleware, async (req: Request, res: Response): Pr
 });
 
 /**
- * GET /api/bids2/:bidId - Get a specific bid by ID
+ * GET /bids2/:bidId - Get a specific bid by ID
  * Returns: { bid }
  */
-router.get("/api/bids2/:bidId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/:bidId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const bidId = parseInt(req.params.bidId as string);
     const userId = (req as any).user.id;
@@ -338,11 +338,11 @@ router.get("/api/bids2/:bidId", authMiddleware, async (req: Request, res: Respon
 });
 
 /**
- * GET /api/bids2/market/:marketId - Get all bids for a specific market
+ * GET /bids2/market/:marketId - Get all bids for a specific market
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { marketId, bids: [], total, totalPages }
  */
-router.get("/api/bids2/market/:marketId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/market/:marketId", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const marketId = parseInt(req.params.marketId as string);
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -391,11 +391,11 @@ router.get("/api/bids2/market/:marketId", authMiddleware, async (req: Request, r
 });
 
 /**
- * GET /api/bids2/status/:status - Get all bids with a specific status
+ * GET /bids2/status/:status - Get all bids with a specific status
  * Query params: page (default: 1), limit (default: 20)
  * Returns: { status, bids: [], total, totalPages }
  */
-router.get("/api/bids2/status/:status", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get("/bids2/status/:status", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const status = (req.params.status as string).toLowerCase();
