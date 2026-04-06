@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, markets2Table } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, markets2Table, results2Table } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
 import { authMiddleware, userAuthMiddleware } from "../middlewares/auth.js";
 
@@ -109,6 +109,67 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
   } catch (error) {
     console.error("Error deleting markets2:", error);
     res.status(500).json({ error: "Failed to delete market" });
+  }
+});
+
+/**
+ * Get results for a specific market on a specific date
+ * GET /api/markets2/:id/results/:date
+ * Example: GET /api/markets2/10/results/2024-04-07
+ */
+router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
+  try {
+    const { id, date } = req.params;
+    const marketId = parseInt(id, 10);
+
+    if (isNaN(marketId)) {
+      res.status(400).json({ error: "Invalid market ID" });
+      return;
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+      return;
+    }
+
+    // Check if market exists
+    const market = await db
+      .select()
+      .from(markets2Table)
+      .where(eq(markets2Table.id, marketId))
+      .then(r => r[0]);
+
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Get result for the specified date
+    const result = await db
+      .select()
+      .from(results2Table)
+      .where(and(
+        eq(results2Table.marketId, marketId),
+        eq(results2Table.resultDate, date)
+      ))
+      .then(r => r[0]);
+
+    if (!result) {
+      // Return null/empty if no result found for that date
+      res.json({ result: null, date, marketId });
+      return;
+    }
+
+    res.json({
+      result: result.result,
+      date,
+      marketId,
+      fetchedAt: result.createdAt.toISOString(),
+    });
+  } catch (error) {
+    console.error("Error fetching market2 results by date:", error);
+    res.status(500).json({ error: "Failed to fetch results" });
   }
 });
 

@@ -262,29 +262,35 @@ export default function Markets2() {
     const fetchResultsForDate = async () => {
       if (markets.length === 0 || !token) return;
       const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
+      
       for (const market of markets) {
         try {
           const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results/${selectedDate}`, {
             headers: { "Authorization": `Bearer ${token}` },
           });
+          
           if (!response.ok) {
             console.error(`Failed to fetch results for market ${market.id}: ${response.status}`);
             continue;
           }
+          
           const data = await response.json();
-          if (data.success && data.data) {
+          
+          // For markets2, result is a single 2-digit value
+          // We display it for all three positions (open, jodi, close)
+          if (data.result) {
             results[market.id] = {
-              open: data.data.openResult,
-              jodi: data.data.jodiResult,
-              close: data.data.closeResult,
+              jodi: data.result, // Markets2 only has one result
             };
           }
         } catch (error) {
           console.error(`Error fetching results for market ${market.id}:`, error);
         }
       }
+      
       setDateResults(results);
     };
+    
     fetchResultsForDate();
   }, [selectedDate, markets, token]);
 

@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { db, markets2Table } from "@workspace/db";
+import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 /**
@@ -79,6 +79,11 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       ? `Result not declared yet (showing as XX)` 
       : `Updated: ${result}`;
 
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const todayDate = today.toISOString().split('T')[0];
+
+    // Update current result in markets2Table
     const updated = await db.update(markets2Table)
       .set({
         openResult: result,
@@ -89,6 +94,17 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       })
       .where(eq(markets2Table.id, marketId))
       .returning();
+
+    // Store result in history table (results_2)
+    try {
+      await db.insert(results2Table).values({
+        marketId,
+        resultDate: todayDate,
+        result,
+      }).onConflictDoNothing(); // Don't error if duplicate
+    } catch (histErr) {
+      console.warn(`[Market2] Warning: Could not store result history for ${market.name}: ${histErr}`);
+    }
 
     return {
       success: true,
