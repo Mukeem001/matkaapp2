@@ -3,6 +3,7 @@ export { usersTable } from "./users";
 export { marketsTable } from "./markets";
 export { markets2Table } from "./markets2";
 export { resultsTable } from "./results";
+export { results2Table } from "./results2";
 export { bidsTable } from "./bids";
 export { bids2Table } from "./bids2";
 export { depositsTable } from "./deposits";
