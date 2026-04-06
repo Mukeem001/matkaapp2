@@ -1,0 +1,19 @@
+packages:
+  "recharts": "Dashboard analytics charts and data visualization"
+  "date-fns": "Human-readable date formatting"
+  "framer-motion": "Page transitions and micro-interactions"
+  "@hookform/resolvers": "Zod validation with react-hook-form"
+  "react-hook-form": "Form state management"
+  "zod": "Schema validation for forms"
+
+images:
+  - path: "artifacts/admin-panel/public/images/auth-bg.png"
+    description: "Abstract 3D geometric shapes in clean white and professional blue tones with soft lighting and premium corporate feel"
+    aspect_ratio: "16:9"
+  - path: "artifacts/admin-panel/public/images/logo.png"
+    description: "Minimalist modern letter M logo in vibrant blue gradient on transparent background, corporate tech style"
+    aspect_ratio: "1:1"
+
+notes:
+  - "The generated hooks in @workspace/api-client-react automatically handle auth headers using customFetch"
+  - "Auth state is checked by calling useGetAdminMe()"
