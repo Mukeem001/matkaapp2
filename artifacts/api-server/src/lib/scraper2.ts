@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 import * as cheerio from "cheerio";
 import { db, markets2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -178,9 +178,52 @@ async function scrapeMarkets2Result(url: string, marketName: string): Promise<st
         if (isMatch) {
           console.log(`✅ [Scraper] FOUND ${marketName} in row ${i}: "${cellText}"`);
           console.log(`[Scraper] Total columns in row: ${cols.length}`);
+          
+          // DEBUG: Show all column contents to understand structure
+          console.log(`[Scraper] === ALL COLUMNS DEBUG ===`);
+          for (let debug_i = 0; debug_i < cols.length; debug_i++) {
+            const debugCol = $(cols[debug_i]);
+            const debugClass = debugCol.attr("class") || "no-class";
+            const debugH3 = debugCol.find("h3").text().trim() || "(no h3)";
+            const debugText = debugCol.text().trim().substring(0, 50);
+            console.log(`  Col${debug_i} [class="${debugClass}"]: h3="${debugH3}" | text="${debugText}"`);
+          }
+          console.log(`[Scraper] === END DEBUG ===`);
 
-          // For this website: Col1 = yesterday result, Col2 = today result
-          // We want TODAY's result (Col2) first, then fallback to Col1
+          // For this website: Look for columns by class name for better accuracy
+          let todayResult = null;
+          let yesterdayResult = null;
+          
+          // Try to find columns by class name
+          for (let j = 0; j < cols.length; j++) {
+            const col = $(cols[j]);
+            const colClass = col.attr("class") || "";
+            const colH3 = col.find("h3");
+            let colText = colH3.length > 0 ? colH3.text().trim() : col.text().trim();
+            
+            if (/^\d{2}$/.test(colText)) {
+              if (colClass.includes("today-number")) {
+                todayResult = colText;
+                console.log(`✅ [Scraper] Found TODAY result by class: Col${j} = "${colText}"`);
+              } else if (colClass.includes("yesterday-number")) {
+                yesterdayResult = colText;
+                console.log(`✅ [Scraper] Found YESTERDAY result by class: Col${j} = "${colText}"`);
+              }
+            }
+          }
+          
+          // Return in priority: TODAY first, then YESTERDAY
+          if (todayResult) {
+            console.log(`✅ [Scraper] Returning TODAY's result: "${todayResult}"`);
+            return todayResult;
+          }
+          if (yesterdayResult) {
+            console.log(`⚠️ [Scraper] TODAY not found, returning YESTERDAY: "${yesterdayResult}"`);
+            return yesterdayResult;
+          }
+
+          // Fallback to original column-index method if class names don't exist
+          console.log(`[Scraper] Class-based search failed, trying column indices...`);
           const colsToTry = [2, 1, 3, 4, 5]; // Try col2 (today) first, then col1 (yesterday)
           
           for (const colIdx of colsToTry) {
