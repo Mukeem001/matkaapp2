@@ -388,16 +388,28 @@ export default function Markets2() {
       const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/fetch-now`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status}`);
-      }
-
       const result = await response.json();
-      const message = typeof result.message === "string" ? result.message : "No result data";
+      const message = result.message || result.error || "Unknown error";
+
+      if (!response.ok) {
+        // Handle error response
+        setMarkets((prev) => prev.map((m) => m.id === market.id ? {
+          ...m,
+          fetchError: message,
+          lastFetchedAt: new Date().toISOString(),
+        } : m));
+
+        toast({ 
+          title: "Fetch Failed", 
+          description: message,
+          variant: "destructive" 
+        });
+        return;
+      }
 
       if (result.success && result.data) {
         setCurrentResults((prev) => ({
