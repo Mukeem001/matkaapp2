@@ -131,14 +131,28 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
  * Fetches results for TODAY's date specifically
  */
 async function scrapeMarkets2Result(url: string, marketName: string): Promise<string | null> {
+  // Add a small random delay to avoid rate limiting
+  const delay = Math.random() * 1000 + 500; // 500-1500ms
+  await new Promise(resolve => setTimeout(resolve, delay));
+
   try {
     const response = await axios.get(url, {
-      timeout: 10000,
+      timeout: 15000,
       headers: {
         "User-Agent": getRandomUserAgent(),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate",
-      }
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Cache-Control": "max-age=0",
+        "Referer": "https://www.google.com/",
+      },
+      withCredentials: false,
     });
 
     const $ = cheerio.load(response.data);
@@ -349,9 +363,20 @@ function isValidResult(val: string): boolean {
  */
 function getRandomUserAgent(): string {
   const agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Mozilla/5.0 (X11; Linux x86_64)",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+    // Chrome on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    // Chrome on Linux
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    // Chrome on Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    // Firefox on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    // Firefox on Linux
+    "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    // Safari on Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
+    // Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
   ];
   return agents[Math.floor(Math.random() * agents.length)];
 }
