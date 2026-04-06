@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import puppeteer from "puppeteer";
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
@@ -99,7 +100,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * SCRAPER
+ * SCRAPER - Uses Puppeteer to bypass Cloudflare
  */
 
 async function scrapeMarkets2Result(
@@ -107,16 +108,33 @@ async function scrapeMarkets2Result(
   marketName:string
 ):Promise<string|null>{
 
+  let browser;
+  
   try{
-
-    const response = await axios.get(url,{
-      timeout:15000,
-      headers:{
-        "User-Agent":getRandomUserAgent()
-      }
+    // Launch Puppeteer browser
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage', // Important for Render (limited /dev/shm)
+      ]
     });
 
-    const $ = cheerio.load(response.data);
+    const page = await browser.newPage();
+    
+    // Set timeout and navigate
+    await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+
+    // Wait for the table to load
+    await page.waitForSelector('table tr', { timeout: 10000 });
+
+    // Get the HTML content
+    const html = await page.content();
+    const $ = cheerio.load(html);
 
     const rows = $("table tr");
 
@@ -141,34 +159,44 @@ async function scrapeMarkets2Result(
 
       if(cleanName.includes(cleanTarget)){
 
-        console.log(`Market found: ${marketCell}`);
+        console.log(`[Puppeteer] Market found: ${marketCell}`);
 
+        // cols[1] = yesterday, cols[2] = today
         const yesterdayText = $(cols[1]).text().trim();
         const todayText = $(cols[2]).text().trim();
 
         const todayResult = cleanResult(todayText);
         const yesterdayResult = cleanResult(yesterdayText);
 
-        console.log(`Yesterday: ${yesterdayText}`);
-        console.log(`Today: ${todayText}`);
+        console.log(`[Puppeteer] Yesterday: ${yesterdayText} → ${yesterdayResult}`);
+        console.log(`[Puppeteer] Today: ${todayText} → ${todayResult}`);
 
         if(isValidResult(todayResult)){
+          await browser.close();
           return todayResult;
         }
 
         if(isValidResult(yesterdayResult)){
+          await browser.close();
           return yesterdayResult;
         }
 
+        await browser.close();
         return null;
       }
     }
 
+    console.log(`[Puppeteer] Market "${marketName}" not found`);
+    await browser.close();
     return null;
 
   }catch(err){
 
-    console.error("Scraper error:",err);
+    console.error("[Puppeteer Error]",err);
+
+    if(browser){
+      await browser.close();
+    }
 
     return null;
   }
