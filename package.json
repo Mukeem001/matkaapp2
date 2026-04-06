@@ -15,9 +15,9 @@
     "lib/db"
   ],
   "scripts": {
-    "dev": "cd artifacts/api-server && npm run dev",
+    "dev": "npx tsx --watch src/index.ts",
     "build": "tsc --build tsconfig.json",
-    "start": "cd artifacts/api-server && node dist/index.js",
+    "start": "npx tsx ./src/index.ts",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
