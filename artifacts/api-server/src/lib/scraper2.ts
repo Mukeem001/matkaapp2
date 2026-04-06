@@ -73,33 +73,18 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       };
     }
 
-    // ✅ CRITICAL: If result is "XX" (not declared), DO NOT update the result columns!
-    // Only mark that we checked and it's not available yet
-    if (result === "XX") {
-      console.log(`[Market2] ${market.name}: Result marked as XX - NOT updating, keeping previous result`);
-      
-      await db.update(markets2Table)
-        .set({
-          fetchError: "Results not yet available on website (XX - temporary placeholder)",
-          lastFetchedAt: new Date()
-          // ⚠️ IMPORTANT: NOT updating openResult/closeResult/jodiResult
-        })
-        .where(eq(markets2Table.id, marketId));
+    // ✅ For 2-digit markets: openResult = closeResult = jodiResult = same value
+    // Update even if "XX" (user knows result not declared yet)
+    const successMsg = result === "XX" 
+      ? `Result not declared yet (showing as XX)` 
+      : `Updated: ${result}`;
 
-      return {
-        success: false,
-        message: "Results not yet available (XX)",
-        data: null
-      };
-    }
-
-    // ✅ Valid 2-digit result - update all columns
     const updated = await db.update(markets2Table)
       .set({
         openResult: result,
         closeResult: result,
         jodiResult: result,
-        fetchError: null,
+        fetchError: result === "XX" ? "Result not declared yet" : null,
         lastFetchedAt: new Date()
       })
       .where(eq(markets2Table.id, marketId))
@@ -107,7 +92,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 
     return {
       success: true,
-      message: `Updated: ${result}`,
+      message: successMsg,
       data: updated[0]
     };
 
