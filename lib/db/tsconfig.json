@@ -1,12 +1,15 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "skipLibCheck": true
-  },
-  "include": ["src"]
+    "extends":  "../../tsconfig.base.json",
+    "compilerOptions":  {
+                            "composite":  true,
+                            "declaration":  true,
+                            "declarationMap":  true,
+                            "outDir":  "dist",
+                            "rootDir":  "src",
+                            "skipLibCheck":  true,
+                            "ignoreDeprecations":  5.4
+                        },
+    "include":  [
+                    "src"
+                ]
 }
