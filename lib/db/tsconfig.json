@@ -6,8 +6,7 @@
                             "declarationMap":  true,
                             "outDir":  "dist",
                             "rootDir":  "src",
-                            "skipLibCheck":  true,
-                            "ignoreDeprecations":  5.4
+                            "skipLibCheck":  true
                         },
     "include":  [
                     "src"
