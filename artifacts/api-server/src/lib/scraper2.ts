@@ -1,8 +1,10 @@
 import { db, markets2Table, results2Table } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { format } from "date-fns";
+import { scrapeLiveResults } from "./scraper.js";
 
 /**
- * SIMPLIFIED FETCH FUNCTION - No Scraping
+ * FETCH AND UPDATE MARKETS2 RESULT - With Real Scraping
  */
 
 async function fetchAndUpdateMarkets2Result(marketId: number) {
@@ -17,36 +19,110 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
       return { success: false, message: `Market ${marketId} not found`, data: null };
     }
 
-    console.log(`[Market2] Updating ${market.name} status`);
+    console.log(`[Market2] Fetching result for ${market.name}`);
 
-    const today = new Date().toISOString().split("T")[0];
+    // Scrape live results using real scraper
+    const liveResult = await scrapeLiveResults(market.name);
+    
+    console.log(`[Market2] Scrape result:`, liveResult);
+    
+    // Check if we have ANY result
+    const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
+    
+    if (hasAnyResult) {
+      console.log(`[Market2] Saving results to database for ${market.name}`);
+      
+      // Save to results2_table with TODAY'S DATE
+      const today = format(new Date(), "yyyy-MM-dd");
+      console.log(`[Market2] Today's date: ${today}`);
+      
+      try {
+        // Check if result exists for today
+        const queryResult = await db
+          .select()
+          .from(results2Table)
+          .where(
+            and(
+              eq(results2Table.marketId, marketId),
+              eq(results2Table.resultDate, today)
+            )
+          );
+        
+        const existingResult = queryResult[0];
+        console.log(`[Market2] Query check completed, existing: ${existingResult ? existingResult.id : "none"}`);
+        
+        if (existingResult) {
+          console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
+          const updateData: any = {};
+          if (liveResult.openResult) updateData.openResult = liveResult.openResult;
+          if (liveResult.jodiResult) updateData.jodiResult = liveResult.jodiResult;
+          if (liveResult.closeResult) updateData.closeResult = liveResult.closeResult;
+          
+          console.log(`[Market2] Update data:`, updateData);
+          await db.update(results2Table).set(updateData).where(eq(results2Table.id, existingResult.id));
+          console.log(`[Market2] Update completed`);
+        } else {
+          console.log(`[Market2] Creating new result for market ${marketId}`);
+          const insertData: any = {
+            marketId,
+            resultDate: today,
+          };
+          if (liveResult.openResult) insertData.openResult = liveResult.openResult;
+          if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
+          if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
+          
+          console.log(`[Market2] Insert data:`, insertData);
+          await db.insert(results2Table).values(insertData);
+          console.log(`[Market2] Insert completed`);
+        }
+        
+        // Update markets2 table with latest results
+        console.log(`[Market2] Updating markets2 table with latest results`);
+        const marketUpdateData: any = {
+          lastFetchedAt: new Date(),
+          fetchError: null
+        };
+        if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
+        if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
+        if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
+        
+        const updated = await db.update(markets2Table).set(marketUpdateData).where(eq(markets2Table.id, marketId)).returning();
+        console.log(`[Market2] Markets2 table updated`);
+        
+        return {
+          success: true,
+          message: `Updated with live results`,
+          data: updated[0]
+        };
+      } catch (dbError) {
+        console.error(`[Market2] Database error:`, dbError);
+        return {
+          success: false,
+          message: `Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
+          data: null
+        };
+      }
+    } else {
+      console.log(`[Market2] No results found`);
+      
+      // Update with XX marker
+      const updated = await db.update(markets2Table)
+        .set({
+          openResult: "XX",
+          closeResult: "XX",
+          jodiResult: "XX",
+          fetchError: "Result not declared",
+          lastFetchedAt: new Date()
+        })
+        .where(eq(markets2Table.id, marketId))
+        .returning();
 
-    // Simply set result to XX (not declared/pending)
-    const updated = await db.update(markets2Table)
-      .set({
-        openResult: "XX",
-        closeResult: "XX",
-        jodiResult: "XX",
-        fetchError: "Result not declared",
-        lastFetchedAt: new Date()
-      })
-      .where(eq(markets2Table.id, marketId))
-      .returning();
-
-    // Store in history
-    await db.insert(results2Table)
-      .values({
-        marketId,
-        resultDate: today,
-        result: "XX"
-      })
-      .onConflictDoNothing();
-
-    return {
-      success: true,
-      message: `Updated XX (result not declared)`,
-      data: updated[0]
-    };
+      return {
+        success: false,
+        message: `No live results available - marked as XX`,
+        data: updated[0]
+      };
+    }
 
   } catch(err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
