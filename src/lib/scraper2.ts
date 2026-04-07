@@ -171,12 +171,14 @@ async function scrapeMarkets2Result(
         console.log(`[Puppeteer] Yesterday: ${yesterdayText} → ${yesterdayResult}`);
         console.log(`[Puppeteer] Today: ${todayText} → ${todayResult}`);
 
-        if(isValidResult(todayResult)){
+        // Always return today's result (even if XX)
+        if(todayResult){
           await browser.close();
           return todayResult;
         }
 
-        if(isValidResult(yesterdayResult)){
+        // Fallback to yesterday only if today is completely empty
+        if(yesterdayResult){
           await browser.close();
           return yesterdayResult;
         }
