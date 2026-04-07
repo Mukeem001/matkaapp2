@@ -54,21 +54,19 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
         if (existingResult) {
           console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
           
-          // Build update object with only fields that have values
-          const updateObject: any = {};
-          if (liveResult.openResult) updateObject.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) updateObject.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) updateObject.closeResult = liveResult.closeResult;
-          
-          // Only update if we have at least one field to update
-          if (Object.keys(updateObject).length > 0) {
-            console.log(`[Market2] Update data:`, updateObject);
+          try {
+            // Update all three result fields - they might be undefined but that's okay
             await db.update(results2Table)
-              .set(updateObject)
+              .set({
+                openResult: liveResult.openResult ?? existingResult.openResult,
+                jodiResult: liveResult.jodiResult ?? existingResult.jodiResult,
+                closeResult: liveResult.closeResult ?? existingResult.closeResult,
+              })
               .where(eq(results2Table.id, existingResult.id));
-            console.log(`[Market2] Update completed`);
-          } else {
-            console.log(`[Market2] No data to update`);
+            console.log(`[Market2] Update completed successfully`);
+          } catch (updateError) {
+            console.error(`[Market2] Update error:`, updateError);
+            throw updateError;
           }
         } else {
           console.log(`[Market2] Creating new result for market ${marketId}`);
@@ -87,16 +85,14 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
         
         // Update markets2 table with latest results
         console.log(`[Market2] Updating markets2 table with latest results`);
-        const marketUpdateFields: any = {
-          lastFetchedAt: new Date(),
-          fetchError: null
-        };
-        if (liveResult.openResult) marketUpdateFields.openResult = liveResult.openResult;
-        if (liveResult.jodiResult) marketUpdateFields.jodiResult = liveResult.jodiResult;
-        if (liveResult.closeResult) marketUpdateFields.closeResult = liveResult.closeResult;
-        
         const updated = await db.update(markets2Table)
-          .set(marketUpdateFields)
+          .set({
+            openResult: liveResult.openResult,
+            jodiResult: liveResult.jodiResult,
+            closeResult: liveResult.closeResult,
+            lastFetchedAt: new Date(),
+            fetchError: null
+          })
           .where(eq(markets2Table.id, marketId))
           .returning();
         console.log(`[Market2] Markets2 table updated`);
