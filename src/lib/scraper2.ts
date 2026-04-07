@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import * as chromium from "@sparticuz/chromium";
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
@@ -111,17 +112,12 @@ async function scrapeMarkets2Result(
   let browser;
   
   try{
-    // Launch Puppeteer browser
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', // Important for Render (limited /dev/shm)
-        '--disable-gpu', // Disable GPU for server environment
-        '--disable-extensions',
-        '--disable-sync'
-      ]
+    // Launch Puppeteer browser using @sparticuz/chromium (for Render serverless)
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();

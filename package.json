@@ -18,10 +18,10 @@
     "dev": "npx tsx --watch src/index.ts",
     "build": "tsc --build tsconfig.json",
     "start": "npx tsx ./src/index.ts",
-    "typecheck": "tsc --build tsconfig.json --noEmit",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^143.0.4",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
@@ -35,7 +35,7 @@
     "multer": "^2.0.0",
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",
-    "puppeteer": "^24.40.0",
+    "puppeteer-core": "^24.40.0",
     "vite": "^8.0.2",
     "zod": "^3.22.4"
   },
