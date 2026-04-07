@@ -114,7 +114,10 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
 
     console.log(`Deleting markets2 ${params.data.id} (${market.name})`);
 
-    // Delete the market
+    // Delete all related results first (foreign key constraint)
+    await db.delete(results2Table).where(eq(results2Table.marketId, params.data.id));
+
+    // Now delete the market
     await db.delete(markets2Table).where(eq(markets2Table.id, params.data.id));
 
     res.json({ success: true, message: "Market deleted successfully" });

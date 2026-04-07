@@ -301,11 +301,6 @@ export default function Markets2() {
   };
 
   const handleFetchNow = async (market: Market) => {
-    if (!market.sourceUrl) {
-      toast({ title: "No source URL", variant: "destructive" });
-      return;
-    }
-
     setFetchingId(market.id);
 
     try {
