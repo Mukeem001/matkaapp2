@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
