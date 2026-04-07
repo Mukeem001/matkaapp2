@@ -18,7 +18,8 @@
     "dev": "npx tsx --watch src/index.ts",
     "build": "tsc --build tsconfig.json",
     "start": "npx tsx ./src/index.ts",
-    "typecheck": "tsc --build tsconfig.json --noEmit"
+    "typecheck": "tsc --build tsconfig.json --noEmit",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "axios": "^1.13.6",

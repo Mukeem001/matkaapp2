@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-20
     region: oregon
-    buildCommand: "npm install -g pnpm && pnpm install && pnpm build && cd lib/db && pnpm run push"
+    buildCommand: "npm install -g pnpm && pnpm install && npm run postinstall && pnpm build && cd lib/db && pnpm run push"
     startCommand: "cd lib/db && pnpm run migrate && cd ../../artifacts/api-server && node dist/index.js"
     healthCheckPath: /api/healthz
     healthCheckInterval: 300
@@ -20,3 +20,7 @@ services:
         value: https://matka-api-server.onrender.com
       - key: JWT_SECRET
         sync: false
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"

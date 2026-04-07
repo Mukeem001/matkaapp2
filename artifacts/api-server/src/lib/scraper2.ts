@@ -118,6 +118,9 @@ async function scrapeMarkets2Result(
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage', // Important for Render (limited /dev/shm)
+        '--disable-gpu', // Disable GPU for server environment
+        '--disable-extensions',
+        '--disable-sync'
       ]
     });
 
