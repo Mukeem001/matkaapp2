@@ -512,6 +512,55 @@ export default function Markets2() {
     }
   };
 
+  // Toggle autoUpdate on/off
+  const handleToggleAutoUpdate = async (market: Market, newValue: boolean) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          autoUpdate: newValue,
+        }),
+      });
+      if (response.ok) {
+        toast({ 
+          title: newValue ? "Auto-update enabled" : "Auto-update disabled",
+          description: newValue ? "Market will update every minute" : "Manual updates only"
+        });
+        fetchMarkets();
+      } else {
+        throw new Error("Failed to update");
+      }
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+    }
+  };
+
+  // Fetch yesterday's result
+  const handleFetchYesterday = async (market: Market) => {
+    const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results/${yesterday}`, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch");
+      const data = await response.json();
+      if (data.result) {
+        setDateResults((prev) => ({
+          ...prev,
+          [market.id]: { jodi: data.result },
+        }));
+        setSelectedDate(yesterday);
+        toast({ title: `Yesterday's result: ${data.result}` });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+    }
+  };
+
   const openEdit = (m: Market) => {
     setEditingMarket(m);
     setDialogOpen(true);
@@ -573,14 +622,13 @@ export default function Markets2() {
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead className="pl-6 min-w-[140px]">Market Name</TableHead>
-                <TableHead className="min-w-[130px]">Timings</TableHead>
-                <TableHead className="min-w-[160px]">Current Results</TableHead>
-                <TableHead className="min-w-[160px]">Results ({displayDate.split("(")[0].trim()})</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="min-w-[100px]">Time</TableHead>
+                <TableHead className="min-w-[90px]">Today</TableHead>
+                <TableHead className="min-w-[90px]">Yesterday</TableHead>
+                <TableHead className="min-w-[80px]">Status</TableHead>
                 <TableHead className="min-w-[100px]">Auto Update</TableHead>
-                <TableHead className="min-w-[180px]">Source URL</TableHead>
-                <TableHead className="min-w-[140px]">Last Fetched</TableHead>
-                <TableHead className="text-right pr-6 min-w-[150px]">Actions</TableHead>
+                <TableHead className="min-w-[120px]">Last Fetched</TableHead>
+                <TableHead className="text-right pr-6 min-w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -634,15 +682,11 @@ export default function Markets2() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {autoUpdate ? (
-                        <Badge className="bg-blue-500 hover:bg-blue-600 gap-1 text-xs">
-                          <Wifi className="w-3 h-3" /> ON
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 text-xs">
-                          <WifiOff className="w-3 h-3" /> OFF
-                        </Badge>
-                      )}
+                      <Switch
+                        checked={autoUpdate}
+                        onCheckedChange={(checked) => handleToggleAutoUpdate(market, checked)}
+                        className="data-[state=checked]:bg-blue-500"
+                      />
                     </div>
                   </TableCell>
                   <TableCell>
@@ -676,29 +720,34 @@ export default function Markets2() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            size="sm"
+                            variant="outline"
                             onClick={() => handleFetchNow(market)}
                             disabled={fetchingId === market.id}
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-8 h-8"
+                            className="gap-1 text-xs h-7"
                           >
-                            <RefreshCw className={`w-3.5 h-3.5 ${fetchingId === market.id ? "animate-spin" : ""}`} />
+                            {fetchingId === market.id ? (
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3" />
+                            )}
+                            TODAY
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Fetch Now</TooltipContent>
+                        <TooltipContent>Fetch today's result</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setAutoConfigMarket(market)}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-8 h-8"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleFetchYesterday(market)}
+                            className="gap-1 text-xs h-7"
                           >
-                            <Wifi className="w-3.5 h-3.5" />
+                            📅 YESTERDAY
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Auto-Update Config</TooltipContent>
+                        <TooltipContent>Show yesterday's result</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
