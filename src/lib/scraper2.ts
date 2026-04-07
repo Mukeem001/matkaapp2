@@ -54,21 +54,17 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
         if (existingResult) {
           console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
           
-          // Build update object with explicit fields for Drizzle
-          const updateData: any = {};
-          if (liveResult.openResult) updateData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) updateData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) updateData.closeResult = liveResult.closeResult;
+          // Build update object with only fields that have values
+          const updateObject: any = {};
+          if (liveResult.openResult) updateObject.openResult = liveResult.openResult;
+          if (liveResult.jodiResult) updateObject.jodiResult = liveResult.jodiResult;
+          if (liveResult.closeResult) updateObject.closeResult = liveResult.closeResult;
           
           // Only update if we have at least one field to update
-          if (Object.keys(updateData).length > 0) {
-            console.log(`[Market2] Update data:`, updateData);
+          if (Object.keys(updateObject).length > 0) {
+            console.log(`[Market2] Update data:`, updateObject);
             await db.update(results2Table)
-              .set({
-                openResult: updateData.openResult,
-                jodiResult: updateData.jodiResult,
-                closeResult: updateData.closeResult,
-              })
+              .set(updateObject)
               .where(eq(results2Table.id, existingResult.id));
             console.log(`[Market2] Update completed`);
           } else {
