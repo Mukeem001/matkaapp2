@@ -141,11 +141,11 @@ export function startScheduler() {
 
       const autoUpdateMarkets = markets.filter(m => m.sourceUrl);
 
-      // Get all markets2 with autoUpdate enabled and a source URL
+      // Get all markets2 with autoUpdate enabled
       const markets2 = await db.select().from(markets2Table)
         .where(eq(markets2Table.autoUpdate, true));
 
-      const autoUpdateMarkets2 = markets2.filter(m => m.sourceUrl);
+      const autoUpdateMarkets2 = markets2;
 
       if (autoUpdateMarkets.length === 0 && autoUpdateMarkets2.length === 0) {
         console.log("[Scheduler] No markets with auto-update enabled");
