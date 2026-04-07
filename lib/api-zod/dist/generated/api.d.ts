@@ -525,20 +525,26 @@ export declare const UpdateMarketParams: zod.ZodObject<{
     id?: number;
 }>;
 export declare const UpdateMarketBody: zod.ZodObject<{
-    name: zod.ZodString;
-    openTime: zod.ZodString;
-    closeTime: zod.ZodString;
-    isActive: zod.ZodBoolean;
+    name: zod.ZodOptional<zod.ZodString>;
+    openTime: zod.ZodOptional<zod.ZodString>;
+    closeTime: zod.ZodOptional<zod.ZodString>;
+    isActive: zod.ZodOptional<zod.ZodBoolean>;
+    autoUpdate: zod.ZodOptional<zod.ZodBoolean>;
+    sourceUrl: zod.ZodOptional<zod.ZodOptional<zod.ZodNullable<zod.ZodString>>>;
 }, "strip", zod.ZodTypeAny, {
     name?: string;
     openTime?: string;
     closeTime?: string;
     isActive?: boolean;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
 }, {
     name?: string;
     openTime?: string;
     closeTime?: string;
     isActive?: boolean;
+    autoUpdate?: boolean;
+    sourceUrl?: string;
 }>;
 export declare const UpdateMarketResponse: zod.ZodObject<{
     id: zod.ZodNumber;

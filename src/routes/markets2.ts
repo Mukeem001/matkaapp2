@@ -72,7 +72,18 @@ router.put("/markets2/:id", authMiddleware, async (req, res): Promise<void> => {
       res.status(400).json({ error: "Invalid request" });
       return;
     }
-    const result = await db.update(markets2Table).set(body.data).where(eq(markets2Table.id, params.data.id)).returning();
+    
+    // Filter out undefined fields for partial updates
+    const updateData = Object.fromEntries(
+      Object.entries(body.data).filter(([, value]) => value !== undefined)
+    );
+    
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+    
+    const result = await db.update(markets2Table).set(updateData).where(eq(markets2Table.id, params.data.id)).returning();
     const market = result[0];
     if (!market) {
       res.status(404).json({ error: "Market not found" });

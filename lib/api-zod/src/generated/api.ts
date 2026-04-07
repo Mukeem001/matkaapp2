@@ -216,10 +216,12 @@ export const UpdateMarketParams = zod.object({
 })
 
 export const UpdateMarketBody = zod.object({
-  "name": zod.string(),
-  "openTime": zod.string(),
-  "closeTime": zod.string(),
-  "isActive": zod.boolean()
+  "name": zod.string().optional(),
+  "openTime": zod.string().optional(),
+  "closeTime": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "autoUpdate": zod.boolean().optional(),
+  "sourceUrl": zod.string().nullish().optional()
 })
 
 export const UpdateMarketResponse = zod.object({
