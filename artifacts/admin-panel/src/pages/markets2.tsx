@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -682,11 +681,25 @@ export default function Markets2() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={autoUpdate}
-                        onCheckedChange={(checked) => handleToggleAutoUpdate(market, checked)}
-                        className="data-[state=checked]:bg-blue-500"
-                      />
+                      {autoUpdate ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleAutoUpdate(market, false)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white gap-1 text-xs h-6"
+                        >
+                          <Wifi className="w-3 h-3" /> ON
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleAutoUpdate(market, true)}
+                          className="gap-1 text-xs h-6"
+                        >
+                          <WifiOff className="w-3 h-3" /> OFF
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
