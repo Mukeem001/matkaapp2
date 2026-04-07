@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
+import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -47,24 +48,7 @@ const autoConfigSchema = z.object({
   sourceUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
-// Helper function to determine result format based on URL
-function getResultFormat(sourceUrl?: string): "full" | "jodi-only" {
-  if (!sourceUrl) return "full"; // Default to full format
-  if (sourceUrl.includes("satta-king-fast.com")) return "jodi-only";
-  return "full";
-}
-
-// Helper function to format results display
-function formatResultsDisplay(results: { open?: string; jodi?: string; close?: string } | undefined, format: "full" | "jodi-only"): string {
-  if (!results) return format === "jodi-only" ? "**" : "*** - ** - ***";
-  
-  if (format === "jodi-only") {
-    return results.jodi || "**";
-  } else {
-    return `${results.open || "***"} - ${results.jodi || "**"} - ${results.close || "***"}`;
-  }
-}
-
+// Helper function to check for hard fetch errors
 function isHardFetchError(fetchError?: string | null | undefined): boolean {
   if (!fetchError) return false;
   const msg = fetchError.toLowerCase();
@@ -206,10 +190,8 @@ export default function Markets2() {
   const { toast } = useToast();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+    const [currentResults, setCurrentResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
   const [dateResults, setDateResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  const [currentResults, setCurrentResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  const [liveResults, setLiveResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMarket, setEditingMarket] = useState<Market | null>(null);
   const [autoConfigMarket, setAutoConfigMarket] = useState<Market | null>(null);
@@ -256,42 +238,6 @@ export default function Markets2() {
     fetchMarkets();
   }, [fetchMarkets]);
 
-  // Fetch results for selected date
-  useEffect(() => {
-    const fetchResultsForDate = async () => {
-      if (markets.length === 0 || !token) return;
-      const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
-      
-      for (const market of markets) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results/${selectedDate}`, {
-            headers: { "Authorization": `Bearer ${token}` },
-          });
-          
-          if (!response.ok) {
-            console.error(`Failed to fetch results for market ${market.id}: ${response.status}`);
-            continue;
-          }
-          
-          const data = await response.json();
-          
-          // For markets2, result is a single 2-digit value
-          // We display it for all three positions (open, jodi, close)
-          if (data.result) {
-            results[market.id] = {
-              jodi: data.result, // Markets2 only has one result
-            };
-          }
-        } catch (error) {
-          console.error(`Error fetching results for market ${market.id}:`, error);
-        }
-      }
-      
-      setDateResults(results);
-    };
-    
-    fetchResultsForDate();
-  }, [selectedDate, markets, token]);
 
   // Initialize current results from market data (not a POST fetch)
   useEffect(() => {
@@ -309,28 +255,7 @@ export default function Markets2() {
     setCurrentResults(results);
   }, [markets]);
 
-  // Initialize live results from market data (not a GET fetch)
-  useEffect(() => {
-    if (markets.length === 0) return;
-    const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
-    for (const market of markets) {
-      if (market.openResult || market.jodiResult || market.closeResult) {
-        results[market.id] = {
-          open: market.openResult,
-          jodi: market.jodiResult,
-          close: market.closeResult,
-        };
-      }
-    }
-    setLiveResults(results);
-  }, [markets]);
 
-  const displayDate = useMemo(() => {
-    const date = new Date(selectedDate);
-    const today = new Date();
-    const isCurrentDate = format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
-    return `${format(date, "dd MMM, yyyy")}${isCurrentDate ? " (Today)" : ""}`;
-  }, [selectedDate]);
 
   const handleSaveMarket = async (data: MarketForm) => {
     try {
@@ -538,27 +463,6 @@ export default function Markets2() {
     }
   };
 
-  // Fetch yesterday's result
-  const handleFetchYesterday = async (market: Market) => {
-    const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results/${yesterday}`, {
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch");
-      const data = await response.json();
-      if (data.result) {
-        setDateResults((prev) => ({
-          ...prev,
-          [market.id]: { jodi: data.result },
-        }));
-        setSelectedDate(yesterday);
-        toast({ title: `Yesterday's result: ${data.result}` });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
-    }
-  };
 
   const openEdit = (m: Market) => {
     setEditingMarket(m);
@@ -576,44 +480,13 @@ export default function Markets2() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-display font-bold">Markets 2 - Alternative View</h2>
-          <p className="text-muted-foreground mt-1">Alternative market management view with same controls.</p>
+          <h2 className="text-2xl font-display font-bold">Markets 2</h2>
+          <p className="text-muted-foreground mt-1">Manage markets, timings, and auto-result updates.</p>
         </div>
         <Button onClick={openCreate} className="btn-primary-gradient gap-2">
           <Plus className="w-4 h-4" /> Add Market
         </Button>
       </div>
-
-      {/* Date Picker Section */}
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Select Date:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="rounded-lg w-[180px]"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
-                className="rounded-lg"
-              >
-                Today
-              </Button>
-            </div>
-            <div className="ml-auto text-sm font-semibold text-primary bg-muted/50 px-3 py-1.5 rounded-lg">
-              {displayDate}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -621,13 +494,14 @@ export default function Markets2() {
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead className="pl-6 min-w-[140px]">Market Name</TableHead>
-                <TableHead className="min-w-[100px]">Time</TableHead>
-                <TableHead className="min-w-[90px]">Today</TableHead>
-                <TableHead className="min-w-[90px]">Yesterday</TableHead>
-                <TableHead className="min-w-[80px]">Status</TableHead>
+                <TableHead className="min-w-[130px]">Timings</TableHead>
+                <TableHead className="min-w-[160px]">Current Results (O/J/C)</TableHead>
+                <TableHead className="min-w-[160px]">Results (O/J/C)</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="min-w-[100px]">Auto Update</TableHead>
-                <TableHead className="min-w-[120px]">Last Fetched</TableHead>
-                <TableHead className="text-right pr-6 min-w-[200px]">Actions</TableHead>
+                <TableHead className="min-w-[180px]">Source URL</TableHead>
+                <TableHead className="min-w-[140px]">Last Fetched</TableHead>
+                <TableHead className="text-right pr-6 min-w-[150px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -649,26 +523,12 @@ export default function Markets2() {
                   </TableCell>
                   <TableCell>
                     <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                      {formatResultsDisplay(
-                        currentResults[market.id] || (market.openResult || market.jodiResult || market.closeResult ? {
-                          open: market.openResult,
-                          jodi: market.jodiResult,
-                          close: market.closeResult,
-                        } : undefined),
-                        getResultFormat(market.sourceUrl)
-                      )}
+                      {currentResults[market.id]?.jodi || "**"}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                      {formatResultsDisplay(
-                        dateResults[market.id] || (market.openResult || market.jodiResult || market.closeResult ? {
-                          open: market.openResult,
-                          jodi: market.jodiResult,
-                          close: market.closeResult,
-                        } : undefined),
-                        getResultFormat(market.sourceUrl)
-                      )}
+                      {dateResults[market.id]?.jodi || "**"}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -724,6 +584,25 @@ export default function Markets2() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {market.sourceUrl ? (
+                      <div className="flex items-center gap-1.5 max-w-[200px] group">
+                        {isHardFetchError(market.fetchError) ? (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertCircle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent>{market.fetchError}</TooltipContent>
+                          </Tooltip>
+                        ) : market.lastFetchedAt ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                        ) : null}
+                        <span className="text-xs text-muted-foreground truncate font-mono">{market.sourceUrl}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Not configured</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <span className="text-xs text-muted-foreground">
                       {market.lastFetchedAt ? format(new Date(market.lastFetchedAt), "dd MMM, HH:mm") : "Never"}
                     </span>
@@ -733,34 +612,29 @@ export default function Markets2() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleFetchNow(market)}
                             disabled={fetchingId === market.id}
-                            className="gap-1 text-xs h-7"
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-8 h-8"
                           >
-                            {fetchingId === market.id ? (
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3" />
-                            )}
-                            TODAY
+                            <RefreshCw className={`w-3.5 h-3.5 ${fetchingId === market.id ? "animate-spin" : ""}`} />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Fetch today's result</TooltipContent>
+                        <TooltipContent>Fetch Now</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleFetchYesterday(market)}
-                            className="gap-1 text-xs h-7"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setAutoConfigMarket(market)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-8 h-8"
                           >
-                            📅 YESTERDAY
+                            <Wifi className="w-3.5 h-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Show yesterday's result</TooltipContent>
+                        <TooltipContent>Auto-Update Config</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
