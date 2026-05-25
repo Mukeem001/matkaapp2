@@ -2,6 +2,7 @@ import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 import { scrapeLiveResults } from "./scraper.js";
+import { processMarkets2Bids } from "./bid-processor.js";
 
 /**
  * FETCH AND UPDATE MARKETS2 RESULT - With Real Scraping
@@ -73,10 +74,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           const insertData: any = {
             marketId,
             resultDate: today,
+            result: liveResult.closeResult || 'XX', // Use closeResult as main result, fallback to XX
           };
-          if (liveResult.openResult) insertData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
           
           console.log(`[Market2] Insert data:`, insertData);
           await db.insert(results2Table).values(insertData);
@@ -96,6 +95,18 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           .where(eq(markets2Table.id, marketId))
           .returning();
         console.log(`[Market2] Markets2 table updated`);
+
+        // Process bids2 with the result
+        const resultValue = liveResult.closeResult || 'XX';
+        if (resultValue !== 'XX') {
+          console.log(`[Market2] Processing bids2 for market ${marketId} with result ${resultValue}`);
+          try {
+            await processMarkets2Bids(marketId, resultValue);
+            console.log(`[Market2] Bids2 processing completed`);
+          } catch (error) {
+            console.error(`[Market2] Error processing bids2:`, error);
+          }
+        }
         
         return {
           success: true,

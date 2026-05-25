@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { format } from "date-fns";
-import { db, bidsTable, usersTable, gameRatesTable, resultsTable, marketsTable } from "@workspace/db";
+import { db, bidsTable, usersTable, gameRatesTable, resultsTable, marketsTable, bids2Table, markets2Table, results2Table } from "@workspace/db";
 import { getTodayDateIST, isMarketClosed } from "./date-utils";
 
 export interface MarketResult {
@@ -179,37 +179,58 @@ export async function processMarketBids(marketId: number, result: MarketResult):
     console.log(`Processing bid ${bid.id}: number=${bid.number}, gameType=${bid.gameType}, amount=${bidAmount}, isWinner=${isWinner}`);
 
     if (isWinner) {
-      // Calculate winnings
-      const winnings = calculateWinnings(bidAmount, bid.gameType, gameRates);
-      const totalWinnings = bidAmount + winnings; // Return original bid + winnings
+      // Get the multiplier rate for this game type
+      const gameTypeMapping: Record<string, keyof GameRates> = {
+        "single_digit": "singleDigit",
+        "jodi": "jodiDigit",
+        "single_panna": "singlePanna",
+        "double_panna": "doublePanna",
+        "triple_panna": "triplePanna",
+        "half_sangam": "halfSangam",
+        "full_sangam": "fullSangam",
+      };
+      const rateKey = gameTypeMapping[bid.gameType];
+      const multiplier = rateKey ? gameRates[rateKey] : 1;
+      
+      // Calculate total payout: original bid + (bid * multiplier)
+      const profit = bidAmount * multiplier;
+      const totalPayout = bidAmount + profit;
 
-      console.log(`Bid ${bid.id} won! Winnings: ${winnings}, Total: ${totalWinnings}`);
+      console.log(`Bid ${bid.id} won! BidAmount: ${bidAmount}, Rate: ${multiplier}x, Profit: ${profit}, Total Payout: ${totalPayout}`);
 
       // Update bid status and user wallet in transaction
-      await db.transaction(async (tx) => {
-        // Update bid status to won
-        const updateResult = await tx.update(bidsTable)
-          .set({ status: "won" })
-          .where(eq(bidsTable.id, bid.id));
+      try {
+        await db.transaction(async (tx) => {
+          // Update bid status to won
+          await tx.update(bidsTable)
+            .set({ status: "won" })
+            .where(eq(bidsTable.id, bid.id));
 
-        console.log(`Updated bid ${bid.id} status to won, result:`, updateResult);
+          console.log(`✅ Updated bid ${bid.id} status to won`);
 
-        // Add winnings to user wallet
-        const walletResult = await tx.update(usersTable)
-          .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalWinnings}` })
-          .where(eq(usersTable.id, bid.userId));
+          // Add total payout to user wallet (original bet + profit)
+          await tx.update(usersTable)
+            .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalPayout}` })
+            .where(eq(usersTable.id, bid.userId));
 
-        console.log(`Updated user ${bid.userId} wallet by ${totalWinnings}, result:`, walletResult);
-      });
+          console.log(`✅ Updated user ${bid.userId} wallet: +${totalPayout} (profit: ${profit})`);
+        });
 
-      console.log(`User ${bid.userId} won ${totalWinnings} on bid ${bid.id}`);
+        console.log(`✅ SUCCESS: User ${bid.userId} won ${totalPayout} on bid ${bid.id}`);
+      } catch (error) {
+        console.error(`❌ ERROR processing win for bid ${bid.id}:`, error);
+      }
     } else {
       // Update bid status to lost
-      const updateResult = await db.update(bidsTable)
-        .set({ status: "lost" })
-        .where(eq(bidsTable.id, bid.id));
+      try {
+        await db.update(bidsTable)
+          .set({ status: "lost" })
+          .where(eq(bidsTable.id, bid.id));
 
-      console.log(`Updated bid ${bid.id} status to lost, result:`, updateResult);
+        console.log(`✅ Updated bid ${bid.id} status to lost`);
+      } catch (error) {
+        console.error(`❌ ERROR marking bid ${bid.id} as lost:`, error);
+      }
     }
   }
 }
@@ -379,4 +400,112 @@ export async function processMarketBidsPreClose(marketId: number): Promise<{
       message: `Error: ${errorMessage}`,
     };
   }
+}
+
+/**
+ * Process bids2 when markets2 result is declared/updated
+ * Checks if bid numbers match the result and updates user wallets
+ */
+export async function processMarkets2Bids(marketId: number, result: string): Promise<void> {
+  console.log(`[Bids2] Processing bids for market ${marketId} with result: ${result}`);
+
+  if (!result || result === "XX") {
+    console.log(`[Bids2] No valid result yet, skipping bid processing`);
+    return;
+  }
+
+  // Get all pending bids2 for this market
+  const pendingBids = await db.select({
+    id: bids2Table.id,
+    userId: bids2Table.userId,
+    betType: bids2Table.betType,
+    number: bids2Table.number,
+    amount: bids2Table.amount,
+    multiplier: bids2Table.multiplier,
+  })
+    .from(bids2Table)
+    .where(and(
+      eq(bids2Table.marketId, marketId),
+      eq(bids2Table.status, "pending")
+    ));
+
+  console.log(`[Bids2] Found ${pendingBids.length} pending bids for market ${marketId}`);
+
+  for (const bid of pendingBids) {
+    const bidAmount = parseFloat(bid.amount as string);
+    const multiplier = bid.multiplier || 0;
+    let isWinner = false;
+
+    // Check if bid number matches result based on bet type
+    switch (bid.betType) {
+      case "left_digit":
+        // Left digit = first digit of result
+        isWinner = bid.number === result.charAt(0);
+        console.log(`[Bids2] Bid ${bid.id} - left_digit: ${bid.number} vs ${result.charAt(0)} = ${isWinner}`);
+        break;
+      case "right_digit":
+        // Right digit = last digit of result
+        isWinner = bid.number === result.charAt(1);
+        console.log(`[Bids2] Bid ${bid.id} - right_digit: ${bid.number} vs ${result.charAt(1)} = ${isWinner}`);
+        break;
+      case "jodi":
+        // Jodi = full 2-digit result
+        isWinner = bid.number === result;
+        console.log(`[Bids2] Bid ${bid.id} - jodi: ${bid.number} vs ${result} = ${isWinner}`);
+        break;
+      case "odd_even":
+        // Odd/even = check if last digit is odd or even
+        if (result.length > 0) {
+          const lastDigit = parseInt(result.charAt(1));
+          const isOdd = lastDigit % 2 === 1;
+          isWinner = (bid.number === "odd" && isOdd) || (bid.number === "even" && !isOdd);
+          console.log(`[Bids2] Bid ${bid.id} - odd_even: ${bid.number}, digit=${lastDigit}, ${bid.number ? 'match' : 'no match'}`);
+        }
+        break;
+    }
+
+    if (isWinner) {
+      // Calculate winnings: amount + (amount * multiplier)
+      const profit = bidAmount * multiplier;
+      const totalPayout = bidAmount + profit;
+
+      console.log(`✅ Bid ${bid.id} WON! Amount: ${bidAmount}, Multiplier: ${multiplier}x, Profit: ${profit}, Total: ${totalPayout}`);
+
+      try {
+        await db.transaction(async (tx) => {
+          // Update bid status to won
+          await tx.update(bids2Table)
+            .set({ 
+              status: "won",
+              winAmount: totalPayout.toString()
+            })
+            .where(eq(bids2Table.id, bid.id));
+
+          console.log(`✅ Updated bid ${bid.id} status to won`);
+
+          // Add total payout to user wallet
+          await tx.update(usersTable)
+            .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalPayout}` })
+            .where(eq(usersTable.id, bid.userId));
+
+          console.log(`✅ Updated user ${bid.userId} wallet: +${totalPayout}`);
+        });
+      } catch (error) {
+        console.error(`❌ ERROR processing win for bid ${bid.id}:`, error);
+      }
+    } else {
+      // Mark as lost
+      try {
+        await db.update(bids2Table)
+          .set({ status: "lost" })
+          .where(eq(bids2Table.id, bid.id));
+
+        console.log(`✅ Bid ${bid.id} marked as lost`);
+      } catch (error) {
+        console.error(`❌ ERROR marking bid ${bid.id} as lost:`, error);
+      }
+    }
+  }
+
+  console.log(`✅ Finished processing bids2 for market ${marketId}`);
 }

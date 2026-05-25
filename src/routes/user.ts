@@ -560,13 +560,23 @@ router.post("/user/withdrawals", userAuthMiddleware, async (req: AuthRequest, re
     return;
   }
 
-  const [withdrawal] = await db.insert(withdrawalsTable)
-    .values({
-      userId,
-      ...parsed.data,
-      amount: parsed.data.amount.toString(),
-    })
-    .returning();
+  // Deduct balance immediately when withdrawal is requested
+  let withdrawal: any;
+  await db.transaction(async (tx) => {
+    const [newWithdrawal] = await tx.insert(withdrawalsTable)
+      .values({
+        userId,
+        ...parsed.data,
+        amount: parsed.data.amount.toString(),
+      })
+      .returning();
+    withdrawal = newWithdrawal;
+
+    // Deduct balance from user wallet immediately
+    await tx.update(usersTable)
+      .set({ walletBalance: sql`${usersTable.walletBalance} - ${parsed.data.amount}` })
+      .where(eq(usersTable.id, userId));
+  });
 
   res.status(201).json({
     withdrawal: {

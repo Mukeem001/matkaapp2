@@ -123,21 +123,14 @@ router.post("/withdrawals/:id/approve", authMiddleware, async (req, res): Promis
     return;
   }
 
-  await db.transaction(async (tx) => {
-    // Update withdrawal status
-    const [updatedWithdrawal] = await tx.update(withdrawalsTable)
-      .set({ status: "approved", processedAt: new Date() })
-      .where(eq(withdrawalsTable.id, withdrawalId))
-      .returning();
+  // Just update status to approved (balance already deducted on request)
+  const [updatedWithdrawal] = await db.update(withdrawalsTable)
+    .set({ status: "approved", processedAt: new Date() })
+    .where(eq(withdrawalsTable.id, withdrawalId))
+    .returning();
 
-    // Deduct balance from user wallet
-    await tx.update(usersTable)
-      .set({ walletBalance: sql`${usersTable.walletBalance} - ${withdrawal.amount}` })
-      .where(eq(usersTable.id, withdrawal.userId));
-
-    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
-    res.json(formatWithdrawal(updatedWithdrawal, user?.name ?? "Unknown"));
-  });
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
+  res.json(formatWithdrawal(updatedWithdrawal, user?.name ?? "Unknown"));
 });
 
 router.post("/withdrawals/:id/reject", authMiddleware, async (req, res): Promise<void> => {
@@ -147,18 +140,32 @@ router.post("/withdrawals/:id/reject", authMiddleware, async (req, res): Promise
     return;
   }
 
-  const [withdrawal] = await db.update(withdrawalsTable)
-    .set({ status: "rejected", processedAt: new Date() })
-    .where(eq(withdrawalsTable.id, params.data.id))
-    .returning();
-
-  if (!withdrawal) {
-    res.status(404).json({ error: "Withdrawal not found" });
+  const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, params.data.id));
+  if (!withdrawal || withdrawal.status !== "pending") {
+    res.status(404).json({ error: "Withdrawal not found or already processed" });
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
-  res.json(formatWithdrawal(withdrawal, user?.name ?? "Unknown"));
+  // Refund the amount back to user wallet and update status
+  let updatedWithdrawal: any;
+  let user: any;
+  await db.transaction(async (tx) => {
+    const [updated] = await tx.update(withdrawalsTable)
+      .set({ status: "rejected", processedAt: new Date() })
+      .where(eq(withdrawalsTable.id, params.data.id))
+      .returning();
+    updatedWithdrawal = updated;
+
+    // Refund balance to user wallet
+    await tx.update(usersTable)
+      .set({ walletBalance: sql`${usersTable.walletBalance} + ${withdrawal.amount}` })
+      .where(eq(usersTable.id, withdrawal.userId));
+
+    const userResult = await tx.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
+    user = userResult[0];
+  });
+
+  res.json(formatWithdrawal(updatedWithdrawal, user?.name ?? "Unknown"));
 });
 
 export default router;
