@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-20
     region: oregon
-    buildCommand: "npm install -g pnpm && pnpm install --allow-scripts && pnpm build"
+    buildCommand: "npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm build"
     startCommand: "cd artifacts/api-server && node dist/index.js"
     healthCheckPath: /api/healthz
     healthCheckInterval: 300
