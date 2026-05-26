@@ -7,7 +7,7 @@ echo "📦 Installing dependencies..."
 npm install --legacy-peer-deps
 
 echo "🔨 Building TypeScript..."
-npx tsc --build tsconfig.json
+npm run build
 
 echo "🗄️ Running database migrations..."
 cd lib/db
