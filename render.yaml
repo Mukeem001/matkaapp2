@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-20
     region: oregon
-    buildCommand: "npm install -g pnpm && pnpm install --ignore-scripts && pnpm exec tsc --build tsconfig.json && cd lib/db && pnpm run push"
+    buildCommand: "npm ci && npm run build && cd lib/db && npm run push"
     startCommand: "cd artifacts/api-server && node dist/index.js"
     healthCheckPath: /api/healthz
     healthCheckInterval: 300
