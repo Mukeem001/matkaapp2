@@ -6,6 +6,7 @@ import { GetScraperLogsQueryParams, UpdateMarketAutoConfigParams, UpdateMarketAu
 import { authMiddleware } from "../middlewares/auth.js";
 import { fetchAndUpdateMarketResult, scrapeLiveResults } from "../lib/scraper.js";
 import { getSchedulerStatus } from "../lib/scheduler.js";
+import { getTodayDateIST } from "../lib/date-utils.js";
 
 const router: IRouter = Router();
 
@@ -98,8 +99,8 @@ router.get("/markets/:id/live-results", authMiddleware, async (req, res): Promis
       console.log("🟢 [LIVE-RESULTS] Saving to database");
       
       // Save to database with TODAY'S DATE
-      const today = format(new Date(), "yyyy-MM-dd");
-      console.log("🟢 [LIVE-RESULTS] Today's date:", today);
+const today = getTodayDateIST();
+        console.log("🟢 [LIVE-RESULTS] Today's IST date:", today);
       
       try {
         const [existingResult] = await db
