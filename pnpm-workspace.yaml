@@ -6,3 +6,4 @@ packages:
   - 'lib/db'
 allowBuilds:
   esbuild: true
+  puppeteer: false

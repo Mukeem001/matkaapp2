@@ -1,82 +1,184 @@
-import axios from "axios";
-import * as cheerio from "cheerio";
+0import * as cheerio from "cheerio";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
+import puppeteer, { Browser, Page } from "puppeteer";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
 
-// Proxy helper: use SCRAPER_API_KEY to route through a scraping provider when set
-async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
-  const apiKey = process.env.SCRAPER_API_KEY;
-  const provider = (process.env.SCRAPER_PROVIDER || "scraperapi").toLowerCase();
-  const envForceProxy = process.env.FORCE_PROXY === "true";
-  const forceProxy = opts?.forceProxy === true || envForceProxy;
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-  const buildProxyUrl = (u: string) => {
-    if (provider === "scrapingbee") {
-      return `https://app.scrapingbee.com/api/v1?api_key=${apiKey}&url=${encodeURIComponent(u)}&render_js=true`;
-    }
-    return `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(u)}&render=true`;
-  };
+const CHROME_ARGS = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--disable-software-rasterizer",
+  "--disable-background-timer-throttling",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-renderer-backgrounding",
+  "--single-process",
+  "--no-zygote",
+];
 
-  const headers = { "User-Agent": "Mozilla/5.0", Accept: "text/html" };
+const browserLaunchOptions = {
+  headless: true,
+  ignoreHTTPSErrors: true,
+  args: CHROME_ARGS,
+  defaultViewport: { width: 1366, height: 768 },
+  timeout: 60000,
+  protocolTimeout: 120000,
+};
 
-  // Playwright fallback: dynamically import and use headless chromium when direct fetch is blocked
-  const tryPlaywright = async () => {
-    try {
-      const allowPlaywright = process.env.FORCE_PLAYWRIGHT === 'true' || process.env.ALLOW_PLAYWRIGHT !== 'false';
-      if (!allowPlaywright) throw new Error('Playwright disabled by env');
-      console.log('[Scraper] Attempting Playwright fallback for', url);
-      const { chromium } = await import('playwright');
-      const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
-      const page = await browser.newPage({ userAgent: headers['User-Agent'] });
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-      const content = await page.content();
-      await browser.close();
-      return { data: content, status: 200 } as any;
-    } catch (e) {
-      console.error('[Scraper] Playwright fetch failed:', e?.message ?? e);
-      throw e;
-    }
-  };
 
-  if (apiKey && forceProxy) {
-    const proxyUrl = buildProxyUrl(url);
-    console.log(`[Scraper] FORCE_PROXY enabled — fetching via proxy provider=${provider} for ${url}`);
-    return axios.get(proxyUrl, { timeout: 15000, headers });
+
+let sharedBrowser: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (sharedBrowser && sharedBrowser.isConnected()) {
+    return sharedBrowser;
+  }
+
+  sharedBrowser = await puppeteer.launch(browserLaunchOptions);
+  return sharedBrowser;
+}
+
+async function closeBrowser(): Promise<void> {
+  if (!sharedBrowser) {
+    return;
   }
 
   try {
-    const resp = await axios.get(url, { timeout: 15000, headers });
-    const body = typeof resp.data === 'string' ? resp.data : '';
-    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && apiKey) {
-      const proxyUrl = buildProxyUrl(url);
-      console.log(`[Scraper] Direct fetch blocked (CF) — falling back to proxy provider=${provider} for ${url}`);
-      return axios.get(proxyUrl, { timeout: 15000, headers });
-    }
-    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && !apiKey) {
-      return tryPlaywright();
-    }
-    return resp;
-  } catch (err: unknown) {
-    const axiosErr: any = err;
-    const status = axiosErr?.response?.status;
-    const data = axiosErr?.response?.data ?? '';
-    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && apiKey) {
-      const proxyUrl = buildProxyUrl(url);
-      console.log(`[Scraper] Direct fetch error (CF) — retrying via proxy provider=${provider} for ${url}`);
-      return axios.get(proxyUrl, { timeout: 15000, headers });
-    }
-    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && !apiKey) {
-      try {
-        return await tryPlaywright();
-      } catch (e) {
-        // ignore and rethrow original
+    await sharedBrowser.close();
+  } catch {
+    // ignore close errors
+  }
+
+  sharedBrowser = null;
+}
+
+if (typeof process !== "undefined") {
+  process.on("beforeExit", () => {
+    closeBrowser().catch(() => undefined);
+  });
+  process.on("SIGINT", () => {
+    closeBrowser().catch(() => undefined);
+    process.exit(0);
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isCloudflareBlock(body: string, status?: number): boolean {
+  return (
+    status === 403 ||
+    status === 429 ||
+    status === 503 ||
+    /Just a moment|Enable JavaScript and cookies|Checking your browser|cf-browser-verification|Cloudflare Ray ID|Please allow access to the website|Checking whether the network connection|turnstile|cf-challenge|cf_clearance|cf-clearance/i.test(body)
+  );
+}
+
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+];
+
+const VIEWPORTS = [
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1280, height: 720 },
+];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: boolean }) {
+  const attempts = opts?.retryCount ? Math.max(1, opts.retryCount) : 4;
+
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const browser = await getBrowser();
+    let page: Page | undefined;
+
+    try {
+      page = await browser.newPage();
+
+      // light fingerprint randomization (proxy-free)
+      const ua = pick(USER_AGENTS);
+      const viewport = pick(VIEWPORTS);
+
+      await page.setUserAgent(ua);
+      await page.setExtraHTTPHeaders({
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Upgrade-Insecure-Requests": "1",
+      });
+      await page.setCacheEnabled(false);
+      await page.setViewport(viewport);
+      await page.setDefaultNavigationTimeout(45000);
+      await page.setDefaultTimeout(45000);
+
+      // 1st try: networkidle2 (previous approach)
+      const response = await page.goto(url, {
+        waitUntil: "networkidle2",
+        timeout: 45000,
+      });
+
+      const status = response?.status();
+
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      let content = await page.content();
+      let body = await page
+        .evaluate(() => (document as any).body?.innerText || "")
+        .catch(() => "");
+
+
+      // If it looks like CF challenge, retry using a less strict navigation strategy
+      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+        try {
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          content = await page.content();
+          body = await page.evaluate(() => (document as any).body?.innerText || "").catch(() => "");
+
+        } catch {
+          // ignore fallback errors
+        }
+      }
+
+
+      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+        const snippet = String(body || content || "").slice(0, 250);
+        throw new Error(`Cloudflare block detected status=${status} snippet=${snippet}`);
+      }
+
+      return { data: content, status } as any;
+    } catch (error: unknown) {
+      lastError = error;
+      await closeBrowser();
+      if (attempt < attempts) {
+        const delay = 1500 * attempt + Math.floor(Math.random() * 800);
+        await sleep(delay);
+      } else {
+        throw error;
+      }
+    } finally {
+      if (page) {
+        await page.close().catch(() => undefined);
       }
     }
-    throw err;
   }
+
+  throw lastError ?? new Error("fetchUrl failed");
 }
+
 
 export interface ScrapedResult {
   openResult?: string;

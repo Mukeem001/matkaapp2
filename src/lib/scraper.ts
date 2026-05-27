@@ -1,9 +1,85 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
+import puppeteer, { Browser, Page } from "puppeteer";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
+
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+const CHROME_ARGS = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--disable-software-rasterizer",
+  "--disable-background-timer-throttling",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-renderer-backgrounding",
+  "--single-process",
+  "--no-zygote",
+];
+
+const browserLaunchOptions = {
+  headless: true,
+  ignoreHTTPSErrors: true,
+  args: CHROME_ARGS,
+  defaultViewport: { width: 1366, height: 768 },
+  timeout: 60000,
+  // reduces crashes when Render/LB is slow
+  protocolTimeout: 120000,
+};
+
+
+let sharedBrowser: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (sharedBrowser && sharedBrowser.isConnected()) {
+    return sharedBrowser;
+  }
+
+  sharedBrowser = await puppeteer.launch(browserLaunchOptions);
+  return sharedBrowser;
+}
+
+async function closeBrowser(): Promise<void> {
+  if (!sharedBrowser) {
+    return;
+  }
+
+  try {
+    await sharedBrowser.close();
+  } catch {
+    // ignore close errors
+  }
+
+  sharedBrowser = null;
+}
+
+if (typeof process !== "undefined") {
+  process.on("beforeExit", () => {
+    closeBrowser().catch(() => undefined);
+  });
+  process.on("SIGINT", () => {
+    closeBrowser().catch(() => undefined);
+    process.exit(0);
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isCloudflareBlock(body: string, status?: number): boolean {
+  return (
+    status === 403 ||
+    status === 429 ||
+    status === 503 ||
+    /Just a moment|Enable JavaScript and cookies|Checking your browser|cf-browser-verification|Cloudflare Ray ID|Please allow access to the website|Checking whether the network connection|turnstile|cf-challenge|cf_clearance/i.test(body)
+  );
+}
+
 
 export interface ScrapedResult {
   openResult?: string;
@@ -49,53 +125,109 @@ function isAfterCloseWindow(closeTime: string): boolean {
 // ================= SCRAPER =================
 const SATTA_KING_FAST_URL = "https://satta-king-fast.com/";
 
-// If SCRAPER_API_KEY is set, route requests through a scraping proxy.
-// Supported providers: "scraperapi" (default), "scrapingbee".
-async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
-  const apiKey = process.env.SCRAPER_API_KEY;
-  const provider = (process.env.SCRAPER_PROVIDER || "scraperapi").toLowerCase();
-  const envForceProxy = process.env.FORCE_PROXY === "true";
-  const forceProxy = opts?.forceProxy === true || envForceProxy;
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+];
 
-  const buildProxyUrl = (u: string) => {
-    if (provider === "scrapingbee") {
-      return `https://app.scrapingbee.com/api/v1?api_key=${apiKey}&url=${encodeURIComponent(u)}&render_js=true`;
-    }
-    // default: scraperapi
-    return `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(u)}&render=true`;
-  };
+const VIEWPORTS = [
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1280, height: 720 },
+];
 
-  const headers = { "User-Agent": "Mozilla/5.0", Accept: "text/html" };
-
-  // If API key present and FORCE_PROXY (env or opts) set, use proxy immediately
-  if (apiKey && forceProxy) {
-    const proxyUrl = buildProxyUrl(url);
-    console.log(`[Scraper] FORCE_PROXY enabled — fetching via proxy provider=${provider} for ${url}`);
-    return axios.get(proxyUrl, { timeout: 15000, headers });
-  }
-
-  // Try direct fetch first; if Cloudflare challenge detected (403 or challenge HTML), fallback to proxy if apiKey available
-  try {
-    const resp = await axios.get(url, { timeout: 15000, headers });
-    const body = typeof resp.data === 'string' ? resp.data : '';
-    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && apiKey) {
-      const proxyUrl = buildProxyUrl(url);
-      console.log(`[Scraper] Direct fetch blocked (CF) — falling back to proxy provider=${provider} for ${url}`);
-      return axios.get(proxyUrl, { timeout: 15000, headers });
-    }
-    return resp;
-  } catch (err: unknown) {
-    const axiosErr: any = err;
-    const status = axiosErr?.response?.status;
-    const data = axiosErr?.response?.data ?? '';
-    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && apiKey) {
-      const proxyUrl = buildProxyUrl(url);
-      console.log(`[Scraper] Direct fetch error (CF) — retrying via proxy provider=${provider} for ${url}`);
-      return axios.get(proxyUrl, { timeout: 15000, headers });
-    }
-    throw err;
-  }
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
 }
+
+async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: boolean }) {
+  const attempts = opts?.retryCount ? Math.max(1, opts.retryCount) : 4;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const browser = await getBrowser();
+    let page: Page | undefined;
+
+    try {
+      page = await browser.newPage();
+
+      // light fingerprint randomization (proxy-free)
+      const ua = pick(USER_AGENTS);
+      const viewport = pick(VIEWPORTS);
+
+      await page.setUserAgent(ua);
+      await page.setExtraHTTPHeaders({
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        // helps emulate real browser header ordering differences
+        "Upgrade-Insecure-Requests": "1",
+      });
+      await page.setCacheEnabled(false);
+      await page.setViewport(viewport);
+      await page.setDefaultNavigationTimeout(45000);
+      await page.setDefaultTimeout(45000);
+
+      // 1st try: networkidle2 (previous approach)
+      const response = await page.goto(url, {
+        waitUntil: "networkidle2",
+        timeout: 45000,
+      });
+
+      const status = response?.status();
+
+      // allow content to render (proxy-free, runtime safe)
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+
+      let content = await page.content();
+      let body = await page.evaluate(() => {
+        const doc = document as any;
+        return doc.body?.innerText || "";
+      }).catch(() => "");
+
+      // If it looks like CF challenge, retry using a less strict navigation strategy
+      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+        // try fallback navigation once per attempt
+        try {
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          content = await page.content();
+          body = await page.evaluate(() => {
+            const doc = document as any;
+            return doc.body?.innerText || "";
+          }).catch(() => "");
+        } catch {
+          // ignore fallback errors
+        }
+      }
+
+      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+        const snippet = String(body || content || "").slice(0, 250);
+        throw new Error(`Cloudflare block detected status=${status} snippet=${snippet}`);
+      }
+
+      return { data: content, status } as any;
+    } catch (error: unknown) {
+      lastError = error;
+      await closeBrowser();
+      if (attempt < attempts) {
+        // backoff
+        const delay = 1500 * attempt + Math.floor(Math.random() * 800);
+        await sleep(delay);
+      } else {
+        throw error;
+      }
+    } finally {
+      if (page) {
+        await page.close().catch(() => undefined);
+      }
+    }
+  }
+
+  throw lastError ?? new Error("fetchUrl failed");
+}
+
 
 function normalizeScrapeLine(input: string): string {
   return input
@@ -325,12 +457,12 @@ async function scrapeSattaMatkaComIn(
 }
 
 // ================= SATKAMATKA LIVE RESULTS (DIRECTLY FROM WEBSITE) =================
-export async function scrapeLiveResults(marketName: string): Promise<ScrapedResult> {
+export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
     console.log("\n========== 🔴 [LIVE] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    const result = await scrapeSattaKingFast(marketName);
+    const result = await scrapeSattaKingFast(marketName, opts);
 
     if (result.openResult || result.jodiResult || result.closeResult) {
       console.log("✅ [LIVE] MARKET RESULT FOUND:", result);
