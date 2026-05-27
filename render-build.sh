@@ -4,11 +4,11 @@ set -e
 
 echo "🚀 Starting Render build..."
 
-echo "📦 Installing dependencies..."
+echo "📦 Installing dependencies (including devDependencies)..."
 npm install --legacy-peer-deps --include=dev
 
 echo "🔨 Building TypeScript..."
-npm run build
+NODE_ENV=production npx tsc --build tsconfig.json
 
 echo "🗄️ Running database migrations..."
 cd lib/db

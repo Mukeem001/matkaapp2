@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "dev": "npx tsx --watch src/index.ts",
-    "build": "PUPPETEER_SKIP_DOWNLOAD=true tsc --build tsconfig.json",
+    "build": "PUPPETEER_SKIP_DOWNLOAD=true npx tsc --build tsconfig.json",
     "start": "npx tsx ./src/index.ts",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
