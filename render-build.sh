@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
+
 
 echo "🚀 Starting Render build..."
 
 echo "📦 Installing dependencies..."
-npm install --legacy-peer-deps
+npm install --legacy-peer-deps --include=dev
 
 echo "🔨 Building TypeScript..."
 npm run build
