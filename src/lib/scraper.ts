@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio";
-import axios from "axios";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 import puppeteer, { Browser, Page } from "puppeteer";
@@ -147,31 +146,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    let browser: Browser | null = null;
+    const browser = await getBrowser();
     let page: Page | undefined;
 
     try {
-      try {
-        browser = await getBrowser();
-      } catch (err: unknown) {
-        // Could not start Puppeteer (no Chrome available). Fall back to plain HTTP fetch.
-        console.warn("[scraper] Puppeteer unavailable, falling back to HTTP fetch:", String(err));
-        const resp = await axios.get(url, {
-          headers: { "User-Agent": DEFAULT_USER_AGENT },
-          timeout: 45000,
-        });
-        return { data: String(resp.data), status: resp.status } as any;
-      }
-
-      if (!browser) {
-        // Defensive: if getBrowser returned null, fallback to HTTP
-        const resp = await axios.get(url, {
-          headers: { "User-Agent": DEFAULT_USER_AGENT },
-          timeout: 45000,
-        });
-        return { data: String(resp.data), status: resp.status } as any;
-      }
-
       page = await browser.newPage();
 
       // light fingerprint randomization (proxy-free)
