@@ -1,7 +1,9 @@
 import { Router, type IRouter, Request, Response } from "express";
 import { db, bids2Table, markets2Table, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { userAuthMiddleware, type AuthRequest } from "../middlewares/auth.js";
+import { userAuthMiddleware, type AuthRequest } from "../../../../src/middlewares/auth.ts";
+
+
 
 const router: IRouter = Router();
 

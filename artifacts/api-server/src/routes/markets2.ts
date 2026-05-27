@@ -2,15 +2,15 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
-import { authMiddleware, userAuthMiddleware } from "../middlewares/auth.js";
+import { authMiddleware, userAuthMiddleware } from "../../../../src/middlewares/auth.ts";
 import { fetchAndUpdateMarkets2Result } from "../lib/scraper2.js";
 
 const router: IRouter = Router();
 
 const formatMarkets2 = (m: typeof markets2Table.$inferSelect) => ({
   ...m,
-  createdAt: m.createdAt.toISOString(),
-  lastFetchedAt: m.lastFetchedAt?.toISOString() ?? null,
+  createdAt: new Date(m.createdAt).toISOString(),
+  lastFetchedAt: m.lastFetchedAt ? new Date(m.lastFetchedAt).toISOString() : null,
 });
 
 router.get("/markets2", async (_req, res): Promise<void> => {
