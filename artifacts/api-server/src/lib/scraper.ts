@@ -6,10 +6,11 @@ import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db"
 import { getTodayDateIST } from "./date-utils";
 
 // Proxy helper: use SCRAPER_API_KEY to route through a scraping provider when set
-async function fetchUrl(url: string) {
+async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
   const apiKey = process.env.SCRAPER_API_KEY;
   const provider = (process.env.SCRAPER_PROVIDER || "scraperapi").toLowerCase();
-  const forceProxy = process.env.FORCE_PROXY === "true";
+  const envForceProxy = process.env.FORCE_PROXY === "true";
+  const forceProxy = opts?.forceProxy === true || envForceProxy;
 
   const buildProxyUrl = (u: string) => {
     if (provider === "scrapingbee") {
@@ -176,9 +177,10 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
 }
 
 async function scrapeSattaKingFast(
-  marketName: string
+  marketName: string,
+  opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
-  const response = await fetchUrl(SATTA_KING_FAST_URL);
+  const response = await fetchUrl(SATTA_KING_FAST_URL, opts);
 
   const $ = cheerio.load(response.data);
   const directResult = findSattaKingFastMarketResult($, marketName);
@@ -197,7 +199,8 @@ async function scrapeSattaKingFast(
 
 export async function scrapeResult(
   url: string,
-  marketName?: string
+  marketName?: string,
+  opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
 
   // 👉 sirf satta-king-fast handle
@@ -205,11 +208,11 @@ export async function scrapeResult(
     (url.includes("satta-king-fast.com") || url.includes("satkamatka.com.in")) &&
     marketName
   ) {
-    return await scrapeSattaKingFast(marketName);
+    return await scrapeSattaKingFast(marketName, opts);
   }
 
 
-  const response = await fetchUrl(url);
+  const response = await fetchUrl(url, opts);
 
   const $ = cheerio.load(response.data);
   const text = $("body").text();
@@ -229,10 +232,11 @@ export async function scrapeResult(
 
 // ================= SATKAMATKA (FIRST PAGE ONLY) =================
 async function scrapeSattaMatkaComIn(
-  marketName: string
+  marketName: string,
+  opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
 
-  const response = await fetchUrl("https://satkamatka.com.in/");
+  const response = await fetchUrl("https://satkamatka.com.in/", opts);
 
   const $ = cheerio.load(response.data);
   const text = $("body").text();
@@ -305,12 +309,12 @@ async function scrapeSattaMatkaComIn(
 }
 
 // ================= SATTA KING FAST LIVE RESULTS =================
-export async function scrapeLiveResults(marketName: string): Promise<ScrapedResult> {
+export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
     console.log("\n========== 🔴 [LIVE] SCRAPING SATTA KING FAST START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    const result = await scrapeSattaKingFast(marketName);
+    const result = await scrapeSattaKingFast(marketName, opts);
 
     console.log("🔎 [LIVE] Scrape result:", result);
     return result;
