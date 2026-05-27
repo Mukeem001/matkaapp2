@@ -9,23 +9,43 @@ import { getTodayDateIST } from "./date-utils";
 async function fetchUrl(url: string) {
   const apiKey = process.env.SCRAPER_API_KEY;
   const provider = (process.env.SCRAPER_PROVIDER || "scraperapi").toLowerCase();
+  const forceProxy = process.env.FORCE_PROXY === "true";
 
-  let finalUrl = url;
-  if (apiKey) {
-    if (provider === "scraperapi") {
-      finalUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(url)}&render=true`;
-    } else if (provider === "scrapingbee") {
-      finalUrl = `https://app.scrapingbee.com/api/v1?api_key=${apiKey}&url=${encodeURIComponent(url)}&render_js=true`;
+  const buildProxyUrl = (u: string) => {
+    if (provider === "scrapingbee") {
+      return `https://app.scrapingbee.com/api/v1?api_key=${apiKey}&url=${encodeURIComponent(u)}&render_js=true`;
     }
-    console.log(`[Scraper] Using proxy provider=${provider} for ${url}`);
-  } else {
-    console.log(`[Scraper] No proxy configured, fetching ${url} directly`);
+    return `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(u)}&render=true`;
+  };
+
+  const headers = { "User-Agent": "Mozilla/5.0", Accept: "text/html" };
+
+  if (apiKey && forceProxy) {
+    const proxyUrl = buildProxyUrl(url);
+    console.log(`[Scraper] FORCE_PROXY enabled — fetching via proxy provider=${provider} for ${url}`);
+    return axios.get(proxyUrl, { timeout: 15000, headers });
   }
 
-  return axios.get(finalUrl, {
-    timeout: 15000,
-    headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
-  });
+  try {
+    const resp = await axios.get(url, { timeout: 15000, headers });
+    const body = typeof resp.data === 'string' ? resp.data : '';
+    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && apiKey) {
+      const proxyUrl = buildProxyUrl(url);
+      console.log(`[Scraper] Direct fetch blocked (CF) — falling back to proxy provider=${provider} for ${url}`);
+      return axios.get(proxyUrl, { timeout: 15000, headers });
+    }
+    return resp;
+  } catch (err: unknown) {
+    const axiosErr: any = err;
+    const status = axiosErr?.response?.status;
+    const data = axiosErr?.response?.data ?? '';
+    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && apiKey) {
+      const proxyUrl = buildProxyUrl(url);
+      console.log(`[Scraper] Direct fetch error (CF) — retrying via proxy provider=${provider} for ${url}`);
+      return axios.get(proxyUrl, { timeout: 15000, headers });
+    }
+    throw err;
+  }
 }
 
 export interface ScrapedResult {
