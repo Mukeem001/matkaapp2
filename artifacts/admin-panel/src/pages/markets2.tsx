@@ -184,7 +184,7 @@ function AutoConfigDialog({ market, open, setOpen, onSave }: { market: Market; o
   );
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export default function Markets2() {
   const { toast } = useToast();
@@ -517,13 +517,17 @@ export default function Markets2() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                      {currentResults[market.id]?.jodi || "**"}
+                    <div className="space-y-1 text-xs">
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {currentResults[market.id]?.open ?? market.openResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {currentResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {currentResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                      {dateResults[market.id]?.jodi || "**"}
+                    <div className="space-y-1 text-xs">
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {dateResults[market.id]?.open ?? market.openResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {dateResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {dateResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
                     </div>
                   </TableCell>
                   <TableCell>

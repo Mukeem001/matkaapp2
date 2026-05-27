@@ -39,7 +39,7 @@ export default function GameRates() {
   }, [rates, form]);
 
   const onSubmit = (data: GameRatesForm) => {
-    update({ data }, {
+    update({ data: data as any }, {
       onSuccess: () => {
         toast({ title: "Rates updated successfully" });
         queryClient.invalidateQueries({ queryKey: getGetGameRatesQueryKey() });

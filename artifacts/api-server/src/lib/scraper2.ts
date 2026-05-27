@@ -1,7 +1,8 @@
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { format } from "date-fns";
-import { scrapeLiveResults } from "./scraper.js";
+import { getTodayDateIST } from "../../../../src/lib/date-utils";
+import { scrapeLiveResults } from "../../../../src/lib/scraper";
+import { processMarkets2Bids } from "../../../../src/lib/bid-processor";
 
 /**
  * FETCH AND UPDATE MARKETS2 RESULT - With Real Scraping
@@ -32,8 +33,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     if (hasAnyResult) {
       console.log(`[Market2] Saving results to database for ${market.name}`);
       
-      // Save to results2_table with TODAY'S DATE
-      const today = format(new Date(), "yyyy-MM-dd");
+      // Save to results2_table with TODAY'S IST date only
+      const today = getTodayDateIST();
       console.log(`[Market2] Today's date: ${today}`);
       
       try {
@@ -55,12 +56,12 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
           
           try {
-            // Update all three result fields - they might be undefined but that's okay
+            // Update stored single `result` field.
+            const resultValue = liveResult.closeResult ?? existingResult.result;
+            
             await db.update(results2Table)
               .set({
-                openResult: liveResult.openResult ?? existingResult.openResult,
-                jodiResult: liveResult.jodiResult ?? existingResult.jodiResult,
-                closeResult: liveResult.closeResult ?? existingResult.closeResult,
+                result: resultValue ?? "XX",
               })
               .where(eq(results2Table.id, existingResult.id));
             console.log(`[Market2] Update completed successfully`);
@@ -73,29 +74,41 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           const insertData: any = {
             marketId,
             resultDate: today,
+            result: liveResult.closeResult || 'XX', // Use closeResult as main result, fallback to XX
           };
-          if (liveResult.openResult) insertData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
           
           console.log(`[Market2] Insert data:`, insertData);
           await db.insert(results2Table).values(insertData);
           console.log(`[Market2] Insert completed`);
         }
         
-        // Update markets2 table with latest results
+        // Update markets2 table with latest scraped results
+        const marketUpdateData: any = {
+          lastFetchedAt: new Date(),
+          fetchError: null,
+        };
+        if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
+        if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
+        if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
+
         console.log(`[Market2] Updating markets2 table with latest results`);
         const updated = await db.update(markets2Table)
-          .set({
-            openResult: liveResult.openResult,
-            jodiResult: liveResult.jodiResult,
-            closeResult: liveResult.closeResult,
-            lastFetchedAt: new Date(),
-            fetchError: null
-          })
+          .set(marketUpdateData)
           .where(eq(markets2Table.id, marketId))
           .returning();
         console.log(`[Market2] Markets2 table updated`);
+
+        // Process bids2 with the result
+        const resultValue = liveResult.closeResult || 'XX';
+        if (resultValue !== 'XX') {
+          console.log(`[Market2] Processing bids2 for market ${marketId} with result ${resultValue}`);
+          try {
+            await processMarkets2Bids(marketId, resultValue);
+            console.log(`[Market2] Bids2 processing completed`);
+          } catch (error) {
+            console.error(`[Market2] Error processing bids2:`, error);
+          }
+        }
         
         return {
           success: true,
@@ -148,48 +161,89 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
 }
 
 /**
- * ACTIVITY STATUS - Keep market's active/inactive state updated
+ * UPDATE MARKET ACTIVE STATUS
  */
 
-async function updateMarket2ActivityStatus(){
+async function updateMarket2ActivityStatus() {
+  try {
+    const markets = await db
+      .select()
+      .from(markets2Table);
 
-  const markets = await db.select().from(markets2Table);
+    const now = new Date();
 
-  const now = new Date();
+    const ist = new Date(
+      now.toLocaleString("en-US", {
+        timeZone: "Asia/Kolkata",
+      })
+    );
 
-  const ist = new Date(
-    now.toLocaleString("en-US",{timeZone:"Asia/Kolkata"})
-  );
+    const currentMinutes =
+      ist.getHours() * 60 + ist.getMinutes();
 
-  const current =
-    ist.getHours()*60 + ist.getMinutes();
+    for (const market of markets) {
+      try {
+        if (
+          !market.closeTime ||
+          !market.closeTime.includes(":")
+        ) {
+          console.log(
+            `[Market Activity] Invalid closeTime for ${market.name}`
+          );
+          continue;
+        }
 
-  for(const market of markets){
+        const [closeHour, closeMinute] =
+          market.closeTime
+            .split(":")
+            .map(Number);
 
-    const [closeH,closeM] = market.closeTime
-      .split(":")
-      .map(Number);
+        const closeMinutes =
+          closeHour * 60 + closeMinute;
 
-    const close = closeH*60 + closeM;
+        // AUTO CLOSE 10 MIN BEFORE
+        const autoCloseMinutes =
+          closeMinutes - 10;
 
-    const autoClose = close - 10;
+        const shouldBeActive =
+          currentMinutes < autoCloseMinutes;
 
-    const shouldBeActive = current < autoClose;
+        // UPDATE ONLY IF CHANGED
+        if (
+          market.isActive !== shouldBeActive
+        ) {
+          await db
+            .update(markets2Table)
+            .set({
+              isActive: shouldBeActive,
+            })
+            .where(
+              eq(
+                markets2Table.id,
+                market.id
+              )
+            );
 
-    if(market.isActive !== shouldBeActive){
-
-      await db.update(markets2Table)
-        .set({isActive:shouldBeActive})
-        .where(eq(markets2Table.id,market.id));
-
-      console.log(
-        `[Market Activity] ${market.name} → ${shouldBeActive}`
-      );
+          console.log(
+            `[Market Activity] ${market.name} => ${shouldBeActive}`
+          );
+        }
+      } catch (marketErr) {
+        console.error(
+          `[Market Activity] Error in ${market.name}`,
+          marketErr
+        );
+      }
     }
+  } catch (err) {
+    console.error(
+      `[Market Activity] Main Error =>`,
+      err
+    );
   }
 }
 
 export {
   fetchAndUpdateMarkets2Result,
-  updateMarket2ActivityStatus
+  updateMarket2ActivityStatus,
 };

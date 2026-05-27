@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const noticeSchema = z.object({
   title: z.string().min(1, "Title required"),

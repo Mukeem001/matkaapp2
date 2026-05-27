@@ -47,15 +47,110 @@ function isAfterCloseWindow(closeTime: string): boolean {
 }
 
 // ================= SCRAPER =================
+const SATTA_KING_FAST_URL = "https://satta-king-fast.com/";
+
+function normalizeScrapeLine(input: string): string {
+  return input
+    .replace(/\u00A0/g, " ")
+    .replace(/[^A-Z0-9 ]+/gi, " ")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseTwoDigitResult(line: string): ScrapedResult | undefined {
+  const cleaned = normalizeScrapeLine(line);
+  if (/\bXX\b/.test(cleaned)) {
+    return { openResult: "XX", jodiResult: "XX", closeResult: "XX" };
+  }
+  const match = cleaned.match(/\b(\d{2})\b/);
+  if (!match) {
+    return undefined;
+  }
+  const value = match[1];
+  return {
+    openResult: value[0],
+    jodiResult: value,
+    closeResult: value[1],
+  };
+}
+
+function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
+  const cleanMarket = normalizeScrapeLine(marketName);
+
+  const rows = $("tr.game-result").toArray();
+  for (const row of rows) {
+    const $row = $(row);
+    const marketText = $row.find("h3.game-name").first().text().trim();
+    if (!marketText) {
+      continue;
+    }
+
+    const cleanRowMarket = normalizeScrapeLine(marketText);
+    const marketFound =
+      cleanRowMarket === cleanMarket ||
+      cleanRowMarket.includes(cleanMarket) ||
+      cleanMarket.includes(cleanRowMarket);
+
+    if (!marketFound) {
+      continue;
+    }
+
+    const todayValue = $row.find("td.today-number h3").first().text().trim() ||
+      $row.find("td.today-number").first().text().trim();
+
+    if (todayValue) {
+      const candidate = parseTwoDigitResult(todayValue);
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+
+  return {};
+}
+
+function findMarketResult(lines: string[], marketName: string): ScrapedResult {
+  const cleanMarket = normalizeScrapeLine(marketName);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = normalizeScrapeLine(lines[i]);
+    if (!line) {
+      continue;
+    }
+
+    const marketFound =
+      line === cleanMarket ||
+      line.includes(`${cleanMarket}`) ||
+      line.startsWith(`${cleanMarket} `) ||
+      line.endsWith(` ${cleanMarket}`);
+
+    if (marketFound) {
+      for (let j = i; j < i + 6 && j < lines.length; j++) {
+        const result = parseTwoDigitResult(lines[j]);
+        if (result) {
+          return result;
+        }
+      }
+    }
+  }
+
+  return {};
+}
+
 export async function scrapeResult(
   url: string,
   marketName?: string
 ): Promise<ScrapedResult> {
 
-  // 👉 sirf satkamatka handle
-  if (url === "https://satkamatka.com.in/" && marketName) {
-    return await scrapeSattaMatkaComIn(marketName);
+  // 👉 sirf satta-king-fast / satkamatka (same DOM) handle
+  if (
+    (url.includes("satta-king-fast.com") || url.includes("satkamatka.com.in")) &&
+    marketName
+  ) {
+    return await scrapeSattaKingFast(marketName);
   }
+
 
   const response = await axios.get(url, {
     timeout: 10000,
@@ -76,6 +171,30 @@ export async function scrapeResult(
   }
 
   return {};
+}
+
+// ================= SATT A KING FAST SCRAPER =================
+async function scrapeSattaKingFast(
+  marketName: string
+): Promise<ScrapedResult> {
+  const response = await axios.get(SATTA_KING_FAST_URL, {
+    timeout: 10000,
+    headers: { "User-Agent": "Mozilla/5.0" },
+  });
+
+  const $ = cheerio.load(response.data);
+  const directResult = findSattaKingFastMarketResult($, marketName);
+  if (directResult.closeResult) {
+    return directResult;
+  }
+
+  const text = $("body").text();
+  const lines = text
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  return findMarketResult(lines, marketName);
 }
 
 // ================= SATKAMATKA (FIRST PAGE ONLY) =================
@@ -163,82 +282,22 @@ export async function scrapeLiveResults(marketName: string): Promise<ScrapedResu
   try {
     console.log("\n========== 🔴 [LIVE] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
-    
-    const response = await axios.get("https://satkamatka.com.in/", {
-      timeout: 10000,
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
 
-    const $ = cheerio.load(response.data);
-    const text = $("body").text();
+    const result = await scrapeSattaKingFast(marketName);
 
-    const lines = text
-      .split("\n")
-      .map(l => l.trim())
-      .filter(l => l.length > 0);
-
-    console.log("Total lines:", lines.length);
-
-    const cleanMarket = marketName.toUpperCase().replace(/\s+/g, " ").trim();
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const cleanLine = line.toUpperCase().replace(/\s+/g, " ").trim();
-
-      // ✅ EXACT MATCH ONLY
-      if (cleanLine === cleanMarket) {
-        console.log(`🎯 [LIVE] MARKET FOUND at line ${i}`);
-
-        // Search in next 5 lines for results (try multiple regex patterns)
-        for (let j = i; j < i + 5 && j < lines.length; j++) {
-          const checkLine = lines[j];
-          console.log(`  👉 [LIVE] Checking [${j}]:`, `"${checkLine}"`);
-
-          // Try pattern 1: XXX-XX-XXX
-          let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
-          if (match) {
-            console.log(`✅ [LIVE] FOUND PATTERN 1:`, match[0]);
-            console.log("========== [LIVE] SCRAPING END - SUCCESS ==========\n");
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
-          }
-
-          // Try pattern 2: XXX-X
-          match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
-          if (match && !checkLine.includes("...")) {
-            console.log(`✅ [LIVE] FOUND PATTERN 2:`, match[0]);
-            console.log("========== [LIVE] SCRAPING END - SUCCESS ==========\n");
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[2],
-            };
-          }
-
-          // Try pattern 3: space-separated
-          match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
-          if (match) {
-            console.log(`✅ [LIVE] FOUND PATTERN 3:`, match[0]);
-            console.log("========== [LIVE] SCRAPING END - SUCCESS ==========\n");
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
-          }
-        }
-      }
+    if (result.openResult || result.jodiResult || result.closeResult) {
+      console.log("✅ [LIVE] MARKET RESULT FOUND:", result);
+      console.log("========== [LIVE] SCRAPING END - SUCCESS ==========");
+      return result;
     }
 
     console.log("❌ [LIVE] MARKET NOT FOUND");
-    console.log("========== [LIVE] SCRAPING END - FAILED ==========\n");
+    console.log("========== [LIVE] SCRAPING END - FAILED ==========");
     return {};
+
   } catch (error) {
     console.error("[LIVE] Error:", error);
-    console.log("========== [LIVE] SCRAPING END - ERROR ==========\n");
+    console.log("========== [LIVE] SCRAPING END - ERROR ==========");
     return {};
   }
 }

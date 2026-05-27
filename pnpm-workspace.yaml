@@ -4,3 +4,5 @@ packages:
   - 'lib/api-client-react'
   - 'lib/api-zod'
   - 'lib/db'
+allowBuilds:
+  esbuild: true

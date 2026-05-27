@@ -30,7 +30,7 @@ export default function Login() {
 
   const onSubmit = (data: LoginForm) => {
     doLogin(
-      { data },
+      { data: data as any },
       {
         onSuccess: (res) => {
           toast({ title: "Welcome back!", description: "Successfully logged in." });

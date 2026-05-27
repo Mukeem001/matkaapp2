@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { useGetAdminMe } from "@workspace/api-client-react";
+import { useGetAdminMe, getGetAdminMeQueryKey } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 
 export function useAuth() {
@@ -26,6 +26,7 @@ export function ProtectedRoute({ component: Component }: { component: React.Comp
   // Use generated API hook to check current session
   const { data: admin, isLoading, isError } = useGetAdminMe({
     query: {
+      queryKey: getGetAdminMeQueryKey(),
       retry: false,
       staleTime: 5 * 60 * 1000,
       enabled: !!token,

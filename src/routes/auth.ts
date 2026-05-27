@@ -172,4 +172,72 @@ router.get("/auth/user/me", userAuthMiddleware, async (req: AuthRequest, res): P
   });
 });
 
+const ChangeCredentialsBody = z.object({
+  newUsername: z.string().min(3, "Username must be at least 3 characters").optional(),
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters").optional(),
+});
+
+router.post("/auth/change-credentials", authMiddleware, async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const parsed = ChangeCredentialsBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error });
+      return;
+    }
+
+    const { newUsername, currentPassword, newPassword } = parsed.data;
+    const adminId = req.adminId!;
+
+    // Get current admin
+    const [admin] = await db.select().from(adminsTable).where(eq(adminsTable.id, adminId));
+    if (!admin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    // Verify current password
+    const valid = await bcrypt.compare(currentPassword, admin.password);
+    if (!valid) {
+      res.status(401).json({ error: "Current password is incorrect" });
+      return;
+    }
+
+    // Prepare update object
+    const updateData: Record<string, string> = {};
+    
+    if (newUsername) {
+      updateData.name = newUsername;
+    }
+
+    if (newPassword) {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      updateData.password = hashedPassword;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: "No changes to make" });
+      return;
+    }
+
+    // Update admin
+    await db.update(adminsTable)
+      .set(updateData)
+      .where(eq(adminsTable.id, adminId));
+
+    res.json({
+      success: true,
+      message: "Credentials updated successfully",
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: newUsername || admin.name,
+      },
+    });
+  } catch (error: any) {
+    console.error("Change credentials error:", error);
+    res.status(500).json({ error: "Internal server error", details: error?.message });
+  }
+});
+
 export default router;

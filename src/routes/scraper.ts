@@ -156,7 +156,7 @@ router.get("/markets/:id/live-results", authMiddleware, async (req, res): Promis
         const logResult = await db.insert(scraperLogsTable).values({
           marketId: market.id,
           marketName: market.name,
-          sourceUrl: "https://satkamatka.com.in/",
+          sourceUrl: market.sourceUrl ?? "https://satta-king-fast.com/",
           success: true,
           openResult: liveResult.openResult,
           closeResult: liveResult.closeResult,

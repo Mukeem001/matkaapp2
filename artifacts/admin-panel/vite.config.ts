@@ -19,7 +19,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss() as any,
   ],
   resolve: {
     alias: {
@@ -53,7 +53,7 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to the backend server.
       "/api": {
-        target: process.env.VITE_API_BASE_URL || "http://localhost:4000",
+        target: process.env.VITE_API_BASE_URL || "http://localhost:3000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "/api"),
       },

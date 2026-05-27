@@ -10,9 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Smartphone, Building, QrCode, Download, Trash2, Plus, FileUp } from "lucide-react";
+import { Loader2, Smartphone, Building, QrCode, Download, Trash2, Plus, FileUp, Key, AlertCircle } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+// Admin panel base URL
+// NOTE: For local development you should set VITE_API_URL=http://localhost:3000
+// If it's not set, we default to local backend.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const settingsSchema = z.object({
   appName: z.string().min(1),
@@ -25,6 +28,30 @@ const settingsSchema = z.object({
 });
 
 type SettingsForm = z.infer<typeof settingsSchema>;
+
+const credentialsSchema = z.object({
+  newUsername: z.string().min(3, "Username must be at least 3 characters").optional().or(z.literal("")),
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters").optional().or(z.literal("")),
+  confirmPassword: z.string().optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.newPassword && !data.confirmPassword) return false;
+  if (!data.newPassword && data.confirmPassword) return false;
+  return true;
+}, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+}).refine((data) => {
+  if (data.newPassword && data.confirmPassword) {
+    return data.newPassword === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type CredentialsForm = z.infer<typeof credentialsSchema>;
 
 interface UpiMethod {
   id: number;
@@ -60,10 +87,45 @@ export default function Settings() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
   const [newApkVersion, setNewApkVersion] = useState({ versionCode: "1", versionName: "1.0.0" });
+  const [showCredentialsForm, setShowCredentialsForm] = useState(false);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
+  const [currentAdmin, setCurrentAdmin] = useState<{ id: number; email: string; name: string } | null>(null);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
 
   const form = useForm<SettingsForm>({
     resolver: zodResolver(settingsSchema),
   });
+
+  const credentialsForm = useForm<CredentialsForm>({
+    resolver: zodResolver(credentialsSchema),
+    defaultValues: {
+      newUsername: "",
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  // Fetch current admin info
+  const fetchCurrentAdmin = async () => {
+    setLoadingAdmin(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        method: "GET",
+        headers: {
+          "Authorization": token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setCurrentAdmin(data);
+    } catch (error) {
+      console.error("Error loading admin info:", error);
+    }
+    setLoadingAdmin(false);
+  };
 
   // Fetch UPI Methods
   const fetchUpiMethods = async () => {
@@ -254,9 +316,6 @@ export default function Settings() {
       const data = await response.json();
       toast({ title: "QR code uploaded successfully" });
       
-      // Update the form with new QR code URL
-      form.setValue("qrCodeUrl", data.qrCodeUrl);
-      
       // Reset file input
       const fileInput = document.getElementById("qr-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
@@ -281,10 +340,79 @@ export default function Settings() {
     }
     fetchUpiMethods();
     fetchApkFiles();
+    fetchCurrentAdmin();
   }, [settings, form]);
 
+  const handleCredentialsSubmit = async (data: CredentialsForm) => {
+    if (!data.currentPassword) {
+      toast({ 
+        title: "Error",
+        description: "Current password is required",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (!data.newUsername && !data.newPassword) {
+      toast({ 
+        title: "Error",
+        description: "Please provide at least a new username or new password",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setCredentialsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-credentials`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          newUsername: data.newUsername || undefined,
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword || undefined,
+        }),
+      });
+
+      const responseData = await response.json().catch(() => ({
+        error: "Invalid response from server"
+      }));
+
+      if (!response.ok) {
+        throw new Error(responseData.error || responseData.message || `HTTP ${response.status}`);
+      }
+
+      toast({ 
+        title: "Success!",
+        description: "Credentials updated successfully" 
+      });
+      
+      // Refresh admin info
+      await fetchCurrentAdmin();
+      
+      setShowCredentialsForm(false);
+      credentialsForm.reset();
+    } catch (error) {
+      console.error("Error updating credentials:", error);
+      toast({ 
+        title: "Error updating credentials",
+        description: (error as Error).message,
+        variant: "destructive" 
+      });
+    }
+    setCredentialsLoading(false);
+  };
+
   const onSubmit = (data: SettingsForm) => {
-    update({ data }, {
+    update({ data: data as any }, {
       onSuccess: () => {
         toast({ title: "Settings saved successfully" });
         queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
@@ -300,6 +428,146 @@ export default function Settings() {
         <h2 className="text-2xl font-display font-bold">Global Settings</h2>
         <p className="text-muted-foreground mt-1">Configure app details, payments, UPI methods, and APK management.</p>
       </div>
+
+      {/* Account Credentials Section */}
+      <Card className="shadow-sm border-border/50 border-amber-200 bg-amber-50/30">
+        <CardHeader className="bg-amber-100/40 border-b border-amber-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-900">
+              <Key className="w-5 h-5" />
+              <div>
+                <CardTitle>Account Credentials</CardTitle>
+                <CardDescription className="text-amber-800">View and update your admin credentials</CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowCredentialsForm(!showCredentialsForm)}
+              className="border-amber-200 hover:bg-amber-100"
+            >
+              {showCredentialsForm ? "Cancel" : "Change Credentials"}
+            </Button>
+          </div>
+        </CardHeader>
+
+        {/* Current Credentials Display */}
+        {!showCredentialsForm && (
+          <CardContent className="p-6 space-y-4">
+            {loadingAdmin ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+              </div>
+            ) : currentAdmin ? (
+              <div className="space-y-3">
+                <div className="p-4 rounded-lg border border-amber-200 bg-white">
+                  <Label className="text-xs text-amber-700 font-semibold uppercase">Current Username</Label>
+                  <p className="text-lg font-semibold text-foreground mt-1">{currentAdmin.name}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-amber-200 bg-white">
+                  <Label className="text-xs text-amber-700 font-semibold uppercase">Email (Login ID)</Label>
+                  <p className="text-lg font-mono text-foreground mt-1">{currentAdmin.email}</p>
+                </div>
+                <div className="p-4 rounded-lg border border-amber-200 bg-white">
+                  <Label className="text-xs text-amber-700 font-semibold uppercase">Password</Label>
+                  <p className="text-lg font-semibold text-foreground mt-1">••••••••</p>
+                  <p className="text-xs text-muted-foreground mt-1">Password is encrypted and cannot be displayed</p>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        )}
+
+        {/* Change Credentials Form */}
+        {showCredentialsForm && (
+          <CardContent className="p-6">
+            <form onSubmit={credentialsForm.handleSubmit(handleCredentialsSubmit)} className="space-y-4">
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">Enter your current password to make any changes. Make sure to remember your new credentials.</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Current Password <span className="text-destructive">*</span></Label>
+                <Input 
+                  type="password"
+                  {...credentialsForm.register("currentPassword")} 
+                  placeholder="Enter your current password"
+                  className="rounded-xl bg-white"
+                  autoComplete="current-password"
+                />
+                {credentialsForm.formState.errors.currentPassword && (
+                  <p className="text-xs text-destructive">{credentialsForm.formState.errors.currentPassword.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>New Username (optional)</Label>
+                  <Input 
+                    {...credentialsForm.register("newUsername")} 
+                    placeholder="Leave blank to keep current username"
+                    className="rounded-xl bg-white"
+                    autoComplete="off"
+                  />
+                  {credentialsForm.formState.errors.newUsername && (
+                    <p className="text-xs text-destructive">{credentialsForm.formState.errors.newUsername.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>New Password (optional)</Label>
+                  <Input 
+                    type="password"
+                    {...credentialsForm.register("newPassword")} 
+                    placeholder="Leave blank to keep current password"
+                    className="rounded-xl bg-white"
+                    autoComplete="new-password"
+                  />
+                  {credentialsForm.formState.errors.newPassword && (
+                    <p className="text-xs text-destructive">{credentialsForm.formState.errors.newPassword.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Confirm New Password (optional)</Label>
+                  <Input 
+                    type="password"
+                    {...credentialsForm.register("confirmPassword")} 
+                    placeholder="Re-enter new password"
+                    className="rounded-xl bg-white"
+                    autoComplete="new-password"
+                  />
+                  {credentialsForm.formState.errors.confirmPassword && (
+                    <p className="text-xs text-destructive">{credentialsForm.formState.errors.confirmPassword.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-amber-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowCredentialsForm(false);
+                    credentialsForm.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="btn-primary-gradient"
+                  disabled={credentialsLoading}
+                >
+                  {credentialsLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Update Credentials
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        )}
+      </Card>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card className="shadow-sm border-border/50">

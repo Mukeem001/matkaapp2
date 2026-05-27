@@ -66,6 +66,9 @@ export const GetDashboardStatsResponse = zod.object({
   "activeMarkets": zod.number(),
   "depositsToday": zod.number(),
   "withdrawalsToday": zod.number(),
+  "winAmount": zod.number(),
+  "lossAmount": zod.number(),
+  "netWinLoss": zod.number(),
   "recentBids": zod.array(zod.object({
   "id": zod.number(),
   "userId": zod.number(),

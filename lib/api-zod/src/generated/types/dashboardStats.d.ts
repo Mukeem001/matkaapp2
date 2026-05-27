@@ -13,6 +13,9 @@ export interface DashboardStats {
     activeMarkets: number;
     depositsToday: number;
     withdrawalsToday: number;
+    winAmount: number;
+    lossAmount: number;
+    netWinLoss: number;
     recentBids: Bid[];
 }
 //# sourceMappingURL=dashboardStats.d.ts.map

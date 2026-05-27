@@ -10,10 +10,7 @@ export default function MarketResultHistory() {
   const [marketId, setMarketId] = useState<number | null>(null);
   const [date, setDate] = useState<string>("");
   
-  const { data: markets, isLoading: marketsLoading } = useGetMarkets({
-    page: 1,
-    limit: 100,
-  });
+  const { data: markets, isLoading: marketsLoading } = useGetMarkets();
 
   const { data: results, isLoading: resultsLoading } = useGetResults({
     marketId: marketId ?? undefined,
@@ -44,7 +41,7 @@ export default function MarketResultHistory() {
                 disabled={marketsLoading}
               >
                 <option value="">All Markets</option>
-                {markets?.data?.map((market: any) => (
+                {markets?.map((market: any) => (
                   <option key={market.id} value={market.id}>
                     {market.name}
                   </option>

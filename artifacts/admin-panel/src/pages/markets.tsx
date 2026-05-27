@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
+import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2, Calendar, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Market } from "@workspace/api-client-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://matka-api-server.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const marketSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -61,8 +61,8 @@ function MarketDialog({ market, open, setOpen }: { market?: Market | null; open:
 
   const onSubmit = (data: MarketForm) => {
     const action = market
-      ? updateMutation.mutateAsync({ id: market.id, data })
-      : createMutation.mutateAsync({ data });
+      ? updateMutation.mutateAsync({ id: market.id, data: data as any })
+      : createMutation.mutateAsync({ data: data as any });
 
     action
       .then(() => {
@@ -195,6 +195,7 @@ export default function Markets() {
   const autoConfigMutation = useUpdateMarketAutoConfig();
 
   // State Management
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [dateResults, setDateResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
   const [currentResults, setCurrentResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
@@ -219,6 +220,14 @@ export default function Markets() {
     const isCurrentDate = format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
     return `${format(date, "dd MMM, yyyy")}${isCurrentDate ? " (Today)" : ""}`;
   }, [selectedDate]);
+
+  // Search filter
+  const filteredMarkets = useMemo(() => {
+    if (!markets || !Array.isArray(markets)) return [];
+    return markets.filter((market) =>
+      market.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [markets, searchQuery]);
 
   // Effect 1: Fetch results for selected date
   useEffect(() => {
@@ -390,7 +399,9 @@ export default function Markets() {
   // Effect 5: Auto-refresh current results every 1 minute
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
+    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) {
+      return undefined;
+    }
 
     const autoRefreshCurrentResults = setInterval(async () => {
       console.log("[Markets] Auto-refreshing current results and market status...");
@@ -434,7 +445,9 @@ export default function Markets() {
   // Effect 6: Auto-refresh live results every 1 minute
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) return;
+    if (!token || !markets || !Array.isArray(markets) || markets.length === 0) {
+      return undefined;
+    }
 
     const autoRefreshLiveResults = setInterval(async () => {
       console.log("[Markets] Auto-refreshing live results...");
@@ -652,29 +665,40 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
       {/* Date Picker Section */}
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Select Date:</span>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>Select Date:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="rounded-lg w-[180px]"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
+                  className="rounded-lg"
+                >
+                  Today
+                </Button>
+              </div>
+              <div className="ml-auto text-sm font-semibold text-primary bg-muted/50 px-3 py-1.5 rounded-lg">
+                {displayDate}
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-muted-foreground" />
               <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="rounded-lg w-[180px]"
+                placeholder="Search markets by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="rounded-lg flex-1"
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
-                className="rounded-lg"
-              >
-                Today
-              </Button>
-            </div>
-            <div className="ml-auto text-sm font-semibold text-primary bg-muted/50 px-3 py-1.5 rounded-lg">
-              {displayDate}
             </div>
           </div>
         </CardContent>
@@ -697,7 +721,7 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {markets?.map((market) => {
+              {filteredMarkets?.map((market) => {
                 // Ensure isActive and autoUpdate are booleans
                 const isActive = typeof market.isActive === 'string' ? market.isActive === 'true' : market.isActive;
                 const autoUpdate = typeof market.autoUpdate === 'string' ? market.autoUpdate === 'true' : market.autoUpdate;
@@ -876,10 +900,10 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                 </TableRow>
               );
               })}
-              {(!markets || markets.length === 0) && (
+              {(!filteredMarkets || filteredMarkets.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
-                    No markets found. Add your first market.
+                    {searchQuery ? "No markets found matching your search." : "No markets found. Add your first market."}
                   </TableCell>
                 </TableRow>
               )}

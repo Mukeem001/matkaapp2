@@ -1,5 +1,5 @@
 import { useGetDashboardStats, useGetMarkets, useGetScraperStatus } from "@workspace/api-client-react";
-import { Users, Ticket, TrendingUp, Store, ArrowDownToLine, ArrowUpFromLine, Wifi, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Users, Ticket, TrendingUp, TrendingDown, Store, ArrowDownToLine, ArrowUpFromLine, Wifi, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,9 @@ export default function Dashboard() {
     { title: "Active Markets", value: stats.activeMarkets ?? 0, icon: Store, color: "text-amber-500", bg: "bg-amber-500/10" },
     { title: "Deposits Today", value: `₹${(stats.depositsToday ?? 0).toLocaleString()}`, icon: ArrowDownToLine, color: "text-violet-500", bg: "bg-violet-500/10" },
     { title: "Withdrawals Today", value: `₹${(stats.withdrawalsToday ?? 0).toLocaleString()}`, icon: ArrowUpFromLine, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { title: "Win Amount", value: `₹${(stats.winAmount ?? 0).toLocaleString()}`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    { title: "Loss Amount", value: `₹${(stats.lossAmount ?? 0).toLocaleString()}`, icon: TrendingDown, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { title: "Net Win/Loss", value: `₹${(stats.netWinLoss ?? 0).toLocaleString()}`, icon: CheckCircle2, color: "text-slate-700", bg: "bg-slate-700/10" },
   ];
 
   // Markets with auto-update enabled and their fetch status

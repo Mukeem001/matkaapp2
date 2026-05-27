@@ -47,7 +47,7 @@ export default function Results() {
   });
 
   const onSubmit = (data: z.infer<typeof resultSchema>) => {
-    declare({ data }, {
+    declare({ data: data as any }, {
       onSuccess: () => {
         toast({ title: "Result declared successfully" });
         queryClient.invalidateQueries({ queryKey: getGetResultsQueryKey() });

@@ -44,11 +44,16 @@ export default function Bids() {
   const [editAmount, setEditAmount] = useState("");
   const [editNumber, setEditNumber] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
 
   const queryClient = useQueryClient();
   
   // Build query parameters
-  let queryParams: any = {};
+  let queryParams: any = {
+    page: currentPage,
+    limit: pageSize,
+  };
   if (dateFilterType && dateFilterType !== 'custom') {
     queryParams.createdType = dateFilterType;
   } else if (dateFilterType === 'custom') {
@@ -80,6 +85,7 @@ export default function Bids() {
       setCustomDateFrom("");
       setCustomDateTo("");
     }
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
   // Clear date filter
@@ -186,7 +192,7 @@ export default function Bids() {
             className="rounded-full"
             onClick={() => handleDateFilterClick('today')}
           >
-            Today
+            Today {dateFilterType === 'today' && bidsData?.total !== undefined && <span className="ml-1 text-xs">({bidsData.total})</span>}
           </Button>
           <Button
             variant={dateFilterType === 'yesterday' ? 'default' : 'outline'}
@@ -313,7 +319,7 @@ export default function Bids() {
                   </TableCell>
 
                   <TableCell className="text-center font-mono font-bold">
-                    {bid.number}
+                    {bid.digit}
                   </TableCell>
 
                   <TableCell className="text-center text-sm">
@@ -355,19 +361,62 @@ export default function Bids() {
         </Table>
       </Card>
 
+      {/* Pagination Controls */}
+      {!isLoading && (bidsData?.total ?? 0) > 0 && (
+        <div className="flex items-center justify-between pt-6">
+          <div className="text-sm text-muted-foreground">
+            Showing <span className="font-semibold">{((currentPage - 1) * pageSize) + 1}</span> to <span className="font-semibold">{Math.min(currentPage * pageSize, bidsData?.total ?? 0)}</span> of <span className="font-semibold">{bidsData?.total ?? 0}</span> bids
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1 px-2">
+              <span className="text-sm text-muted-foreground">Page</span>
+              <Input
+                type="number"
+                min="1"
+                max={Math.ceil((bidsData?.total ?? 0) / pageSize)}
+                value={currentPage}
+                onChange={(e) => {
+                  const page = parseInt(e.target.value) || 1;
+                  const maxPage = Math.ceil((bidsData?.total ?? 0) / pageSize);
+                  setCurrentPage(Math.min(Math.max(page, 1), maxPage));
+                }}
+                className="w-12 h-9 px-2 text-center"
+              />
+              <span className="text-sm text-muted-foreground">of {Math.ceil((bidsData?.total ?? 0) / pageSize)}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={currentPage >= Math.ceil((bidsData?.total ?? 0) / pageSize)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Edit Dialog */}
-      <Dialog open={editingBidId !== null}>
-        <DialogContent 
-          className="sm:max-w-[425px]"
-          onOpenChange={(open) => {
-            if (!open) {
-              setEditingBidId(null);
-              setEditAmount("");
-              setEditNumber("");
-              setEditStatus("");
-            }
-          }}
-        >
+      <Dialog 
+        open={editingBidId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingBidId(null);
+            setEditAmount("");
+            setEditNumber("");
+            setEditStatus("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Bid #{editingBidId}</DialogTitle>
             <DialogDescription>

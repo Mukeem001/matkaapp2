@@ -128,6 +128,15 @@ export function startScheduler() {
     lastRunAt = new Date();
     console.log(`[Scheduler] Running at ${lastRunAt.toISOString()}`);
 
+    // If DB is down (ECONNREFUSED), avoid spamming logs every minute.
+    try {
+      await db.execute?.('select 1');
+    } catch {
+      console.error("[Scheduler] DB not reachable (skipping this tick): ECONNREFUSED/connection error");
+      isRunning = false;
+      return;
+    }
+
     try {
       // Update market activity status (Market 1)
       await updateMarketActivityStatus();

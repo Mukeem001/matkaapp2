@@ -1,6 +1,6 @@
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { format } from "date-fns";
+import { getTodayDateIST } from "./date-utils.js";
 import { scrapeLiveResults } from "./scraper.js";
 import { processMarkets2Bids } from "./bid-processor.js";
 
@@ -33,8 +33,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     if (hasAnyResult) {
       console.log(`[Market2] Saving results to database for ${market.name}`);
       
-      // Save to results2_table with TODAY'S DATE
-      const today = format(new Date(), "yyyy-MM-dd");
+      // Save to results2_table with TODAY'S IST date only
+      const today = getTodayDateIST();
       console.log(`[Market2] Today's date: ${today}`);
       
       try {
@@ -56,12 +56,14 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
           
           try {
-            // Update all three result fields - they might be undefined but that's okay
+            // Update all three result fields.
+            // results2Table (results_2) schema does NOT have openResult/jodiResult/closeResult columns.
+            // It only stores a single `result` (2-digit or "XX").
+            const resultValue = liveResult.closeResult ?? existingResult.result;
+            
             await db.update(results2Table)
               .set({
-                openResult: liveResult.openResult ?? existingResult.openResult,
-                jodiResult: liveResult.jodiResult ?? existingResult.jodiResult,
-                closeResult: liveResult.closeResult ?? existingResult.closeResult,
+                result: resultValue ?? "XX",
               })
               .where(eq(results2Table.id, existingResult.id));
             console.log(`[Market2] Update completed successfully`);
@@ -82,16 +84,18 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
           console.log(`[Market2] Insert completed`);
         }
         
-        // Update markets2 table with latest results
+        // Update markets2 table with latest scraped results
+        const marketUpdateData: any = {
+          lastFetchedAt: new Date(),
+          fetchError: null,
+        };
+        if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
+        if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
+        if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
+
         console.log(`[Market2] Updating markets2 table with latest results`);
         const updated = await db.update(markets2Table)
-          .set({
-            openResult: liveResult.openResult,
-            jodiResult: liveResult.jodiResult,
-            closeResult: liveResult.closeResult,
-            lastFetchedAt: new Date(),
-            fetchError: null
-          })
+          .set(marketUpdateData)
           .where(eq(markets2Table.id, marketId))
           .returning();
         console.log(`[Market2] Markets2 table updated`);

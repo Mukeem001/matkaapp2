@@ -308,8 +308,23 @@ export async function customFetch<T = unknown>(
   // Build full URL with API base URL for relative paths
   let fullUrl = resolveUrl(input);
   if (fullUrl.startsWith("/")) {
-    const apiUrl = import.meta.env.VITE_API_URL || "";
-    fullUrl = apiUrl + fullUrl;
+    let apiUrl = String(((import.meta as any).env?.VITE_API_URL) || "").trim();
+
+    // Normalize trailing slash
+    apiUrl = apiUrl.replace(/\/+$/, "");
+
+    if (apiUrl) {
+      // If VITE_API_URL points to localhost but is using https while backend is http,
+      // force http to avoid ERR_SSL_PROTOCOL_ERROR.
+      if (/^https:\/\/localhost:\d+$/i.test(apiUrl) || /^https:\/\/127\.0\.0\.1:\d+$/i.test(apiUrl)) {
+        apiUrl = apiUrl.replace(/^https:\/\//i, "http://");
+      }
+
+      fullUrl = apiUrl + fullUrl;
+    } else {
+      // If no API base configured, keep relative path so Vite proxy can handle it.
+      // (e.g. /api/auth/login)
+    }
   }
 
   const requestInfo = { method, url: fullUrl };

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@workspace/api-client-react/dist/generated/api.schemas";
+import type { User } from "@workspace/api-client-react";
 
 const walletSchema = z.object({
   walletBalance: z.coerce.number().min(0, "Balance cannot be negative"),
@@ -31,9 +31,11 @@ export default function Users() {
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   
   // Build query parameters
-  let queryParams: any = { search, page: 1, limit: 50 };
+  let queryParams: any = { search, page: currentPage, limit: pageSize };
   if (dateFilterType && dateFilterType !== 'custom') {
     queryParams.joinedType = dateFilterType;
   } else if (dateFilterType === 'custom') {
@@ -76,7 +78,7 @@ export default function Users() {
     
     setIsDeleting(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const userId = typeof deleteDialog.id === 'string' ? parseInt(deleteDialog.id, 10) : deleteDialog.id;
       
       console.log(`[Delete User] Attempting to delete user ${deleteDialog.id} (${deleteDialog.name}) from endpoint: ${apiUrl}/api/users/${userId}`);
@@ -128,12 +130,14 @@ export default function Users() {
       setCustomDateFrom("");
       setCustomDateTo("");
     }
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
   const clearDateFilter = () => {
     setDateFilterType(null);
     setCustomDateFrom("");
     setCustomDateTo("");
+    setCurrentPage(1); // Reset to first page when clearing filter
   };
 
   return (
@@ -314,6 +318,49 @@ export default function Users() {
         </Table>
       </Card>
 
+      {/* Pagination Controls */}
+      {!isLoading && (data?.total ?? 0) > 0 && (
+        <div className="flex items-center justify-between pt-6">
+          <div className="text-sm text-muted-foreground">
+            Showing <span className="font-semibold">{((currentPage - 1) * pageSize) + 1}</span> to <span className="font-semibold">{Math.min(currentPage * pageSize, data?.total ?? 0)}</span> of <span className="font-semibold">{data?.total ?? 0}</span> users
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1 px-2">
+              <span className="text-sm text-muted-foreground">Page</span>
+              <Input
+                type="number"
+                min="1"
+                max={Math.ceil((data?.total ?? 0) / pageSize)}
+                value={currentPage}
+                onChange={(e) => {
+                  const page = parseInt(e.target.value) || 1;
+                  const maxPage = Math.ceil((data?.total ?? 0) / pageSize);
+                  setCurrentPage(Math.min(Math.max(page, 1), maxPage));
+                }}
+                className="w-12 h-9 px-2 text-center"
+              />
+              <span className="text-sm text-muted-foreground">of {Math.ceil((data?.total ?? 0) / pageSize)}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={currentPage >= Math.ceil((data?.total ?? 0) / pageSize)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Dialog open={!!walletDialog} onOpenChange={(o) => !o && setWalletDialog(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -356,7 +403,7 @@ export default function Users() {
             <p className="text-sm text-red-900 mb-3">
               Are you sure you want to delete <span className="font-bold">{deleteDialog?.name}</span>? This action cannot be undone.
             </p>
-            <p className="text-xs text-red-700">User ID: {deleteDialog?.id} | Email: {deleteDialog?.email}</p>
+            <p className="text-xs text-red-700">User ID: {deleteDialog?.id} | Phone: {deleteDialog?.phone}</p>
           </div>
           <div className="flex gap-2 mt-6">
             <Button 

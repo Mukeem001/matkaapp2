@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetDeposits, useApproveDeposit, useRejectDeposit, getGetDepositsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -35,13 +35,31 @@ export default function Deposits() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
   const [screenshot, setScreenshot] = useState<string | null>(null);
+
+  const filteredDeposits = deposits ?? [];
+  const totalDeposits = filteredDeposits.length;
+  const totalPages = Math.max(1, Math.ceil(totalDeposits / pageSize));
+  const pageDeposits = useMemo(
+    () => filteredDeposits.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredDeposits, currentPage, pageSize]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleDateFilterClick = (type: DateFilterType) => {
     if (type === 'custom') {
       setDateFilterType('custom');
+      setCurrentPage(1);
     } else {
       setDateFilterType(type);
+      setCurrentPage(1);
       setCustomDateFrom("");
       setCustomDateTo("");
     }
@@ -49,6 +67,7 @@ export default function Deposits() {
 
   const clearDateFilter = () => {
     setDateFilterType(null);
+    setCurrentPage(1);
     setCustomDateFrom("");
     setCustomDateTo("");
   };
@@ -191,9 +210,9 @@ export default function Deposits() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : !Array.isArray(deposits) || deposits.length === 0 ? (
+            ) : totalDeposits === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No deposit requests.</TableCell></TableRow>
-            ) : (deposits as any[]).map((d) => (
+            ) : pageDeposits.map((d) => (
               <TableRow key={d.id}>
                 <TableCell className="pl-6 text-sm text-muted-foreground">
                   {format(new Date(d.createdAt), 'PP p')}
@@ -236,6 +255,33 @@ export default function Deposits() {
           </TableBody>
         </Table>
       </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {totalDeposits === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalDeposits)} of {totalDeposits} deposits
+        </p>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}>
+            Previous
+          </Button>
+          <Input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={currentPage}
+            onChange={(event) => {
+              const nextPage = Number(event.target.value);
+              if (!Number.isNaN(nextPage) && nextPage >= 1 && nextPage <= totalPages) {
+                setCurrentPage(nextPage);
+              }
+            }}
+            className="w-20 text-center"
+          />
+          <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}>
+            Next
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={!!screenshot} onOpenChange={() => setScreenshot(null)}>
         <DialogContent className="sm:max-w-xl">

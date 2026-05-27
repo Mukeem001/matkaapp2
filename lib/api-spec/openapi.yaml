@@ -972,6 +972,12 @@ components:
           type: number
         withdrawalsToday:
           type: number
+        winAmount:
+          type: number
+        lossAmount:
+          type: number
+        netWinLoss:
+          type: number
         recentBids:
           type: array
           items:
@@ -983,6 +989,9 @@ components:
         - activeMarkets
         - depositsToday
         - withdrawalsToday
+        - winAmount
+        - lossAmount
+        - netWinLoss
         - recentBids
 
     User:
