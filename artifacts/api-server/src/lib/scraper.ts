@@ -21,6 +21,25 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
 
   const headers = { "User-Agent": "Mozilla/5.0", Accept: "text/html" };
 
+  // Playwright fallback: dynamically import and use headless chromium when direct fetch is blocked
+  const tryPlaywright = async () => {
+    try {
+      const allowPlaywright = process.env.FORCE_PLAYWRIGHT === 'true' || process.env.ALLOW_PLAYWRIGHT !== 'false';
+      if (!allowPlaywright) throw new Error('Playwright disabled by env');
+      console.log('[Scraper] Attempting Playwright fallback for', url);
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
+      const page = await browser.newPage({ userAgent: headers['User-Agent'] });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+      const content = await page.content();
+      await browser.close();
+      return { data: content, status: 200 } as any;
+    } catch (e) {
+      console.error('[Scraper] Playwright fetch failed:', e?.message ?? e);
+      throw e;
+    }
+  };
+
   if (apiKey && forceProxy) {
     const proxyUrl = buildProxyUrl(url);
     console.log(`[Scraper] FORCE_PROXY enabled — fetching via proxy provider=${provider} for ${url}`);
@@ -35,6 +54,9 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
       console.log(`[Scraper] Direct fetch blocked (CF) — falling back to proxy provider=${provider} for ${url}`);
       return axios.get(proxyUrl, { timeout: 15000, headers });
     }
+    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && !apiKey) {
+      return tryPlaywright();
+    }
     return resp;
   } catch (err: unknown) {
     const axiosErr: any = err;
@@ -44,6 +66,13 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
       const proxyUrl = buildProxyUrl(url);
       console.log(`[Scraper] Direct fetch error (CF) — retrying via proxy provider=${provider} for ${url}`);
       return axios.get(proxyUrl, { timeout: 15000, headers });
+    }
+    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && !apiKey) {
+      try {
+        return await tryPlaywright();
+      } catch (e) {
+        // ignore and rethrow original
+      }
     }
     throw err;
   }
