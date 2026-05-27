@@ -232,12 +232,13 @@ export async function scrapeResult(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
 
-  // 👉 sirf satta-king-fast handle
-  if (
-    (url.includes("satta-king-fast.com") || url.includes("satkamatka.com.in")) &&
-    marketName
-  ) {
-    return await scrapeSattaKingFast(marketName, opts);
+  if (marketName) {
+    if (url.includes("satta-king-fast.com")) {
+      return await scrapeSattaKingFast(marketName, opts);
+    }
+    if (url.includes("satkamatka.com.in")) {
+      return await scrapeSattaMatkaComIn(marketName, opts);
+    }
   }
 
 
@@ -279,14 +280,18 @@ async function scrapeSattaMatkaComIn(
   console.log("Market to find:", `"${marketName}"`);
   console.log("Total lines:", lines.length);
 
-  const cleanMarket = marketName.toUpperCase().replace(/\s+/g, " ").trim();
+  const cleanMarket = normalizeScrapeLine(marketName);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const cleanLine = line.toUpperCase().replace(/\s+/g, " ").trim();
+    const cleanLine = normalizeScrapeLine(line);
 
-    // ✅ EXACT MATCH ONLY
-    if (cleanLine === cleanMarket) {
+    const marketFound =
+      cleanLine === cleanMarket ||
+      cleanLine.includes(cleanMarket) ||
+      cleanMarket.includes(cleanLine);
+
+    if (marketFound) {
       console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
 
       // Search in next 5 lines for results (try multiple regex patterns)

@@ -67,25 +67,6 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
 
   const headers = { "User-Agent": "Mozilla/5.0", Accept: "text/html" };
 
-  // Playwright fallback: dynamically import and use headless chromium when direct fetch is blocked
-  const tryPlaywright = async () => {
-    try {
-      const allowPlaywright = process.env.FORCE_PLAYWRIGHT === 'true' || process.env.ALLOW_PLAYWRIGHT !== 'false';
-      if (!allowPlaywright) throw new Error('Playwright disabled by env');
-      console.log('[Scraper] Attempting Playwright fallback for', url);
-      const { chromium } = await import('playwright');
-      const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
-      const page = await browser.newPage({ userAgent: headers['User-Agent'] });
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-      const content = await page.content();
-      await browser.close();
-      return { data: content, status: 200 } as any;
-    } catch (e) {
-      console.error('[Scraper] Playwright fetch failed:', e?.message ?? e);
-      throw e;
-    }
-  };
-
   // If API key present and FORCE_PROXY (env or opts) set, use proxy immediately
   if (apiKey && forceProxy) {
     const proxyUrl = buildProxyUrl(url);
@@ -102,10 +83,6 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
       console.log(`[Scraper] Direct fetch blocked (CF) — falling back to proxy provider=${provider} for ${url}`);
       return axios.get(proxyUrl, { timeout: 15000, headers });
     }
-    // If Cloudflare detected and no API key configured, try Playwright
-    if ((resp.status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(body)) && !apiKey) {
-      return tryPlaywright();
-    }
     return resp;
   } catch (err: unknown) {
     const axiosErr: any = err;
@@ -115,14 +92,6 @@ async function fetchUrl(url: string, opts?: { forceProxy?: boolean }) {
       const proxyUrl = buildProxyUrl(url);
       console.log(`[Scraper] Direct fetch error (CF) — retrying via proxy provider=${provider} for ${url}`);
       return axios.get(proxyUrl, { timeout: 15000, headers });
-    }
-    // If CF detected and no apiKey, attempt Playwright as a last resort
-    if ((status === 403 || /Just a moment|Enable JavaScript and cookies/i.test(String(data))) && !apiKey) {
-      try {
-        return await tryPlaywright();
-      } catch (e) {
-        // fallthrough to rethrow original error
-      }
     }
     throw err;
   }
@@ -223,12 +192,13 @@ export async function scrapeResult(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
 
-  // 👉 sirf satta-king-fast / satkamatka (same DOM) handle
-  if (
-    (url.includes("satta-king-fast.com") || url.includes("satkamatka.com.in")) &&
-    marketName
-  ) {
-    return await scrapeSattaKingFast(marketName, opts);
+  if (marketName) {
+    if (url.includes("satta-king-fast.com")) {
+      return await scrapeSattaKingFast(marketName, opts);
+    }
+    if (url.includes("satkamatka.com.in")) {
+      return await scrapeSattaMatkaComIn(marketName, opts);
+    }
   }
 
 
@@ -292,14 +262,18 @@ async function scrapeSattaMatkaComIn(
   console.log("Market to find:", `"${marketName}"`);
   console.log("Total lines:", lines.length);
 
-  const cleanMarket = marketName.toUpperCase().replace(/\s+/g, " ").trim();
+  const cleanMarket = normalizeScrapeLine(marketName);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const cleanLine = line.toUpperCase().replace(/\s+/g, " ").trim();
+    const cleanLine = normalizeScrapeLine(line);
 
-    // ✅ EXACT MATCH ONLY
-    if (cleanLine === cleanMarket) {
+    const marketFound =
+      cleanLine === cleanMarket ||
+      cleanLine.includes(cleanMarket) ||
+      cleanMarket.includes(cleanLine);
+
+    if (marketFound) {
       console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
 
       // Search in next 5 lines for results (try multiple regex patterns)
@@ -351,12 +325,12 @@ async function scrapeSattaMatkaComIn(
 }
 
 // ================= SATKAMATKA LIVE RESULTS (DIRECTLY FROM WEBSITE) =================
-export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
+export async function scrapeLiveResults(marketName: string): Promise<ScrapedResult> {
   try {
     console.log("\n========== 🔴 [LIVE] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    const result = await scrapeSattaKingFast(marketName, opts);
+    const result = await scrapeSattaKingFast(marketName);
 
     if (result.openResult || result.jodiResult || result.closeResult) {
       console.log("✅ [LIVE] MARKET RESULT FOUND:", result);
