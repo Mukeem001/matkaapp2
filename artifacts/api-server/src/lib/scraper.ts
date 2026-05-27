@@ -5,6 +5,29 @@ import { format } from "date-fns";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
 
+// Proxy helper: use SCRAPER_API_KEY to route through a scraping provider when set
+async function fetchUrl(url: string) {
+  const apiKey = process.env.SCRAPER_API_KEY;
+  const provider = (process.env.SCRAPER_PROVIDER || "scraperapi").toLowerCase();
+
+  let finalUrl = url;
+  if (apiKey) {
+    if (provider === "scraperapi") {
+      finalUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(url)}&render=true`;
+    } else if (provider === "scrapingbee") {
+      finalUrl = `https://app.scrapingbee.com/api/v1?api_key=${apiKey}&url=${encodeURIComponent(url)}&render_js=true`;
+    }
+    console.log(`[Scraper] Using proxy provider=${provider} for ${url}`);
+  } else {
+    console.log(`[Scraper] No proxy configured, fetching ${url} directly`);
+  }
+
+  return axios.get(finalUrl, {
+    timeout: 15000,
+    headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
+  });
+}
+
 export interface ScrapedResult {
   openResult?: string;
   closeResult?: string;
@@ -135,10 +158,7 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
 async function scrapeSattaKingFast(
   marketName: string
 ): Promise<ScrapedResult> {
-  const response = await axios.get(SATTA_KING_FAST_URL, {
-    timeout: 10000,
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
+  const response = await fetchUrl(SATTA_KING_FAST_URL);
 
   const $ = cheerio.load(response.data);
   const directResult = findSattaKingFastMarketResult($, marketName);
@@ -169,10 +189,7 @@ export async function scrapeResult(
   }
 
 
-  const response = await axios.get(url, {
-    timeout: 10000,
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
+  const response = await fetchUrl(url);
 
   const $ = cheerio.load(response.data);
   const text = $("body").text();
@@ -195,10 +212,7 @@ async function scrapeSattaMatkaComIn(
   marketName: string
 ): Promise<ScrapedResult> {
 
-  const response = await axios.get("https://satkamatka.com.in/", {
-    timeout: 10000,
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
+  const response = await fetchUrl("https://satkamatka.com.in/");
 
   const $ = cheerio.load(response.data);
   const text = $("body").text();

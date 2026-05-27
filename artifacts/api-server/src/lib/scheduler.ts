@@ -117,8 +117,8 @@ export function startScheduler() {
     return;
   }
 
-  // Run every minute
-  schedulerTask = cron.schedule("* * * * *", async () => {
+  // Run every 5 minutes
+  schedulerTask = cron.schedule("*/5 * * * *", async () => {
     if (isRunning) {
       console.log("[Scheduler] Previous run still in progress, skipping...");
       return;
@@ -210,7 +210,7 @@ export function startScheduler() {
     }
   });
 
-  console.log("[Scheduler] Started — running every minute");
+  console.log("[Scheduler] Started — running every 5 minutes");
 
   // Register daily reset at midnight
   if (midnightResetTask) {
