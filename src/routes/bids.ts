@@ -123,6 +123,9 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
     const createdAfter = (req.query.createdAfter as string) || undefined;
     const createdBefore = (req.query.createdBefore as string) || undefined;
     const userId = (req.query.userId as string) || undefined;
+    const offset = (page - 1) * limit;
+
+    console.log(`[Bids API] Fetching page ${page}, limit ${limit}, offset ${offset}`);
 
     // Build date filter conditions
     let conditions = [];
@@ -176,13 +179,14 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
       .leftJoin(usersTable, eq(bidsTable.userId, usersTable.id))
       .where(whereCondition)
       .orderBy(desc(bidsTable.createdAt))
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
 
     const totalResult = whereCondition
       ? await db.select({ count: sql`count(*)` }).from(bidsTable).where(whereCondition)
       : await db.select({ count: sql`count(*)` }).from(bidsTable);
 
-    console.log(`[Bids Filter] Found ${bidsResult.length} bids`);
+    console.log(`[Bids Filter] Found ${bidsResult.length} bids out of ${totalResult[0]?.count ?? 0} total`);
 
     const bids = bidsResult.map((b: any) => ({
       id: b.id,

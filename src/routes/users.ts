@@ -42,6 +42,7 @@ router.get("/users", authMiddleware, async (req, res): Promise<void> => {
   const joinedType = query.success ? query.data.joinedType : undefined;
   const joinedAfter = query.success ? query.data.joinedAfter : undefined;
   const joinedBefore = query.success ? query.data.joinedBefore : undefined;
+  const minBalance = req.query.minBalance ? parseFloat(req.query.minBalance as string) : undefined;
   const offset = (page - 1) * limit;
 
   let whereConditions: any[] = [];
@@ -55,6 +56,11 @@ router.get("/users", authMiddleware, async (req, res): Promise<void> => {
         ilike(usersTable.phone, `%${search}%`)
       )
     );
+  }
+  
+  // Min Balance condition
+  if (minBalance !== undefined && minBalance > 0) {
+    whereConditions.push(gte(usersTable.walletBalance, String(minBalance)));
   }
   
   // Date range condition - priority: joinedAfter/joinedBefore > joinedType

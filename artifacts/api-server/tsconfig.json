@@ -6,6 +6,7 @@
     "declarationMap": true,
     "outDir": "dist",
     "skipLibCheck": true,
+    "noEmit": false,
     "allowImportingTsExtensions": true
   },
   "include": ["src"]

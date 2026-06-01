@@ -19,6 +19,7 @@ import scraper2Router from "./scraper2.js";
 import userRouter from "./user.js";
 import upiMethodsRouter from "./upi-methods.js";
 import apkFilesRouter from "./apk-files.js";
+import notificationsRouter from "./notifications.js";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(scraper2Router);
 router.use(userRouter);
 router.use(upiMethodsRouter);
 router.use(apkFilesRouter);
+router.use(notificationsRouter);
 
 export default router;
