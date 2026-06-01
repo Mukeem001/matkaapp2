@@ -135,6 +135,13 @@ router.patch("/users/:id", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
+  // Get old user data first to check wallet balance change
+  const [oldUser] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.id));
+  if (!oldUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
   const updateData: Record<string, unknown> = {};
   if (body.data.isBlocked !== undefined) updateData.isBlocked = body.data.isBlocked;
   if (body.data.walletBalance !== undefined) updateData.walletBalance = String(body.data.walletBalance);
@@ -145,6 +152,36 @@ router.patch("/users/:id", authMiddleware, async (req, res): Promise<void> => {
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  // Record wallet balance changes as admin deposits/withdrawals
+  if (body.data.walletBalance !== undefined) {
+    const oldBalance = parseFloat(oldUser.walletBalance as string);
+    const newBalance = parseFloat(user.walletBalance as string);
+    const difference = newBalance - oldBalance;
+
+    if (difference !== 0) {
+      if (difference > 0) {
+        // Admin added balance - record as deposit
+        await db.insert(depositsTable).values({
+          userId: params.data.id,
+          amount: difference.toString(),
+          status: 'success',
+          paymentMethod: 'admin',
+          transactionId: `admin-deposit-${Date.now()}`,
+          processedAt: new Date(),
+        });
+      } else {
+        // Admin reduced balance - record as withdrawal
+        await db.insert(withdrawalsTable).values({
+          userId: params.data.id,
+          amount: Math.abs(difference).toString(),
+          status: 'success',
+          upiId: 'admin-adjustment',
+          processedAt: new Date(),
+        });
+      }
+    }
   }
 
   res.json({ ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() });

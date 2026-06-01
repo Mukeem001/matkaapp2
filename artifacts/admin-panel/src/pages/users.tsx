@@ -84,24 +84,28 @@ export default function Users() {
           // Add deposits
           const deposits = Array.isArray(depositsData) ? depositsData : [];
           deposits.forEach((d: any) => {
+            const isAdminDeposit = d.paymentMethod === 'admin';
             transactions.push({
               type: 'deposit',
               date: new Date(d.createdAt),
               amount: typeof d.amount === 'string' ? parseFloat(d.amount) : d.amount,
-              details: `${d.status === 'success' ? 'Approved' : 'Pending'} UPI Transfer`,
+              details: isAdminDeposit ? 'Admin Deposit' : `${d.status === 'success' ? 'Approved' : 'Pending'} UPI Transfer`,
               status: d.status,
+              isAdminDeposit: isAdminDeposit,
             });
           });
 
           // Add withdrawals
           const withdrawals = Array.isArray(withdrawalsData) ? withdrawalsData : [];
           withdrawals.forEach((w: any) => {
+            const isAdminAdjustment = w.upiId === 'admin-adjustment';
             transactions.push({
               type: 'withdrawal',
               date: new Date(w.createdAt),
               amount: typeof w.amount === 'string' ? parseFloat(w.amount) : w.amount,
-              details: `${w.status === 'success' ? 'Approved' : 'Pending'} UPI Payout`,
+              details: isAdminAdjustment ? 'Admin Adjustment' : `${w.status === 'success' ? 'Approved' : 'Pending'} UPI Payout`,
               status: w.status,
+              isAdminAdjustment: isAdminAdjustment,
             });
           });
 
@@ -723,11 +727,21 @@ export default function Users() {
                           let amountColor = 'text-gray-600';
 
                           if (tx.type === 'deposit') {
-                            badgeClassName = 'bg-blue-100 text-blue-700';
-                            amountColor = 'text-green-600';
+                            if (tx.isAdminDeposit) {
+                              badgeClassName = 'bg-indigo-100 text-indigo-700';
+                              amountColor = 'text-indigo-600';
+                            } else {
+                              badgeClassName = 'bg-blue-100 text-blue-700';
+                              amountColor = 'text-green-600';
+                            }
                           } else if (tx.type === 'withdrawal') {
-                            badgeClassName = 'bg-orange-100 text-orange-700';
-                            amountColor = 'text-red-600';
+                            if (tx.isAdminAdjustment) {
+                              badgeClassName = 'bg-slate-100 text-slate-700';
+                              amountColor = 'text-slate-600';
+                            } else {
+                              badgeClassName = 'bg-orange-100 text-orange-700';
+                              amountColor = 'text-red-600';
+                            }
                           } else if (tx.type === 'bid-win') {
                             badgeClassName = 'bg-green-100 text-green-700';
                             amountColor = 'text-green-600';
@@ -741,9 +755,9 @@ export default function Users() {
 
                           const typeLabel =
                             tx.type === 'deposit'
-                              ? 'Deposit'
+                              ? (tx.isAdminDeposit ? 'Admin' : 'Deposit')
                               : tx.type === 'withdrawal'
-                                ? 'Withdrawal'
+                                ? (tx.isAdminAdjustment ? 'Adjustment' : 'Withdrawal')
                                 : tx.type === 'bid-win'
                                   ? 'Win'
                                   : tx.type === 'bid-loss'
