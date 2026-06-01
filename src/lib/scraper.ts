@@ -95,6 +95,10 @@ function isCloudflareBlock(body: string, status?: number): boolean {
 }
 
 
+
+
+
+
 export interface ScrapedResult {
   openResult?: string;
   closeResult?: string;
@@ -287,15 +291,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
 
           // Check for Cloudflare/WAF blocks
           if (isCloudflareBlock(String(response.data || ""), response.status)) {
-            const is403 = response.status === 403;
-            const waitTime = is403 ? (attempt * 8000 + Math.floor(Math.random() * 5000)) : (attempt * 3000);
-            
-            if (attempt < attempts) {
-              await sleep(waitTime);
-              continue;
-            }
+            // Cloudflare/WAF block detected: retrying wastes time and spams logs.
             throw new Error(`Website blocking requests (CF/WAF) status=${response.status}`);
           }
+
 
           if (response.status >= 500) {
             throw new Error(`HTTP ${response.status} - Server Error`);
