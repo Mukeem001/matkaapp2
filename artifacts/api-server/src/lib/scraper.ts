@@ -571,7 +571,7 @@ export async function scrapeSattaMatkaComIn(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
   try {
-    const response = await fetchUrl("https://akingsatta.in/", opts);
+    const response = await fetchUrl("https://satkamatka.com.in/", opts);
 
     const $ = cheerio.load(response.data);
     const text = $("body").text();
@@ -668,6 +668,88 @@ export async function scrapeSattaMatkaComIn(
   }
 }
 
+// ================= AKINGSATTA.IN (MARKETS2 FALLBACK) =================
+export async function scrapeAkingSattaComIn(
+  marketName: string,
+  opts?: { forceProxy?: boolean }
+): Promise<ScrapedResult> {
+  try {
+    console.log("\n========== 🔍 SCRAPING AKINGSATTA.IN ==========");
+    console.log("Looking for market:", `"${marketName}"`);
+
+    const response = await fetchUrl("https://akingsatta.in/", opts);
+    const $ = cheerio.load(response.data);
+    const text = $("body").text();
+    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+
+    console.log("Total lines on page:", lines.length);
+
+    const cleanMarket = normalizeScrapeLine(marketName);
+    console.log("Normalized search name:", `"${cleanMarket}"`);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cleanLine = normalizeScrapeLine(line);
+      const marketFound = cleanLine === cleanMarket || (` ${cleanLine} `).includes(` ${cleanMarket} `);
+
+      if (marketFound) {
+        console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
+
+        // Search in next 5 lines for results (try multiple regex patterns)
+        for (let j = i; j < i + 5 && j < lines.length; j++) {
+          const checkLine = lines[j];
+          console.log(`  👉 Checking [${j}]:`, `"${checkLine}"`);
+
+          // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
+          let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
+          if (match) {
+            console.log(`  ✅ Found pattern 1 (XXX-XX-XXX): ${match[1]}-${match[2]}-${match[3]}`);
+            console.log("========== SCRAPING AKINGSATTA.IN END ==========\n");
+            return {
+              openResult: match[1],
+              jodiResult: match[2],
+              closeResult: match[3],
+            };
+          }
+
+          // Try pattern 2: XXX-X (e.g., 567-8)
+          match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
+          if (match && !checkLine.includes("...")) {
+            console.log(`  ✅ Found pattern 2 (XXX-X): ${match[1]}-${match[2]}`);
+            console.log("========== SCRAPING AKINGSATTA.IN END ==========\n");
+            return {
+              openResult: match[1],
+              jodiResult: match[2],
+              closeResult: match[2],
+            };
+          }
+
+          // Try pattern 3: Just numbers (e.g., 156 25 267)
+          match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
+          if (match) {
+            console.log(`  ✅ Found pattern 3 (XXX XX XXX): ${match[1]} ${match[2]} ${match[3]}`);
+            console.log("========== SCRAPING AKINGSATTA.IN END ==========\n");
+            return {
+              openResult: match[1],
+              jodiResult: match[2],
+              closeResult: match[3],
+            };
+          }
+        }
+      }
+    }
+
+    console.log("❌ MARKET NOT FOUND - tried to match:", `"${cleanMarket}"`);
+    console.log("========== SCRAPING AKINGSATTA.IN END ==========\n");
+    return {};
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Scraper] Error in scrapeAkingSattaComIn: ${errorMsg}`);
+    console.log("========== SCRAPING AKINGSATTA.IN END (ERROR) ==========\n");
+    return {};
+  }
+}
+
 // ================= SATTA KING FAST LIVE RESULTS =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
@@ -687,17 +769,17 @@ export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?
       return sattaKingResult;
     }
 
-    // Fallback to satkamatka.com.in if satta-king-fast.com fails or returns empty
-    console.log("[Scraper] Fallback: Trying satkamatka.com.in for Markets2...");
-    const satkamatkaResult = await scrapeSattaMatkaComIn(marketName, opts).catch(err => {
-      console.log(`[Scraper] satkamatka.com.in also failed: ${err.message}`);
+    // Fallback to akingsatta.in if satta-king-fast.com fails or returns empty
+    console.log("[Scraper] Fallback: Trying akingsatta.in for Markets2...");
+    const akingSattaResult = await scrapeAkingSattaComIn(marketName, opts).catch(err => {
+      console.log(`[Scraper] akingsatta.in also failed: ${err.message}`);
       return {};
     });
 
-    if (satkamatkaResult.openResult || satkamatkaResult.jodiResult || satkamatkaResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND from satkamatka.com.in (fallback):", satkamatkaResult);
+    if (akingSattaResult.openResult || akingSattaResult.jodiResult || akingSattaResult.closeResult) {
+      console.log("✅ [MARKETS2] RESULT FOUND from akingsatta.in (fallback):", akingSattaResult);
       console.log("========== [MARKETS2] SCRAPING END - SUCCESS (FALLBACK) ==========");
-      return satkamatkaResult;
+      return akingSattaResult;
     }
 
     console.log("❌ [MARKETS2] RESULT NOT FOUND on both sources");
