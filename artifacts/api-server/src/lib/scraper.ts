@@ -208,7 +208,7 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
               "Connection": "keep-alive",
               "Upgrade-Insecure-Requests": "1",
             },
-            timeout: 30000,
+            timeout: 60000,  // Increased from 30s to 60s for slow websites
             validateStatus: () => true,
             decompress: true,
           });
@@ -217,8 +217,7 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
 
           // Check for Cloudflare/WAF blocks even if status is not 400+
           if (isCloudflareBlock(String(response.data || ""), response.status)) {
-            const snippet = String(response.data || "").slice(0, 250);
-            throw new Error(`Website blocking requests (CF/WAF) status=${response.status} snippet=${snippet}`);
+            throw new Error(`Website blocking requests (CF/WAF) status=${response.status}`);
           }
 
           if (response.status >= 500) {
@@ -435,7 +434,8 @@ async function scrapeSattaKingFast(
     }
     return result;
   } catch (error) {
-    console.error(`[Scraper] Error in scrapeSattaKingFast:`, error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Scraper] Error in scrapeSattaKingFast: ${errorMsg}`);
     return {};
   }
 }
@@ -479,10 +479,10 @@ async function scrapeSattaMatkaComIn(
   marketName: string,
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
+  try {
+    const response = await fetchUrl("https://satkamatka.com.in/", opts);
 
-  const response = await fetchUrl("https://satkamatka.com.in/", opts);
-
-  const $ = cheerio.load(response.data);
+    const $ = cheerio.load(response.data);
   const text = $("body").text();
 
   const lines = text
@@ -554,6 +554,11 @@ async function scrapeSattaMatkaComIn(
   console.log("❌ MARKET NOT FOUND - tried to match:", `"${cleanMarket}"`);
   console.log("========== SCRAPING SATKAMATKA END ==========\n");
   return {};
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Scraper] Error in scrapeSattaMatkaComIn: ${errorMsg}`);
+    return {};
+  }
 }
 
 // ================= SATTA KING FAST LIVE RESULTS =================
