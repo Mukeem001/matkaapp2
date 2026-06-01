@@ -341,66 +341,148 @@ function parseTwoDigitResult(line: string): ScrapedResult | undefined {
 
 function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
+  console.log(`\n[findSattaKingFastMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
 
   const rows = $("tr.game-result").toArray();
+  
+  // STEP 1: Try exact match first
   for (const row of rows) {
     const $row = $(row);
     const marketText = $row.find("h3.game-name").first().text().trim();
-    if (!marketText) {
-      continue;
-    }
+    if (!marketText) continue;
 
     const cleanRowMarket = normalizeScrapeLine(marketText);
-    // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
-    const marketFound =
-      cleanRowMarket === cleanMarket ||
-      (` ${cleanRowMarket} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
+    const isExactMatch = cleanRowMarket === cleanMarket || (` ${cleanRowMarket} `).includes(` ${cleanMarket} `);
 
-    if (!marketFound) {
-      continue;
-    }
+    if (isExactMatch) {
+      console.log(`✅ [EXACT MATCH] "${cleanRowMarket}" === "${cleanMarket}"`);
+      
+      const todayValue = $row.find("td.today-number h3").first().text().trim() ||
+        $row.find("td.today-number").first().text().trim();
 
-    const todayValue = $row.find("td.today-number h3").first().text().trim() ||
-      $row.find("td.today-number").first().text().trim();
-
-    if (todayValue) {
-      const candidate = parseTwoDigitResult(todayValue);
-      if (candidate) {
-        return candidate;
+      if (todayValue) {
+        const candidate = parseTwoDigitResult(todayValue);
+        if (candidate) {
+          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
+          return candidate;
+        }
       }
     }
   }
 
+  // STEP 2: Try fuzzy/partial match (if exact match fails)
+  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
+  const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
+  if (marketWords.length === 0) return {};
+
+  for (const row of rows) {
+    const $row = $(row);
+    const marketText = $row.find("h3.game-name").first().text().trim();
+    if (!marketText) continue;
+
+    const cleanRowMarket = normalizeScrapeLine(marketText);
+    const lineWords = cleanRowMarket.split(/\s+/);
+
+    // Check if all words from market name exist in this line (in order)
+    let allWordsFound = true;
+    let lastIndex = -1;
+    
+    for (const marketWord of marketWords) {
+      const foundIndex = lineWords.slice(lastIndex + 1).findIndex(w => w === marketWord);
+      if (foundIndex === -1) {
+        allWordsFound = false;
+        break;
+      }
+      lastIndex += foundIndex + 1;
+    }
+
+    if (allWordsFound) {
+      console.log(`✅ [FUZZY MATCH] "${cleanRowMarket}" contains all words from "${cleanMarket}"`);
+      
+      const todayValue = $row.find("td.today-number h3").first().text().trim() ||
+        $row.find("td.today-number").first().text().trim();
+
+      if (todayValue) {
+        const candidate = parseTwoDigitResult(todayValue);
+        if (candidate) {
+          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
+          return candidate;
+        }
+      }
+    }
+  }
+
+  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
 function findMarketResult(lines: string[], marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
+  console.log(`\n[findMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
 
+  // STEP 1: Try exact match first
   for (let i = 0; i < lines.length; i++) {
     const line = normalizeScrapeLine(lines[i]);
-    if (!line) {
-      continue;
-    }
+    if (!line) continue;
 
-    // Match only exact market name (word boundaries to avoid partial matches)
-    const marketFound =
-      line === cleanMarket ||
-      (` ${line} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
+    // Match only exact market name (word boundaries)
+    const isExactMatch = line === cleanMarket || (` ${line} `).includes(` ${cleanMarket} `);
 
-    if (marketFound) {
-      console.log(`[Scraper] Exact market match found: "${line}" === "${cleanMarket}"`);
+    if (isExactMatch) {
+      console.log(`✅ [EXACT MATCH] at line ${i}: "${line}" === "${cleanMarket}"`);
+      
+      // Look in next 6 lines for result
       for (let j = i; j < i + 6 && j < lines.length; j++) {
         const result = parseTwoDigitResult(lines[j]);
         if (result) {
-          console.log(`[Scraper] Found result ${j-i} lines after market name: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
+          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
           return result;
         }
       }
     }
   }
 
-  console.log(`[Scraper] No exact market match found for "${cleanMarket}"`);
+  // STEP 2: Try fuzzy/partial match (if exact match fails)
+  // Handle cases like "SRIDEVI" in DB vs "SRIDEVI MORNING" on website
+  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
+  
+  const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
+  if (marketWords.length === 0) return {};
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = normalizeScrapeLine(lines[i]);
+    if (!line) continue;
+
+    const lineWords = line.split(/\s+/);
+
+    // Check if all words from market name exist in this line (in order)
+    let allWordsFound = true;
+    let lastIndex = -1;
+    
+    for (const marketWord of marketWords) {
+      const foundIndex = lineWords.slice(lastIndex + 1).findIndex(w => w === marketWord);
+      if (foundIndex === -1) {
+        allWordsFound = false;
+        break;
+      }
+      lastIndex += foundIndex + 1;
+    }
+
+    if (allWordsFound) {
+      console.log(`✅ [FUZZY MATCH] at line ${i}: "${line}" contains all words from "${cleanMarket}"`);
+      
+      // Look in next 6 lines for result
+      for (let j = i; j < i + 6 && j < lines.length; j++) {
+        const result = parseTwoDigitResult(lines[j]);
+        if (result) {
+          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
+          return result;
+        }
+      }
+    }
+  }
+
+  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
@@ -499,27 +581,26 @@ async function scrapeSattaMatkaComIn(
       .filter(l => l.length > 0);  // Keep all lines
 
     console.log("\n========== 🔍 SCRAPING SATKAMATKA ==========");
-    console.log("Market to find:", `"${marketName}"`);
-    console.log("Total lines:", lines.length);
+    console.log("Looking for market:", `"${marketName}"`);
+    console.log("Total lines on page:", lines.length);
 
     const cleanMarket = normalizeScrapeLine(marketName);
+    console.log("Normalized search name:", `"${cleanMarket}"`);
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const cleanLine = normalizeScrapeLine(line);
-
-      // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
-      const marketFound =
-        cleanLine === cleanMarket ||
-        (` ${cleanLine} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
-
-      if (marketFound) {
-        console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
-
-        // Search in next 5 lines for results (try multiple regex patterns)
-        for (let j = i; j < i + 5 && j < lines.length; j++) {
-          const checkLine = lines[j];
-          console.log(`  👉 Checking [${j}]:`, `"${checkLine}"`);
+    // Find all potential market names on the page (first 200 lines usually contain them)
+    const potentialMarkets = new Set<string>();
+    for (let i = 0; i < Math.min(300, lines.length); i++) {
+      const cleanLine = normalizeScrapeLine(lines[i]);
+      if (cleanLine && cleanLine.length > 2 && cleanLine.length < 50 && !cleanLine.match(/^\d+$/)) {
+        potentialMarkets.add(cleanLine);
+      }
+    }
+    
+    if (potentialMarkets.size > 0) {
+      console.log(`[DEBUG] Found ${potentialMarkets.size} potential market names on page (first 50):`);
+      const marketList = Array.from(potentialMarkets).slice(0, 50);
+      marketList.forEach(m => console.log(`  - "${m}"`));
+    }
 
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
           let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
