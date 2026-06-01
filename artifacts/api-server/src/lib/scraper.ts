@@ -179,10 +179,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             }
           }
         } catch (puppeteerError: unknown) {
-          // Check if this is a Chrome not found error
+          // Check if this is a Chrome not found error or Puppeteer not available
           const errorMsg = String(puppeteerError);
-          if (errorMsg.includes("Could not find Chrome") || errorMsg.includes("ENOENT")) {
-            console.warn("[Scraper] Chrome not available, falling back to HTTP requests");
+          if (errorMsg.includes("Could not find Chrome") || errorMsg.includes("ENOENT") || errorMsg.includes("Puppeteer not available")) {
+            console.warn("[Scraper] Chrome/Puppeteer not available, falling back to HTTP requests");
             usePuppeteer = false;
             lastError = puppeteerError;
             // Continue to axios fallback
