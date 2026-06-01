@@ -241,17 +241,35 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
       // Fallback: Use axios for simple HTTP requests
       if (!usePuppeteer) {
         const ua = pick(USER_AGENTS);
-        const response = await axios.get(url, {
-          headers: {
-            "User-Agent": ua,
-            "Accept-Language": "en-US,en;q=0.9",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          },
-          timeout: 30000,
-          validateStatus: () => true, // Accept any status
-        });
+        try {
+          const response = await axios.get(url, {
+            headers: {
+              "User-Agent": ua,
+              "Accept-Language": "en-US,en;q=0.9",
+              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache",
+            },
+            timeout: 30000,
+            validateStatus: () => true,
+            decompress: true,
+          });
 
-        return { data: response.data, status: response.status } as any;
+          if (response.status >= 400) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          return { data: response.data, status: response.status } as any;
+        } catch (axiosError) {
+          lastError = axiosError;
+          if (attempt < attempts) {
+            // Add longer delay for axios retries
+            const delay = 2000 * attempt + Math.floor(Math.random() * 1500);
+            await sleep(delay);
+          } else {
+            throw axiosError;
+          }
+        }
       }
     } catch (error: unknown) {
       lastError = error;
@@ -397,21 +415,28 @@ async function scrapeSattaKingFast(
   marketName: string,
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
-  const response = await fetchUrl(SATTA_KING_FAST_URL, opts);
+  try {
+    const response = await fetchUrl(SATTA_KING_FAST_URL, opts);
 
-  const $ = cheerio.load(response.data);
-  const directResult = findSattaKingFastMarketResult($, marketName);
-  if (directResult.closeResult) {
-    return directResult;
+    const $ = cheerio.load(response.data);
+    const directResult = findSattaKingFastMarketResult($, marketName);
+    if (directResult.closeResult) {
+      return directResult;
+    }
+
+    const text = $("body").text();
+    const lines = text
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    console.log(`[Scraper] Satta King Fast - Found ${lines.length} lines for market "${marketName}"`);
+    
+    return findMarketResult(lines, marketName);
+  } catch (error) {
+    console.error(`[Scraper] Error in scrapeSattaKingFast:`, error);
+    return {};
   }
-
-  const text = $("body").text();
-  const lines = text
-    .split("\n")
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-
-  return findMarketResult(lines, marketName);
 }
 
 // ================= SATKAMATKA (FIRST PAGE ONLY) =================
