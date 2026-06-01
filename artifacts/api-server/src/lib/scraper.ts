@@ -97,6 +97,9 @@ const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/109.0 Firefox/119.0",
 ];
 
 const VIEWPORTS = [
@@ -109,14 +112,23 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
+let lastRequestTime = 0;
+
 async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: boolean }) {
-  const attempts = opts?.retryCount ? Math.max(1, opts.retryCount) : 4;
+  const attempts = url.includes("satta-king-fast.com") ? 10 : (opts?.retryCount ? Math.max(1, opts.retryCount) : 4);
 
   let lastError: unknown;
   let usePuppeteer = true;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      // Add request throttling to avoid rate limiting
+      const timeSinceLastRequest = Date.now() - lastRequestTime;
+      if (timeSinceLastRequest < 1500) {
+        await sleep(1500 - timeSinceLastRequest);
+      }
+      lastRequestTime = Date.now();
+
       // Try Puppeteer first (if available)
       if (usePuppeteer) {
         try {
@@ -195,22 +207,37 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
       // Fallback: Use axios for simple HTTP requests
       if (!usePuppeteer) {
         const ua = pick(USER_AGENTS);
+        const referers = [
+          "https://google.com",
+          "https://www.google.com/search?q=satta+king+results",
+          "https://www.bing.com",
+          "https://duckduckgo.com",
+        ];
         try {
           const response = await axios.get(url, {
             headers: {
               "User-Agent": ua,
-              "Accept-Language": "en-US,en;q=0.9",
-              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+              "Accept-Language": "en-US,en;q=0.9,hi;q=0.8",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+              "Accept-Encoding": "gzip, deflate, br",
               "Cache-Control": "no-cache",
               "Pragma": "no-cache",
-              "Referer": "https://google.com",
-              "Accept-Encoding": "gzip, deflate",
+              "Referer": pick(referers),
               "Connection": "keep-alive",
               "Upgrade-Insecure-Requests": "1",
+              "Sec-Fetch-Dest": "document",
+              "Sec-Fetch-Mode": "navigate",
+              "Sec-Fetch-Site": "none",
+              "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+              "Sec-Ch-Ua-Mobile": "?0",
+              "Sec-Ch-Ua-Platform": '"Windows"',
             },
-            timeout: 60000,  // Increased from 30s to 60s for slow websites
+            timeout: 60000,
             validateStatus: () => true,
             decompress: true,
+            maxRedirects: 5,
+            httpAgent: new (require("http").Agent)({ keepAlive: true }),
+            httpsAgent: new (require("https").Agent)({ keepAlive: true }),
           });
 
           console.log(`[Scraper] Axios request to ${url} got ${response.data?.length || 0} bytes, status ${response.status}`);
@@ -230,17 +257,20 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
           }
 
           return { data: response.data, status: response.status } as any;
-        } catch (axiosError) {
+        } catch (axiosError: any) {
           lastError = axiosError;
-          const errorMsg = String(axiosError);
-          const is403Error = errorMsg.includes("403");
+          const errorMsg = String(axiosError?.message || axiosError);
+          const is403 = errorMsg.includes("403");
           
           if (attempt < attempts) {
-            // Longer delays for 403 errors (IP blocking), exponential backoff
             let delay;
-            if (is403Error) {
-              delay = (3000 * attempt) + Math.floor(Math.random() * 2000);
-              console.log(`[Scraper] Got 403 - retry ${attempt}/${attempts} after ${delay}ms`);
+            if (is403) {
+              // Very long delays for 403 to avoid repeated blocking
+              delay = (10000 * attempt) + Math.floor(Math.random() * 8000);
+              console.log(`[Scraper] 403 Error - retry ${attempt}/${attempts} after ${delay}ms (very long delay)`);
+            } else if (errorMsg.includes("timeout") || errorMsg.includes("ECONNRESET")) {
+              delay = (4000 * attempt) + Math.floor(Math.random() * 3000);
+              console.log(`[Scraper] Connection error - retry ${attempt}/${attempts} after ${delay}ms`);
             } else {
               delay = (2000 * attempt) + Math.floor(Math.random() * 1500);
             }
@@ -253,8 +283,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
     } catch (error: unknown) {
       lastError = error;
       await closeBrowser();
+      
       if (attempt < attempts) {
-        const delay = 1500 * attempt + Math.floor(Math.random() * 800);
+        const delay = 2000 * attempt + Math.floor(Math.random() * 1000);
+        console.log(`[Scraper] Attempt ${attempt}/${attempts} failed, retrying after ${delay}ms`);
         await sleep(delay);
       } else {
         throw error;
