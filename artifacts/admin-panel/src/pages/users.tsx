@@ -67,66 +67,69 @@ export default function Users() {
       Promise.all([
         fetch(`${apiUrl}/api/deposits?userId=${viewingUser.id}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        }).then(res => res.json()).catch(() => ({ deposits: [] })),
+        }).then(res => res.json()).catch(() => []),
         fetch(`${apiUrl}/api/withdrawals?userId=${viewingUser.id}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        }).then(res => res.json()).catch(() => ({ withdrawals: [] })),
+        }).then(res => res.json()).catch(() => []),
         fetch(`${apiUrl}/api/bids?userId=${viewingUser.id}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        }).then(res => res.json()).catch(() => ({ bids: [] })),
+        }).then(res => res.json()).catch(() => []),
       ])
         .then(([depositsData, withdrawalsData, bidsData]) => {
           const transactions: any[] = [];
 
           // Add deposits
-          const deposits = Array.isArray(depositsData) ? depositsData : depositsData.deposits || [];
-          deposits.forEach(d => {
+          const deposits = Array.isArray(depositsData) ? depositsData : [];
+          deposits.forEach((d: any) => {
             transactions.push({
               type: 'deposit',
               date: new Date(d.createdAt),
-              amount: d.amount,
+              amount: typeof d.amount === 'string' ? parseFloat(d.amount) : d.amount,
               details: `${d.status === 'approved' ? 'Approved' : 'Pending'} UPI Transfer`,
               status: d.status,
             });
           });
 
           // Add withdrawals
-          const withdrawals = Array.isArray(withdrawalsData) ? withdrawalsData : withdrawalsData.withdrawals || [];
-          withdrawals.forEach(w => {
+          const withdrawals = Array.isArray(withdrawalsData) ? withdrawalsData : [];
+          withdrawals.forEach((w: any) => {
             transactions.push({
               type: 'withdrawal',
               date: new Date(w.createdAt),
-              amount: w.amount,
+              amount: typeof w.amount === 'string' ? parseFloat(w.amount) : w.amount,
               details: `${w.status === 'approved' ? 'Approved' : 'Pending'} UPI Payout`,
               status: w.status,
             });
           });
 
           // Add bids
-          const bids = Array.isArray(bidsData) ? bidsData : bidsData.bids || [];
-          bids.forEach(b => {
+          const bids = Array.isArray(bidsData) ? bidsData : [];
+          bids.forEach((b: any) => {
             if (b.status === 'won') {
               const multiplier = b.gameType === 'jodi' ? 90 : 9;
+              const amount = typeof b.amount === 'string' ? parseFloat(b.amount) : b.amount;
               transactions.push({
                 type: 'bid-win',
                 date: new Date(b.createdAt),
-                amount: parseFloat(b.amount) * multiplier,
+                amount: amount * multiplier,
                 details: `${b.marketName} - ${b.gameType.toUpperCase()} Win (${multiplier}x)`,
                 status: 'won',
               });
             } else if (b.status === 'lost') {
+              const amount = typeof b.amount === 'string' ? parseFloat(b.amount) : b.amount;
               transactions.push({
                 type: 'bid-loss',
                 date: new Date(b.createdAt),
-                amount: parseFloat(b.amount),
+                amount: amount,
                 details: `${b.marketName} - ${b.gameType.toUpperCase()} Lost`,
                 status: 'lost',
               });
             } else {
+              const amount = typeof b.amount === 'string' ? parseFloat(b.amount) : b.amount;
               transactions.push({
                 type: 'bid',
                 date: new Date(b.createdAt),
-                amount: parseFloat(b.amount),
+                amount: amount,
                 details: `${b.marketName} - ${b.gameType.toUpperCase()}`,
                 status: 'pending',
               });

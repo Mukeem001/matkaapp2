@@ -49,9 +49,17 @@ function getDateRangeForType(type: string): { from: Date; to: Date } | null {
 }
 
 router.get("/deposits", authMiddleware, async (req, res): Promise<void> => {
-  const { createdType, createdAfter, createdBefore } = req.query;
+  const { createdType, createdAfter, createdBefore, userId } = req.query;
   
   const conditions: any[] = [];
+  
+  // Add userId filter if provided
+  if (userId) {
+    const userIdNum = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    if (!isNaN(userIdNum)) {
+      conditions.push(eq(depositsTable.userId, userIdNum));
+    }
+  }
   
   if (createdType && createdType !== 'undefined') {
     const range = getDateRangeForType(createdType as string);
@@ -87,7 +95,8 @@ router.get("/deposits", authMiddleware, async (req, res): Promise<void> => {
     })
     .from(depositsTable)
     .leftJoin(usersTable, eq(depositsTable.userId, usersTable.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined);
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(depositsTable.createdAt));
 
   console.log(`[Deposits Filter] Found ${deposits.length} deposits`);
 

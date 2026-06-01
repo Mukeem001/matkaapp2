@@ -122,9 +122,19 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
     const createdType = (req.query.createdType as string) || undefined;
     const createdAfter = (req.query.createdAfter as string) || undefined;
     const createdBefore = (req.query.createdBefore as string) || undefined;
+    const userId = (req.query.userId as string) || undefined;
 
     // Build date filter conditions
     let conditions = [];
+    
+    // Add userId filter if provided
+    if (userId) {
+      const userIdNum = parseInt(userId, 10);
+      if (!isNaN(userIdNum)) {
+        conditions.push(eq(bidsTable.userId, userIdNum));
+      }
+    }
+    
     if (createdType && createdType !== "custom") {
       const range = getDateRangeForType(createdType);
       if (range) {
@@ -164,6 +174,7 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
       .from(bidsTable)
       .leftJoin(usersTable, eq(bidsTable.userId, usersTable.id))
       .where(whereCondition)
+      .orderBy(desc(bidsTable.createdAt))
       .limit(limit);
 
     const totalResult = whereCondition
