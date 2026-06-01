@@ -206,6 +206,69 @@ router.post("/notices/user/name/:userName", authMiddleware, async (req, res): Pr
   }
 });
 
+// POST create a notice for specific user by phone number
+router.post("/notices/user/phone/:phoneNumber", authMiddleware, async (req, res): Promise<void> => {
+  try {
+    const phoneNumber = Array.isArray(req.params.phoneNumber) ? req.params.phoneNumber[0] : req.params.phoneNumber;
+
+    const body = CreateNoticeBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    // Find user by phone
+    const allUsers = await db.select().from(usersTable);
+    const user = allUsers.find(u => u.phone === phoneNumber);
+    
+    if (!user) {
+      res.status(404).json({ error: "User not found with this phone number" });
+      return;
+    }
+
+    try {
+      // Try with new schema that includes userId
+      const [notice] = await db.insert(noticesTable)
+        .values({
+          title: body.data.title,
+          content: body.data.content,
+          isActive: body.data.isActive ?? true,
+          userId: user.id,
+        } as any)
+        .returning();
+
+      res.status(201).json({ 
+        ...notice, 
+        createdAt: notice.createdAt.toISOString(),
+        broadcastType: "specific_user",
+        recipientId: user.id,
+        recipientName: user.name,
+        recipientPhone: user.phone
+      });
+    } catch (innerError) {
+      // If userId column doesn't exist, fall back to broadcast
+      console.warn("[Notice Migration] userId column might not exist yet, creating as broadcast:", innerError);
+      const [notice] = await db.insert(noticesTable)
+        .values({
+          title: body.data.title,
+          content: body.data.content,
+          isActive: body.data.isActive ?? true,
+        } as any)
+        .returning();
+
+      res.status(201).json({ 
+        ...notice, 
+        createdAt: notice.createdAt.toISOString(),
+        broadcastType: "broadcast_fallback",
+        warning: "Database schema migration pending - user_id column not yet available. Notice created as broadcast instead."
+      });
+    }
+  } catch (error) {
+    console.error("[Notice User Phone Error]", error);
+    res.status(500).json({ error: "Failed to create notice", details: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
 // GET public broadcast notices (no auth required - for public notice board)
 router.get("/notices/public/broadcast", async (req, res): Promise<void> => {
   try {

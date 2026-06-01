@@ -22,9 +22,10 @@ const noticeSchema = z.object({
   title: z.string().min(1, "Title required"),
   content: z.string().min(1, "Content required"),
   isActive: z.boolean().default(true),
-  recipientType: z.enum(["broadcast", "userId", "userName"]).default("broadcast"),
+  recipientType: z.enum(["broadcast", "userId", "userName", "phoneNumber"]).default("broadcast"),
   userId: z.string().optional(),
   userName: z.string().optional(),
+  phoneNumber: z.string().optional(),
 });
 
 export default function Notices() {
@@ -44,7 +45,8 @@ export default function Notices() {
       isActive: true,
       recipientType: "broadcast",
       userId: "",
-      userName: ""
+      userName: "",
+      phoneNumber: ""
     }
   });
 
@@ -61,6 +63,8 @@ export default function Notices() {
         endpoint = `/api/notices/user/${data.userId}`;
       } else if (data.recipientType === "userName") {
         endpoint = `/api/notices/user/name/${encodeURIComponent(data.userName || "")}`;
+      } else if (data.recipientType === "phoneNumber") {
+        endpoint = `/api/notices/user/phone/${encodeURIComponent(data.phoneNumber || "")}`;
       }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -96,11 +100,13 @@ export default function Notices() {
       toast({ 
         title: data.recipientType === "broadcast" 
           ? "Broadcast notice published to all users!" 
+          : data.recipientType === "phoneNumber"
+          ? `Notice sent to user with phone ${data.phoneNumber}!`
           : `Notice sent to ${data.recipientType === "userId" ? `user ID ${data.userId}` : `user ${data.userName}`}!` 
       });
       queryClient.invalidateQueries({ queryKey: getGetNoticesQueryKey() });
       setDialogOpen(false);
-      form.reset({ recipientType: "broadcast", userId: "", userName: "" });
+      form.reset({ recipientType: "broadcast", userId: "", userName: "", phoneNumber: "" });
     } catch (error) {
       toast({ 
         title: "Error", 
@@ -140,7 +146,7 @@ export default function Notices() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
               <div className="space-y-3">
                 <Label className="text-sm font-semibold">Send To</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => form.setValue("recipientType", "broadcast")}
@@ -174,6 +180,17 @@ export default function Notices() {
                   >
                     📝 Username
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => form.setValue("recipientType", "phoneNumber")}
+                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      recipientType === "phoneNumber"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    📱 Phone
+                  </button>
                 </div>
               </div>
 
@@ -195,6 +212,17 @@ export default function Notices() {
                   <Input
                     {...form.register("userName")}
                     placeholder="e.g. mukeem"
+                    className="rounded-lg"
+                  />
+                </div>
+              )}
+
+              {recipientType === "phoneNumber" && (
+                <div className="space-y-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <Label className="text-sm">Phone Number</Label>
+                  <Input
+                    {...form.register("phoneNumber")}
+                    placeholder="e.g. 9876543210"
                     className="rounded-lg"
                   />
                 </div>
