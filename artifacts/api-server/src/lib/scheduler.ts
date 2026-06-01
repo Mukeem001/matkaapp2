@@ -176,7 +176,7 @@ export function startScheduler() {
 
       // Fetch results for Market 1
       if (autoUpdateMarkets.length > 0) {
-        console.log(`[Scheduler] Fetching results for ${autoUpdateMarkets.length} market(s)...`);
+        console.log(`\n[Scheduler] 📊 MARKETS1 - Fetching ${autoUpdateMarkets.length} market(s)...`);
 
         const results = await Promise.allSettled(
           autoUpdateMarkets.map(market => fetchAndUpdateMarketResult(market.id))
@@ -185,9 +185,9 @@ export function startScheduler() {
         results.forEach((result, i) => {
           const market = autoUpdateMarkets[i];
           if (result.status === "fulfilled") {
-            console.log(`[Scheduler] ${market.name}: ${result.value.message}`);
+            console.log(`[Scheduler] 📊 ${result.value.message}`);
           } else {
-            console.error(`[Scheduler] ${market.name}: Failed - ${result.reason}`);
+            console.error(`[Scheduler] 📊 ${market.name}: Failed - ${result.reason}`);
           }
         });
       }
@@ -213,7 +213,7 @@ export function startScheduler() {
         
         // Fetch results for closed markets missing today's results
         if (marketsNeedingResults.length > 0) {
-          console.log(`[Scheduler] 🔐 Fetching results for ${marketsNeedingResults.length} closed market(s) missing today's result...`);
+          console.log(`[Scheduler] 🔒 CLOSED MARKETS1 - Fetching ${marketsNeedingResults.length} market(s)...`);
           
           const closedResults = await Promise.allSettled(
             marketsNeedingResults.map(market => fetchAndUpdateMarketResult(market.id))
@@ -222,7 +222,7 @@ export function startScheduler() {
           closedResults.forEach((result, i) => {
             const market = marketsNeedingResults[i];
             if (result.status === "fulfilled") {
-              console.log(`[Scheduler] 🔐 ${market.name}: ${result.value.message}`);
+              console.log(`[Scheduler] 🔒 ${result.value.message}`);
             } else {
               console.error(`[Scheduler] 🔐 ${market.name}: Failed - ${result.reason}`);
             }
@@ -247,7 +247,7 @@ export function startScheduler() {
 
       // Fetch results for Market 2
       if (autoUpdateMarkets2.length > 0) {
-        console.log(`[Scheduler] Fetching results for ${autoUpdateMarkets2.length} market2(s)...`);
+        console.log(`\n[Scheduler] 📈 MARKETS2 - Fetching ${autoUpdateMarkets2.length} market(s)...`);
 
         const results2 = await Promise.allSettled(
           autoUpdateMarkets2.map(market => fetchAndUpdateMarkets2Result(market.id))
@@ -256,9 +256,9 @@ export function startScheduler() {
         results2.forEach((result, i) => {
           const market = autoUpdateMarkets2[i];
           if (result.status === "fulfilled") {
-            console.log(`[Scheduler] ${market.name}: ${result.value.message}`);
+            console.log(`[Scheduler] 📈 ${result.value.message}`);
           } else {
-            console.error(`[Scheduler] ${market.name}: Failed - ${result.reason}`);
+            console.error(`[Scheduler] 📈 ${market.name}: Failed - ${result.reason}`);
           }
         });
       }

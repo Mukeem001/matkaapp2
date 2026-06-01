@@ -750,7 +750,7 @@ export async function fetchAndUpdateMarketResult(
 
   return {
     success: true,
-    message: `✅ ${market.name} → ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
+    message: `📊 M1 → ${market.name}: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
     data: { openResult: cleanedOpen, jodiResult: cleanedJodi, closeResult: cleanedClose },
   };
 }

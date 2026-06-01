@@ -117,7 +117,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
         
         return {
           success: true,
-          message: `Updated with live results`,
+          message: `📈 M2 → ${market.name}: ${liveResult.openResult}-${liveResult.jodiResult}-${liveResult.closeResult}`,
           data: updated[0]
         };
       } catch (dbError) {
