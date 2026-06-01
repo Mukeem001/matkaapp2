@@ -37,12 +37,17 @@ export default function Users() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'deposits' | 'withdrawals' | 'bids'>('all');
   const [userStats, setUserStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [transactionHistory, setTransactionHistory] = useState<any[]>([]);
+  const [transactionLoading, setTransactionLoading] = useState(false);
   
-  // Fetch user stats when viewing user changes
+  // Fetch user stats and transaction history when viewing user changes
   useEffect(() => {
     if (viewingUser) {
       setStatsLoading(true);
+      setTransactionLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Fetch stats
       fetch(`${apiUrl}/api/users/${viewingUser.id}/stats`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -56,6 +61,86 @@ export default function Users() {
         .catch(err => {
           console.error('Error fetching user stats:', err);
           setStatsLoading(false);
+        });
+
+      // Fetch transaction history (deposits, withdrawals, bids)
+      Promise.all([
+        fetch(`${apiUrl}/api/deposits?userId=${viewingUser.id}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        }).then(res => res.json()).catch(() => ({ deposits: [] })),
+        fetch(`${apiUrl}/api/withdrawals?userId=${viewingUser.id}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        }).then(res => res.json()).catch(() => ({ withdrawals: [] })),
+        fetch(`${apiUrl}/api/bids?userId=${viewingUser.id}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        }).then(res => res.json()).catch(() => ({ bids: [] })),
+      ])
+        .then(([depositsData, withdrawalsData, bidsData]) => {
+          const transactions: any[] = [];
+
+          // Add deposits
+          const deposits = Array.isArray(depositsData) ? depositsData : depositsData.deposits || [];
+          deposits.forEach(d => {
+            transactions.push({
+              type: 'deposit',
+              date: new Date(d.createdAt),
+              amount: d.amount,
+              details: `${d.status === 'approved' ? 'Approved' : 'Pending'} UPI Transfer`,
+              status: d.status,
+            });
+          });
+
+          // Add withdrawals
+          const withdrawals = Array.isArray(withdrawalsData) ? withdrawalsData : withdrawalsData.withdrawals || [];
+          withdrawals.forEach(w => {
+            transactions.push({
+              type: 'withdrawal',
+              date: new Date(w.createdAt),
+              amount: w.amount,
+              details: `${w.status === 'approved' ? 'Approved' : 'Pending'} UPI Payout`,
+              status: w.status,
+            });
+          });
+
+          // Add bids
+          const bids = Array.isArray(bidsData) ? bidsData : bidsData.bids || [];
+          bids.forEach(b => {
+            if (b.status === 'won') {
+              const multiplier = b.gameType === 'jodi' ? 90 : 9;
+              transactions.push({
+                type: 'bid-win',
+                date: new Date(b.createdAt),
+                amount: parseFloat(b.amount) * multiplier,
+                details: `${b.marketName} - ${b.gameType.toUpperCase()} Win (${multiplier}x)`,
+                status: 'won',
+              });
+            } else if (b.status === 'lost') {
+              transactions.push({
+                type: 'bid-loss',
+                date: new Date(b.createdAt),
+                amount: parseFloat(b.amount),
+                details: `${b.marketName} - ${b.gameType.toUpperCase()} Lost`,
+                status: 'lost',
+              });
+            } else {
+              transactions.push({
+                type: 'bid',
+                date: new Date(b.createdAt),
+                amount: parseFloat(b.amount),
+                details: `${b.marketName} - ${b.gameType.toUpperCase()}`,
+                status: 'pending',
+              });
+            }
+          });
+
+          // Sort by date descending (newest first)
+          transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+          setTransactionHistory(transactions);
+          setTransactionLoading(false);
+        })
+        .catch(err => {
+          console.error('Error fetching transaction history:', err);
+          setTransactionLoading(false);
         });
     }
   }, [viewingUser]);
@@ -597,63 +682,85 @@ export default function Users() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* All Transactions */}
-                      {(historyFilter === 'all' || historyFilter === 'bids') && (
-                        <tr className="border-t border-border/30 hover:bg-muted/20">
-                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 3:45 PM</td>
-                          <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
-                          <td className="px-4 py-3 text-sm">WORLI Mumbai - Jodi</td>
-                          <td className="px-4 py-3 text-right font-semibold">-₹100</td>
-                        </tr>
-                      )}
-                      
-                      {(historyFilter === 'all' || historyFilter === 'deposits') && (
-                        <tr className="border-t border-border/30 hover:bg-muted/20">
-                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 2:20 PM</td>
-                          <td className="px-4 py-3"><Badge className="bg-blue-100 text-blue-700">Deposit</Badge></td>
-                          <td className="px-4 py-3 text-sm">UPI Transfer</td>
-                          <td className="px-4 py-3 text-right font-semibold text-green-600">+₹1000</td>
-                        </tr>
-                      )}
-                      
-                      {(historyFilter === 'all' || historyFilter === 'bids') && (
-                        <tr className="border-t border-border/30 hover:bg-muted/20">
-                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 11:30 AM</td>
-                          <td className="px-4 py-3"><Badge className="bg-green-100 text-green-700">Win</Badge></td>
-                          <td className="px-4 py-3 text-sm">SRIDEVI - Jodi Win (90x)</td>
-                          <td className="px-4 py-3 text-right font-semibold text-green-600">+₹9000</td>
-                        </tr>
-                      )}
-                      
-                      {(historyFilter === 'all' || historyFilter === 'withdrawals') && (
-                        <tr className="border-t border-border/30 hover:bg-muted/20">
-                          <td className="px-4 py-3 text-muted-foreground">May 31, 2024 5:15 PM</td>
-                          <td className="px-4 py-3"><Badge className="bg-orange-100 text-orange-700">Withdrawal</Badge></td>
-                          <td className="px-4 py-3 text-sm">UPI Payout</td>
-                          <td className="px-4 py-3 text-right font-semibold text-red-600">-₹5000</td>
-                        </tr>
-                      )}
-                      
-                      {(historyFilter === 'all' || historyFilter === 'bids') && (
-                        <tr className="border-t border-border/30 hover:bg-muted/20">
-                          <td className="px-4 py-3 text-muted-foreground">May 31, 2024 3:00 PM</td>
-                          <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
-                          <td className="px-4 py-3 text-sm">MILAN DAY - Close</td>
-                          <td className="px-4 py-3 text-right font-semibold">-₹50</td>
-                        </tr>
-                      )}
-                      
-                      {/* Show message if no transactions for selected filter */}
-                      {(
-                        (historyFilter === 'deposits' && false) ||
-                        (historyFilter === 'withdrawals' && false) ||
-                        (historyFilter === 'bids' && false)
-                      ) && (
+                      {transactionLoading ? (
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                            No {historyFilter} found
+                            Loading transactions...
                           </td>
                         </tr>
+                      ) : transactionHistory.filter(t => {
+                        if (historyFilter === 'all') return true;
+                        if (historyFilter === 'deposits') return t.type === 'deposit';
+                        if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
+                        if (historyFilter === 'bids') return t.type.includes('bid');
+                        return true;
+                      }).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                            No {historyFilter !== 'all' ? historyFilter : 'transactions'} found
+                          </td>
+                        </tr>
+                      ) : (
+                        transactionHistory
+                          .filter(t => {
+                            if (historyFilter === 'all') return true;
+                            if (historyFilter === 'deposits') return t.type === 'deposit';
+                            if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
+                            if (historyFilter === 'bids') return t.type.includes('bid');
+                            return true;
+                          })
+                          .map((tx, idx) => {
+                            let badgeClassName = 'bg-gray-100 text-gray-700';
+                            let amountColor = 'text-gray-600';
+
+                            if (tx.type === 'deposit') {
+                              badgeClassName = 'bg-blue-100 text-blue-700';
+                              amountColor = 'text-green-600';
+                            } else if (tx.type === 'withdrawal') {
+                              badgeClassName = 'bg-orange-100 text-orange-700';
+                              amountColor = 'text-red-600';
+                            } else if (tx.type === 'bid-win') {
+                              badgeClassName = 'bg-green-100 text-green-700';
+                              amountColor = 'text-green-600';
+                            } else if (tx.type === 'bid-loss') {
+                              badgeClassName = 'bg-red-100 text-red-700';
+                              amountColor = 'text-red-600';
+                            } else {
+                              badgeClassName = 'bg-purple-100 text-purple-700';
+                              amountColor = 'text-gray-600';
+                            }
+
+                            const typeLabel =
+                              tx.type === 'deposit'
+                                ? 'Deposit'
+                                : tx.type === 'withdrawal'
+                                  ? 'Withdrawal'
+                                  : tx.type === 'bid-win'
+                                    ? 'Win'
+                                    : tx.type === 'bid-loss'
+                                      ? 'Loss'
+                                      : 'Bid';
+
+                            return (
+                              <tr key={idx} className="border-t border-border/30 hover:bg-muted/20">
+                                <td className="px-4 py-3 text-muted-foreground">
+                                  {format(tx.date, 'MMM d, yyyy h:mm a')}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge className={badgeClassName}>
+                                    {typeLabel}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">{tx.details}</td>
+                                <td className={`px-4 py-3 text-right font-semibold ${amountColor}`}>
+                                  {tx.type === 'withdrawal' || tx.type === 'bid-loss' || (tx.type === 'deposit' && tx.status !== 'approved') || tx.type === 'bid'
+                                    ? '-'
+                                    : '+'}
+                                  ₹{Math.abs(tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                </td>
+                              </tr>
+                            );
+                          })
                       )}
                     </tbody>
                   </table>
@@ -663,7 +770,7 @@ export default function Users() {
 
               {/* Notes */}
               <div className="space-y-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <p className="text-xs text-amber-700">ℹ️ Note: Detailed stats will be populated when user deposits, places bets, or withdrawals are made.</p>
+                <p className="text-xs text-amber-700">ℹ️ Note: Displaying real-time user data from the system. Data updates automatically.</p>
               </div>
             </div>
           )}
