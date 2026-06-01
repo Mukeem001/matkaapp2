@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, or, count, gte, lte, and } from "drizzle-orm";
+import { eq, ilike, or, count, gte, lte, and, sum } from "drizzle-orm";
 import { db, usersTable, bidsTable, depositsTable, withdrawalsTable } from "@workspace/db";
 import { GetUsersQueryParams, GetUserByIdParams, UpdateUserParams, UpdateUserBody } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
@@ -184,6 +184,71 @@ router.delete("/users/:id", authMiddleware, async (req, res): Promise<void> => {
     res.json({ message: "User and related records deleted successfully", user: { ...user, walletBalance: parseFloat(user.walletBalance as string), createdAt: user.createdAt.toISOString() } });
   } catch (err) {
     console.error("[Delete User] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+router.get("/users/:id/stats", authMiddleware, async (req, res): Promise<void> => {
+  try {
+    const params = UpdateUserParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+
+    const userId = params.data.id;
+
+    // Get total deposits (approved only)
+    const [depositResult] = await db
+      .select({ total: sum(depositsTable.amount) })
+      .from(depositsTable)
+      .where(and(eq(depositsTable.userId, userId), eq(depositsTable.status, "approved")));
+
+    // Get total withdrawals (approved only)
+    const [withdrawalResult] = await db
+      .select({ total: sum(withdrawalsTable.amount) })
+      .from(withdrawalsTable)
+      .where(and(eq(withdrawalsTable.userId, userId), eq(withdrawalsTable.status, "approved")));
+
+    // Get total bids count
+    const [totalBidsResult] = await db
+      .select({ total: count() })
+      .from(bidsTable)
+      .where(eq(bidsTable.userId, userId));
+
+    // Get bids won count
+    const [bidsWonResult] = await db
+      .select({ total: count() })
+      .from(bidsTable)
+      .where(and(eq(bidsTable.userId, userId), eq(bidsTable.status, "won")));
+
+    // Get total winnings (won bids * multiplier)
+    const wonBids = await db
+      .select({ amount: bidsTable.amount, gameType: bidsTable.gameType })
+      .from(bidsTable)
+      .where(and(eq(bidsTable.userId, userId), eq(bidsTable.status, "won")));
+
+    const totalWinnings = wonBids.reduce((sum, bid) => {
+      const multiplier = bid.gameType === "jodi" ? 90 : 9;
+      return sum + (parseFloat(bid.amount as string) * multiplier);
+    }, 0);
+
+    // Get total losses (lost bids amount)
+    const [lossesResult] = await db
+      .select({ total: sum(bidsTable.amount) })
+      .from(bidsTable)
+      .where(and(eq(bidsTable.userId, userId), eq(bidsTable.status, "lost")));
+
+    res.json({
+      totalDeposits: parseFloat(depositResult?.total as string) || 0,
+      totalWithdrawals: parseFloat(withdrawalResult?.total as string) || 0,
+      totalBets: totalBidsResult?.total ?? 0,
+      betsWon: bidsWonResult?.total ?? 0,
+      totalWinnings: totalWinnings,
+      totalLosses: parseFloat(lossesResult?.total as string) || 0,
+    });
+  } catch (err) {
+    console.error("[User Stats] Error:", err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

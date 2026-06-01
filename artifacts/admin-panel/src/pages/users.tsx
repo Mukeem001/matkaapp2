@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetUsers, useUpdateUser, getGetUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, Ban, CheckCircle2, Wallet, Eye, X, Trash2, TrendingUp, TrendingDown } from "lucide-react";
@@ -35,6 +35,30 @@ export default function Users() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'deposits' | 'withdrawals' | 'bids'>('all');
+  const [userStats, setUserStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  
+  // Fetch user stats when viewing user changes
+  useEffect(() => {
+    if (viewingUser) {
+      setStatsLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      fetch(`${apiUrl}/api/users/${viewingUser.id}/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+        .then(res => res.json())
+        .then(data => {
+          setUserStats(data);
+          setStatsLoading(false);
+        })
+        .catch(err => {
+          console.error('Error fetching user stats:', err);
+          setStatsLoading(false);
+        });
+    }
+  }, [viewingUser]);
   
   // Build query parameters
   let queryParams: any = { search, page: currentPage, limit: pageSize };
@@ -489,19 +513,19 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-muted-foreground mb-1">💵 Total Deposits</p>
-                  <p className="text-xl font-bold text-blue-600">₹0</p>
+                  <p className="text-xl font-bold text-blue-600">₹{statsLoading ? '...' : (userStats?.totalDeposits ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
                   <p className="text-xs text-muted-foreground mb-1">📤 Total Withdrawals</p>
-                  <p className="text-xl font-bold text-orange-600">₹0</p>
+                  <p className="text-xl font-bold text-orange-600">₹{statsLoading ? '...' : (userStats?.totalWithdrawals ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                   <p className="text-xs text-muted-foreground mb-1">🎲 Total Bets</p>
-                  <p className="text-xl font-bold text-purple-600">0</p>
+                  <p className="text-xl font-bold text-purple-600">{statsLoading ? '...' : (userStats?.totalBets ?? 0)}</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                   <p className="text-xs text-muted-foreground mb-1">✅ Bets Won</p>
-                  <p className="text-xl font-bold text-green-600">0</p>
+                  <p className="text-xl font-bold text-green-600">{statsLoading ? '...' : (userStats?.betsWon ?? 0)}</p>
                 </div>
               </div>
 
@@ -511,11 +535,11 @@ export default function Users() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><TrendingUp className="w-3 h-3" /> Total Winnings</p>
-                    <p className="text-lg font-bold text-green-600">₹0</p>
+                    <p className="text-lg font-bold text-green-600">₹{statsLoading ? '...' : (userStats?.totalWinnings ?? 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><TrendingDown className="w-3 h-3" /> Total Losses</p>
-                    <p className="text-lg font-bold text-red-600">₹0</p>
+                    <p className="text-lg font-bold text-red-600">₹{statsLoading ? '...' : (userStats?.totalLosses ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
