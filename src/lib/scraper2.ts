@@ -25,13 +25,18 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
     // Scrape live results using real scraper
     const liveResult = await scrapeLiveResults(market.name, opts);
     
-    console.log(`[Market2] Scrape result:`, liveResult);
+    console.log(`[Market2] Scrape result:`, JSON.stringify(liveResult, null, 2));
     
     // Check if we have ANY result
     const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
     
+    if (!hasAnyResult) {
+      console.log(`[Market2] ❌ No result found for ${market.name}. Open: ${liveResult.openResult}, Jodi: ${liveResult.jodiResult}, Close: ${liveResult.closeResult}`);
+      return { success: false, message: `No result found for ${market.name}`, data: null };
+    }
+    
     if (hasAnyResult) {
-      console.log(`[Market2] Saving results to database for ${market.name}`);
+      console.log(`[Market2] ✅ Found result for ${market.name}: ${liveResult.openResult}-${liveResult.jodiResult}-${liveResult.closeResult}`);
       
       // Save to results2_table with TODAY'S IST date only
       const today = getTodayDateIST();

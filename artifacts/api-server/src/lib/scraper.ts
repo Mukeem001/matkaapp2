@@ -326,10 +326,10 @@ function findSattaKingFastMarketResult(
     if (!marketText) continue;
 
     const cleanRowMarket = normalizeScrapeLine(marketText);
+    // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
     const marketFound =
       cleanRowMarket === cleanMarket ||
-      cleanRowMarket.includes(cleanMarket) ||
-      cleanMarket.includes(cleanRowMarket);
+      (` ${cleanRowMarket} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
 
     if (!marketFound) continue;
 
@@ -353,20 +353,24 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
     const line = normalizeScrapeLine(lines[i]);
     if (!line) continue;
 
+    // Match only exact market name (word boundaries to avoid partial matches)
     const marketFound =
       line === cleanMarket ||
-      line.includes(cleanMarket) ||
-      line.startsWith(`${cleanMarket} `) ||
-      line.endsWith(` ${cleanMarket}`);
+      (` ${line} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
 
     if (!marketFound) continue;
 
+    console.log(`[Scraper] Exact market match found: "${line}" === "${cleanMarket}"`);
     for (let j = i; j < i + 6 && j < lines.length; j++) {
       const result = parseTwoDigitResult(lines[j]);
-      if (result) return result;
+      if (result) {
+        console.log(`[Scraper] Found result ${j-i} lines after market name: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
+        return result;
+      }
     }
   }
 
+  console.log(`[Scraper] No exact market match found for "${cleanMarket}"`);
   return {};
 }
 
@@ -472,10 +476,10 @@ async function scrapeSattaMatkaComIn(
     const line = lines[i];
     const cleanLine = normalizeScrapeLine(line);
 
+    // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
     const marketFound =
       cleanLine === cleanMarket ||
-      cleanLine.includes(cleanMarket) ||
-      cleanMarket.includes(cleanLine);
+      (` ${cleanLine} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
 
     if (marketFound) {
       console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
