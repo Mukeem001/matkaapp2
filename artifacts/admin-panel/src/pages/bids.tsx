@@ -132,6 +132,7 @@ export default function Bids() {
     page: currentPage,
     limit: pageSize,
   };
+  console.log(`[Bids] Fetching page ${currentPage} with limit ${pageSize}`);
   if (dateFilterType && dateFilterType !== 'custom') {
     queryParams.createdType = dateFilterType;
   } else if (dateFilterType === 'custom') {

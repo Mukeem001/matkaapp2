@@ -41,6 +41,10 @@ export default function Users() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [transactionHistory, setTransactionHistory] = useState<any[]>([]);
   const [transactionLoading, setTransactionLoading] = useState(false);
+  const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(false);
+  const [notificationDialog, setNotificationDialog] = useState<User | null>(null);
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [sendingNotification, setSendingNotification] = useState(false);
   
   // Fetch user stats and transaction history when viewing user changes
   useEffect(() => {
@@ -156,7 +160,7 @@ export default function Users() {
   }, [viewingUser]);
   
   // Build query parameters
-  let queryParams: any = { search, page: currentPage, limit: pageSize };
+  let queryParams: any = { search, page: currentPage, limit: pageSize, minBalance: showOnlyWithBalance ? 0.01 : undefined };
   if (dateFilterType && dateFilterType !== 'custom') {
     queryParams.joinedType = dateFilterType;
   } else if (dateFilterType === 'custom') {
@@ -330,6 +334,14 @@ export default function Users() {
           >
             Custom Date
           </Button>
+          <Button
+            variant={showOnlyWithBalance ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => setShowOnlyWithBalance(!showOnlyWithBalance)}
+          >
+            💰 With Balance
+          </Button>
           {dateFilterType && (
             <Button
               variant="outline"
@@ -430,6 +442,14 @@ export default function Users() {
                     >
                       {user.isBlocked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
                       {user.isBlocked ? 'Unblock' : 'Block'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50"
+                      onClick={() => setNotificationDialog(user)}
+                    >
+                      🔔 Notify
                     </Button>
                     <Button 
                       variant="outline" 
@@ -858,6 +878,106 @@ export default function Users() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Dialog */}
+      <Dialog open={!!notificationDialog} onOpenChange={(o) => !o && setNotificationDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Notification</DialogTitle>
+            <DialogDescription>
+              Send a custom message to {notificationDialog?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-900">
+                <span className="font-semibold">User:</span> {notificationDialog?.name} ({notificationDialog?.phone})
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notification-message">Message</Label>
+              <textarea
+                id="notification-message"
+                className="w-full min-h-[120px] p-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                placeholder="Enter notification message..."
+                value={notificationMessage}
+                onChange={(e) => setNotificationMessage(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">{notificationMessage.length}/500 characters</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNotificationDialog(null);
+                  setNotificationMessage("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!notificationDialog || !notificationMessage.trim()) {
+                    toast({ 
+                      title: "Error", 
+                      description: "Please enter a message",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+
+                  setSendingNotification(true);
+                  try {
+                    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                    const response = await fetch(`${apiUrl}/api/notifications/send`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                      },
+                      body: JSON.stringify({
+                        userId: notificationDialog.id,
+                        title: "Admin Notification",
+                        message: notificationMessage,
+                      }),
+                    });
+
+                    if (response.ok) {
+                      toast({ 
+                        title: "Success", 
+                        description: `Notification sent to ${notificationDialog.name}` 
+                      });
+                      setNotificationDialog(null);
+                      setNotificationMessage("");
+                    } else {
+                      const error = await response.json();
+                      toast({ 
+                        title: "Error", 
+                        description: error.error || "Failed to send notification",
+                        variant: "destructive"
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Notification error:', error);
+                    toast({ 
+                      title: "Error", 
+                      description: "Failed to send notification",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setSendingNotification(false);
+                  }
+                }}
+                disabled={sendingNotification || !notificationMessage.trim()}
+                className="flex-1"
+              >
+                {sendingNotification ? "Sending..." : "Send Notification"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
