@@ -1,9 +1,10 @@
 import * as cron from "node-cron";
 import { eq } from "drizzle-orm";
-import { db, marketsTable, markets2Table } from "@workspace/db";
+import { db, marketsTable, markets2Table, resultsTable, results2Table } from "@workspace/db";
 import { fetchAndUpdateMarketResult } from "./scraper.js";
 import { fetchAndUpdateMarkets2Result, updateMarket2ActivityStatus } from "./scraper2.js";
 import { processMarketBidsPreClose } from "./bid-processor.js";
+import { getTodayDateIST } from "./date-utils.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
 let midnightResetTask: cron.ScheduledTask | null = null;
@@ -189,6 +190,44 @@ export function startScheduler() {
             console.error(`[Scheduler] ${market.name}: Failed - ${result.reason}`);
           }
         });
+      }
+
+      // Also check closed markets for results they might be missing
+      const closedMarkets = await db.select().from(marketsTable)
+        .where(eq(marketsTable.isActive, false));
+      
+      if (closedMarkets.length > 0) {
+        const todayDate = getTodayDateIST();
+        const marketsNeedingResults: typeof closedMarkets = [];
+        
+        // Check which closed markets don't have today's result
+        for (const market of closedMarkets) {
+          const todayResult = await db.select().from(resultsTable)
+            .where(eq(resultsTable.marketId, market.id))
+            .where(eq(resultsTable.resultDate, todayDate));
+          
+          if (todayResult.length === 0) {
+            marketsNeedingResults.push(market);
+          }
+        }
+        
+        // Fetch results for closed markets missing today's results
+        if (marketsNeedingResults.length > 0) {
+          console.log(`[Scheduler] 🔐 Fetching results for ${marketsNeedingResults.length} closed market(s) missing today's result...`);
+          
+          const closedResults = await Promise.allSettled(
+            marketsNeedingResults.map(market => fetchAndUpdateMarketResult(market.id))
+          );
+          
+          closedResults.forEach((result, i) => {
+            const market = marketsNeedingResults[i];
+            if (result.status === "fulfilled") {
+              console.log(`[Scheduler] 🔐 ${market.name}: ${result.value.message}`);
+            } else {
+              console.error(`[Scheduler] 🔐 ${market.name}: Failed - ${result.reason}`);
+            }
+          });
+        }
 
         // 🎯 After fetching results, process bids automatically
         console.log(`[Scheduler] Processing bids for ${autoUpdateMarkets.length} market(s)...`);
