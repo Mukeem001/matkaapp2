@@ -168,6 +168,7 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
         openTime: bidsTable.openTime,
         closeTime: bidsTable.closeTime,
         currentTime: bidsTable.currentTime,
+        bidsStatus: bidsTable.bidsStatus,
         status: bidsTable.status,
         createdAt: bidsTable.createdAt,
       })
@@ -196,6 +197,7 @@ router.get("/bids", authMiddleware, async (req, res): Promise<void> => {
       openTime: b.openTime || "",
       closeTime: b.closeTime || "",
       currentTime: typeof b.currentTime === "string" ? b.currentTime : (b.currentTime?.toISOString?.() ?? new Date().toISOString()),
+      bidsStatus: b.bidsStatus || "open-bids",
       status: b.status,
       createdAt: typeof b.createdAt === "string" ? b.createdAt : (b.createdAt?.toISOString?.() ?? new Date().toISOString()),
     }));

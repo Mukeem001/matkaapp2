@@ -35,19 +35,18 @@ import { toast } from "sonner";
 
 type DateFilterType = 'today' | 'yesterday' | 'last3days' | 'last7days' | 'lastMonth' | 'custom' | null;
 
-// Helper function to determine if bid is open or closed
-const getBidStatus = (bid: any): string => {
-  if (bid.status === 'won' || bid.status === 'lost') {
-    return bid.status === 'won' ? 'Won' : 'Lost';
+// Helper function to get bids type (open-bids or close-bids)
+const getBidsType = (bid: any): string => {
+  // Use bidsStatus field from database
+  if (bid.bidsStatus) {
+    return bid.bidsStatus; // Returns 'open-bids' or 'close-bids'
   }
-  
-  // For pending bids, check if market is still open
+  // Fallback: determine from time if bidsStatus not available
   const now = new Date();
   const closeTime = bid.closeTime ? new Date(`2000-01-01 ${bid.closeTime}`) : null;
   
-  if (!closeTime) return 'Open Bids';
+  if (!closeTime) return 'open-bids';
   
-  // Compare time (ignoring date)
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   const closeHour = closeTime.getHours();
@@ -55,7 +54,7 @@ const getBidStatus = (bid: any): string => {
   const currentTotalMinutes = currentHour * 60 + currentMinute;
   const closeTotalMinutes = closeHour * 60 + closeMinute;
   
-  return currentTotalMinutes < closeTotalMinutes ? 'Open Bids' : 'Closed Bids';
+  return currentTotalMinutes < closeTotalMinutes ? 'open-bids' : 'close-bids';
 };
 
 export default function Bids() {
@@ -302,7 +301,7 @@ export default function Bids() {
               <TableHead>Market</TableHead>
               <TableHead>Game Type</TableHead>
               <TableHead className="text-center">Bid Digit</TableHead>
-              <TableHead className="text-center">Bid Status</TableHead>
+              <TableHead className="text-center">Bids Type</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead className="text-right">Win Amount</TableHead>
               <TableHead className="pr-6 text-right">Status</TableHead>
@@ -347,14 +346,10 @@ export default function Bids() {
                   </TableCell>
 
                   <TableCell className="text-center text-sm">
-                    {getBidStatus(bid) === 'Open Bids' ? (
+                    {getBidsType(bid) === 'open-bids' ? (
                       <Badge className="bg-green-100 text-green-700 border border-green-200">Open Bids</Badge>
-                    ) : getBidStatus(bid) === 'Closed Bids' ? (
-                      <Badge className="bg-red-100 text-red-700 border border-red-200">Closed Bids</Badge>
-                    ) : getBidStatus(bid) === 'Won' ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Won</Badge>
                     ) : (
-                      <Badge className="bg-red-100 text-red-700 border border-red-200">Lost</Badge>
+                      <Badge className="bg-red-100 text-red-700 border border-red-200">Close Bids</Badge>
                     )}
                   </TableCell>
 
