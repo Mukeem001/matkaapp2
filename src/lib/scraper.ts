@@ -559,14 +559,24 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: "Market not found" };
   }
 
-  if (!market.sourceUrl) {
-    return { success: false, message: "No source URL" };
-  }
-
-  let scraped: ScrapedResult;
+  let scraped: ScrapedResult = {};
 
   try {
-    scraped = await scrapeResult(market.sourceUrl, market.name);
+    // Try to scrape using sourceUrl if available
+    if (market.sourceUrl) {
+      scraped = await scrapeResult(market.sourceUrl, market.name);
+    } else {
+      // Fallback: Try scraping from all known sources by market name
+      console.log(`[Scraper] No sourceUrl for ${market.name}, trying all sources...`);
+      
+      // Try satta-king-fast first
+      scraped = await scrapeSattaKingFast(market.name).catch(() => ({}));
+      
+      if (!scraped.closeResult) {
+        // Try satkamatka if satta-king-fast didn't work
+        scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
+      }
+    }
 
     console.log("========== RESULT DEBUG ==========");
     console.log("Market:", market.name);
@@ -581,7 +591,7 @@ export async function fetchAndUpdateMarketResult(
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
       marketName: market.name,
-      sourceUrl: market.sourceUrl,
+      sourceUrl: market.sourceUrl || "no-url",
       success: false,
       errorMessage,
     });
@@ -631,12 +641,15 @@ export async function fetchAndUpdateMarketResult(
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
+    openResult: scraped.openResult,
+    closeResult: scraped.closeResult,
+    jodiResult: scraped.jodiResult,
   }).where(eq(marketsTable.id, marketId));
 
   await db.insert(scraperLogsTable).values({
     marketId: market.id,
     marketName: market.name,
-    sourceUrl: market.sourceUrl,
+    sourceUrl: market.sourceUrl || "no-url",
     success: true,
     openResult: scraped.openResult,
     closeResult: scraped.closeResult,
