@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: node-20
     region: oregon
-    buildCommand: "sh -c 'npm install --legacy-peer-deps --include=dev && npx tsc --build tsconfig.json && cd lib/db && npm run push'"
+    buildCommand: "sh -c 'PUPPETEER_SKIP_DOWNLOAD=true npm install --legacy-peer-deps --include=dev && npx tsc --build tsconfig.json && cd lib/db && npm run push'"
     startCommand: "cd artifacts/api-server && node dist/index.js"
     healthCheckPath: /api/healthz
     healthCheckInterval: 300
