@@ -54,7 +54,12 @@ router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
   }
 
   try {
-    const result = await fetchAndUpdateMarkets2Result(params.data.id);
+    // Determine if caller requested proxy for this fetch
+    const queryUseProxy = String(req.query.useProxy ?? '').toLowerCase();
+    const bodyUseProxy = req.body && (req.body.useProxy === true || String(req.body.useProxy).toLowerCase() === 'true');
+    const useProxy = queryUseProxy === '1' || queryUseProxy === 'true' || bodyUseProxy;
+
+    const result = await fetchAndUpdateMarkets2Result(params.data.id, { forceProxy: useProxy });
     res.json(result);
   } catch (error) {
     console.error("Error fetching market2 now:", error);

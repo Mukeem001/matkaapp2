@@ -215,8 +215,13 @@ router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
       return;
     }
 
+    // Determine if caller requested proxy for this fetch
+    const queryUseProxy = String(req.query.useProxy ?? '').toLowerCase();
+    const bodyUseProxy = req.body && (req.body.useProxy === true || String(req.body.useProxy).toLowerCase() === 'true');
+    const useProxy = queryUseProxy === '1' || queryUseProxy === 'true' || bodyUseProxy;
+
     // Trigger the fetch (no sourceUrl check needed - scraper2 uses market names directly)
-    const result = await fetchAndUpdateMarkets2Result(marketId);
+    const result = await fetchAndUpdateMarkets2Result(marketId, { forceProxy: useProxy });
 
     if (result.success) {
       res.json({

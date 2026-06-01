@@ -8,7 +8,7 @@ import { processMarkets2Bids } from "./bid-processor.js";
  * FETCH AND UPDATE MARKETS2 RESULT - With Real Scraping
  */
 
-async function fetchAndUpdateMarkets2Result(marketId: number) {
+async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProxy?: boolean }) {
   try {
     const market = await db
       .select()
@@ -23,7 +23,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number) {
     console.log(`[Market2] Fetching result for ${market.name}`);
 
     // Scrape live results using real scraper
-    const liveResult = await scrapeLiveResults(market.name);
+    const liveResult = await scrapeLiveResults(market.name, opts);
     
     console.log(`[Market2] Scrape result:`, liveResult);
     
