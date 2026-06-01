@@ -34,6 +34,7 @@ export default function Users() {
   const [customDateTo, setCustomDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'deposits' | 'withdrawals' | 'bids'>('all');
   
   // Build query parameters
   let queryParams: any = { search, page: currentPage, limit: pageSize };
@@ -519,9 +520,48 @@ export default function Users() {
                 </div>
               </div>
 
-              {/* Transaction History */}
+              {/* Transaction History with Filters */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2">📜 Recent Activity History</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">📜 Recent Activity History</h3>
+                </div>
+                
+                {/* Filter Buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={historyFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() => setHistoryFilter('all')}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={historyFilter === 'deposits' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-8 rounded-full text-xs ${historyFilter === 'deposits' ? 'bg-blue-600 hover:bg-blue-700' : 'border-blue-200 text-blue-700 hover:bg-blue-50'}`}
+                    onClick={() => setHistoryFilter('deposits')}
+                  >
+                    💵 Deposits
+                  </Button>
+                  <Button
+                    variant={historyFilter === 'withdrawals' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-8 rounded-full text-xs ${historyFilter === 'withdrawals' ? 'bg-orange-600 hover:bg-orange-700' : 'border-orange-200 text-orange-700 hover:bg-orange-50'}`}
+                    onClick={() => setHistoryFilter('withdrawals')}
+                  >
+                    📤 Withdrawals
+                  </Button>
+                  <Button
+                    variant={historyFilter === 'bids' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-8 rounded-full text-xs ${historyFilter === 'bids' ? 'bg-purple-600 hover:bg-purple-700' : 'border-purple-200 text-purple-700 hover:bg-purple-50'}`}
+                    onClick={() => setHistoryFilter('bids')}
+                  >
+                    🎲 Bids
+                  </Button>
+                </div>
+
                 <div className="border border-border/50 rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/30">
@@ -533,40 +573,68 @@ export default function Users() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-t border-border/30 hover:bg-muted/20">
-                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 3:45 PM</td>
-                        <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
-                        <td className="px-4 py-3 text-sm">WORLI Mumbai - Jodi</td>
-                        <td className="px-4 py-3 text-right font-semibold">-₹100</td>
-                      </tr>
-                      <tr className="border-t border-border/30 hover:bg-muted/20">
-                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 2:20 PM</td>
-                        <td className="px-4 py-3"><Badge className="bg-blue-100 text-blue-700">Deposit</Badge></td>
-                        <td className="px-4 py-3 text-sm">UPI Transfer</td>
-                        <td className="px-4 py-3 text-right font-semibold text-green-600">+₹1000</td>
-                      </tr>
-                      <tr className="border-t border-border/30 hover:bg-muted/20">
-                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 11:30 AM</td>
-                        <td className="px-4 py-3"><Badge className="bg-green-100 text-green-700">Win</Badge></td>
-                        <td className="px-4 py-3 text-sm">SRIDEVI - Jodi Win (90x)</td>
-                        <td className="px-4 py-3 text-right font-semibold text-green-600">+₹9000</td>
-                      </tr>
-                      <tr className="border-t border-border/30 hover:bg-muted/20">
-                        <td className="px-4 py-3 text-muted-foreground">May 31, 2024 5:15 PM</td>
-                        <td className="px-4 py-3"><Badge className="bg-orange-100 text-orange-700">Withdrawal</Badge></td>
-                        <td className="px-4 py-3 text-sm">UPI Payout</td>
-                        <td className="px-4 py-3 text-right font-semibold text-red-600">-₹5000</td>
-                      </tr>
-                      <tr className="border-t border-border/30 hover:bg-muted/20">
-                        <td className="px-4 py-3 text-muted-foreground">May 31, 2024 3:00 PM</td>
-                        <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
-                        <td className="px-4 py-3 text-sm">MILAN DAY - Close</td>
-                        <td className="px-4 py-3 text-right font-semibold">-₹50</td>
-                      </tr>
+                      {/* All Transactions */}
+                      {(historyFilter === 'all' || historyFilter === 'bids') && (
+                        <tr className="border-t border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 3:45 PM</td>
+                          <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
+                          <td className="px-4 py-3 text-sm">WORLI Mumbai - Jodi</td>
+                          <td className="px-4 py-3 text-right font-semibold">-₹100</td>
+                        </tr>
+                      )}
+                      
+                      {(historyFilter === 'all' || historyFilter === 'deposits') && (
+                        <tr className="border-t border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 2:20 PM</td>
+                          <td className="px-4 py-3"><Badge className="bg-blue-100 text-blue-700">Deposit</Badge></td>
+                          <td className="px-4 py-3 text-sm">UPI Transfer</td>
+                          <td className="px-4 py-3 text-right font-semibold text-green-600">+₹1000</td>
+                        </tr>
+                      )}
+                      
+                      {(historyFilter === 'all' || historyFilter === 'bids') && (
+                        <tr className="border-t border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 11:30 AM</td>
+                          <td className="px-4 py-3"><Badge className="bg-green-100 text-green-700">Win</Badge></td>
+                          <td className="px-4 py-3 text-sm">SRIDEVI - Jodi Win (90x)</td>
+                          <td className="px-4 py-3 text-right font-semibold text-green-600">+₹9000</td>
+                        </tr>
+                      )}
+                      
+                      {(historyFilter === 'all' || historyFilter === 'withdrawals') && (
+                        <tr className="border-t border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-muted-foreground">May 31, 2024 5:15 PM</td>
+                          <td className="px-4 py-3"><Badge className="bg-orange-100 text-orange-700">Withdrawal</Badge></td>
+                          <td className="px-4 py-3 text-sm">UPI Payout</td>
+                          <td className="px-4 py-3 text-right font-semibold text-red-600">-₹5000</td>
+                        </tr>
+                      )}
+                      
+                      {(historyFilter === 'all' || historyFilter === 'bids') && (
+                        <tr className="border-t border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-3 text-muted-foreground">May 31, 2024 3:00 PM</td>
+                          <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
+                          <td className="px-4 py-3 text-sm">MILAN DAY - Close</td>
+                          <td className="px-4 py-3 text-right font-semibold">-₹50</td>
+                        </tr>
+                      )}
+                      
+                      {/* Show message if no transactions for selected filter */}
+                      {(
+                        (historyFilter === 'deposits' && false) ||
+                        (historyFilter === 'withdrawals' && false) ||
+                        (historyFilter === 'bids' && false)
+                      ) && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                            No {historyFilter} found
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-muted-foreground">Showing last 5 transactions. View detailed history to see all.</p>
+                <p className="text-xs text-muted-foreground">Showing recent transactions filtered by type.</p>
               </div>
 
               {/* Notes */}
