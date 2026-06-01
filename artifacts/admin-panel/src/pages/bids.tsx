@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useGetBids, useUpdateBid, getGetBidsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -57,6 +57,34 @@ const getBidsType = (bid: any): string => {
   return currentTotalMinutes < closeTotalMinutes ? 'open-bids' : 'close-bids';
 };
 
+// Helper function to calculate win amount based on gameType and rates
+const calculateWinAmount = (bidAmount: number, gameType: string, gameRates: any): number => {
+  if (!gameRates) return 0;
+  
+  // Normalize gameType: convert to lowercase and handle spaces/hyphens
+  const normalized = (gameType || "").toLowerCase().trim().replace(/\s+/g, "_");
+  
+  // Map game types to rate keys
+  const gameTypeMapping: Record<string, string> = {
+    "single": "singleDigit",
+    "single_digit": "singleDigit",
+    "jodi": "jodiDigit",
+    "jodi_digit": "jodiDigit",
+    "single_panna": "singlePanna",
+    "double_panna": "doublePanna",
+    "triple_panna": "triplePanna",
+    "half_sangam": "halfSangam",
+    "full_sangam": "fullSangam",
+  };
+  
+  const rateKey = gameTypeMapping[normalized] || "singleDigit";
+  const rate = parseFloat(gameRates[rateKey]) || 9;
+  
+  console.log(`[Bids] Win calculation: gameType='${gameType}' normalized='${normalized}' rateKey='${rateKey}' rate=${rate} amount=${bidAmount}`);
+  
+  return Math.round(bidAmount * rate);
+};
+
 export default function Bids() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
@@ -68,8 +96,36 @@ export default function Bids() {
   const [editStatus, setEditStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [gameRates, setGameRates] = useState<any>(null);
+  const [loadingRates, setLoadingRates] = useState(true);
 
   const queryClient = useQueryClient();
+
+  // Fetch game rates when component mounts
+  useEffect(() => {
+    const fetchGameRates = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/game-rates", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const rates = await response.json();
+          setGameRates(rates);
+          console.log("[Bids] Game rates loaded:", rates);
+        } else {
+          console.error("[Bids] Failed to fetch game rates");
+        }
+      } catch (error) {
+        console.error("[Bids] Error fetching game rates:", error);
+      } finally {
+        setLoadingRates(false);
+      }
+    };
+    fetchGameRates();
+  }, []);
   
   // Build query parameters
   let queryParams: any = {
@@ -359,7 +415,7 @@ export default function Bids() {
 
                   <TableCell className="text-right font-mono font-bold">
                     {bid.status === 'won' ? (
-                      <span className="text-green-600">₹{Math.round((bid.amount) * (bid.gameType === 'jodi' ? 90 : bid.gameType === 'hari' ? 9 : 9))}</span>
+                      <span className="text-green-600">₹{calculateWinAmount(bid.amount, bid.gameType, gameRates)}</span>
                     ) : bid.status === 'lost' ? (
                       <span className="text-red-600">-₹{bid.amount}</span>
                     ) : (
