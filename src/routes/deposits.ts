@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db, depositsTable, usersTable } from "@workspace/db";
 import { ApproveDepositParams, RejectDepositParams } from "@workspace/api-zod";

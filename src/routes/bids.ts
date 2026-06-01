@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, eq, and, gte, lte } from "drizzle-orm";
+import { sql, eq, and, gte, lte, desc } from "drizzle-orm";
 import { format } from "date-fns";
 import { db, bidsTable, usersTable, marketsTable, resultsTable, gameRatesTable } from "@workspace/db";
 import { GetBidsQueryParams } from "@workspace/api-zod";

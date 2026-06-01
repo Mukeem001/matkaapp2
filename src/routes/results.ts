@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, resultsTable, marketsTable } from "@workspace/db";
 import { GetResultsQueryParams, DeclareResultBody } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
