@@ -15,11 +15,13 @@ router.get("/results", authMiddleware, async (req, res): Promise<void> => {
   // Filter by marketId if provided
   if (query.data?.marketId) {
     conditions.push(eq(resultsTable.marketId, query.data.marketId));
+    console.log(`[Results] Filtering by marketId: ${query.data.marketId}`);
   }
 
   // Filter by date if provided
   if (query.data?.date) {
     conditions.push(eq(resultsTable.resultDate, query.data.date));
+    console.log(`[Results] Filtering by date: ${query.data.date}`);
   }
 
   let selectQuery: any = db
@@ -35,7 +37,8 @@ router.get("/results", authMiddleware, async (req, res): Promise<void> => {
       declaredAt: resultsTable.declaredAt,
     })
     .from(resultsTable)
-    .leftJoin(marketsTable, eq(resultsTable.marketId, marketsTable.id));
+    .leftJoin(marketsTable, eq(resultsTable.marketId, marketsTable.id))
+    .orderBy(resultsTable.resultDate, resultsTable.marketId);
 
   // Apply conditions if any
   if (conditions.length > 0) {
@@ -43,6 +46,11 @@ router.get("/results", authMiddleware, async (req, res): Promise<void> => {
   }
 
   const results = await selectQuery;
+  
+  console.log(`[Results] Found ${results.length} results for query:`, {
+    marketId: query.data?.marketId,
+    date: query.data?.date,
+  });
 
   res.json(results.map(r => ({
     ...r,
