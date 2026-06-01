@@ -288,8 +288,6 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             httpsAgent: new https.Agent({ keepAlive: true }),
           });
 
-          console.log(`[Scraper] Axios got ${response.data?.length || 0} bytes from ${url}, status ${response.status}`);
-
           // Check for Cloudflare/WAF blocks
           if (isCloudflareBlock(String(response.data || ""), response.status)) {
             const is403 = response.status === 403;
@@ -387,8 +385,6 @@ function parseTwoDigitResult(line: string): ScrapedResult | undefined {
 
 function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
-  console.log(`\n[findSattaKingFastMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
-
   const rows = $("tr.game-result").toArray();
   
   // STEP 1: Try exact match first
@@ -401,15 +397,12 @@ function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string
     const isExactMatch = cleanRowMarket === cleanMarket || (` ${cleanRowMarket} `).includes(` ${cleanMarket} `);
 
     if (isExactMatch) {
-      console.log(`✅ [EXACT MATCH] "${cleanRowMarket}" === "${cleanMarket}"`);
-      
       const todayValue = $row.find("td.today-number h3").first().text().trim() ||
         $row.find("td.today-number").first().text().trim();
 
       if (todayValue) {
         const candidate = parseTwoDigitResult(todayValue);
         if (candidate) {
-          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
           return candidate;
         }
       }
@@ -417,7 +410,6 @@ function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string
   }
 
   // STEP 2: Try fuzzy/partial match (if exact match fails)
-  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
   const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
   if (marketWords.length === 0) return {};
 
@@ -443,28 +435,23 @@ function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string
     }
 
     if (allWordsFound) {
-      console.log(`✅ [FUZZY MATCH] "${cleanRowMarket}" contains all words from "${cleanMarket}"`);
-      
       const todayValue = $row.find("td.today-number h3").first().text().trim() ||
         $row.find("td.today-number").first().text().trim();
 
       if (todayValue) {
         const candidate = parseTwoDigitResult(todayValue);
         if (candidate) {
-          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
           return candidate;
         }
       }
     }
   }
 
-  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
 function findMarketResult(lines: string[], marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
-  console.log(`\n[findMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
 
   // STEP 1: Try exact match first
   for (let i = 0; i < lines.length; i++) {
@@ -475,13 +462,10 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
     const isExactMatch = line === cleanMarket || (` ${line} `).includes(` ${cleanMarket} `);
 
     if (isExactMatch) {
-      console.log(`✅ [EXACT MATCH] at line ${i}: "${line}" === "${cleanMarket}"`);
-      
       // Look in next 6 lines for result
       for (let j = i; j < i + 6 && j < lines.length; j++) {
         const result = parseTwoDigitResult(lines[j]);
         if (result) {
-          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
           return result;
         }
       }
@@ -489,9 +473,6 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
   }
 
   // STEP 2: Try fuzzy/partial match (if exact match fails)
-  // Handle cases like "SRIDEVI" in DB vs "SRIDEVI MORNING" on website
-  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
-  
   const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
   if (marketWords.length === 0) return {};
 
@@ -515,20 +496,16 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
     }
 
     if (allWordsFound) {
-      console.log(`✅ [FUZZY MATCH] at line ${i}: "${line}" contains all words from "${cleanMarket}"`);
-      
       // Look in next 6 lines for result
       for (let j = i; j < i + 6 && j < lines.length; j++) {
         const result = parseTwoDigitResult(lines[j]);
         if (result) {
-          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
           return result;
         }
       }
     }
   }
 
-  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
@@ -617,58 +594,25 @@ export async function scrapeSattaMatkaComIn(
 ): Promise<ScrapedResult> {
   try {
     const response = await fetchUrl("https://satkamatka.com.in/", opts);
-
     const $ = cheerio.load(response.data);
     const text = $("body").text();
-
-    const lines = text
-      .split("\n")
-      .map(l => l.trim())
-      .filter(l => l.length > 0);
-
-    console.log("\n========== 🔍 SCRAPING SATKAMATKA ==========");
-    console.log("Looking for market:", `"${marketName}"`);
-    console.log("Total lines on page:", lines.length);
+    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
 
     const cleanMarket = normalizeScrapeLine(marketName);
-    console.log("Normalized search name:", `"${cleanMarket}"`);
-
-    // Find all potential market names on the page (first 200 lines usually contain them)
-    const potentialMarkets = new Set<string>();
-    for (let i = 0; i < Math.min(300, lines.length); i++) {
-      const cleanLine = normalizeScrapeLine(lines[i]);
-      if (cleanLine && cleanLine.length > 2 && cleanLine.length < 50 && !cleanLine.match(/^\d+$/)) {
-        potentialMarkets.add(cleanLine);
-      }
-    }
-    
-    if (potentialMarkets.size > 0) {
-      console.log(`[DEBUG] Found ${potentialMarkets.size} potential market names on page (first 50):`);
-      const marketList = Array.from(potentialMarkets).slice(0, 50);
-      marketList.forEach(m => console.log(`  - "${m}"`));
-    }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cleanLine = normalizeScrapeLine(line);
-
-      // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
-      const marketFound =
-        cleanLine === cleanMarket ||
-        (` ${cleanLine} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
+      const marketFound = cleanLine === cleanMarket || (` ${cleanLine} `).includes(` ${cleanMarket} `);
 
       if (marketFound) {
-        console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
-
         // Search in next 5 lines for results (try multiple regex patterns)
         for (let j = i; j < i + 5 && j < lines.length; j++) {
           const checkLine = lines[j];
-          console.log(`  👉 Checking [${j}]:`, `"${checkLine}"`);
 
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
           let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
           if (match) {
-            console.log(`✅ FOUND PATTERN 1 (XXX-XX-XXX):`, match[0]);
             return {
               openResult: match[1],
               jodiResult: match[2],
@@ -676,21 +620,19 @@ export async function scrapeSattaMatkaComIn(
             };
           }
 
-          // Try pattern 2: XXX-X (e.g., 567-8) - treat as open-jodi, close will be from next occurrence
+          // Try pattern 2: XXX-X (e.g., 567-8)
           match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
           if (match && !checkLine.includes("...")) {
-            console.log(`✅ FOUND PATTERN 2 (XXX-X):`, match[0]);
             return {
               openResult: match[1],
               jodiResult: match[2],
-              closeResult: match[2],  // Use jodi as close for now
+              closeResult: match[2],
             };
           }
 
           // Try pattern 3: Just numbers (e.g., 156 25 267)
           match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
           if (match) {
-            console.log(`✅ FOUND PATTERN 3 (space-separated):`, match[0]);
             return {
               openResult: match[1],
               jodiResult: match[2],
@@ -698,17 +640,13 @@ export async function scrapeSattaMatkaComIn(
             };
           }
         }
-        
-        console.log(`❌ No result format found after market`);
       }
     }
 
-    console.log("❌ MARKET NOT FOUND - tried to match:", `"${cleanMarket}"`);
-    console.log("========== SCRAPING SATKAMATKA END ==========\n");
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error in scrapeSattaMatkaComIn: ${errorMsg}`);
+    console.error(`[Scraper] Error scraping satkamatka.com.in for ${marketName}: ${errorMsg}`);
     return {};
   }
 }
@@ -776,25 +714,12 @@ export async function fetchAndUpdateMarketResult(
     if (market.sourceUrl) {
       scraped = await scrapeResult(market.sourceUrl, market.name);
     } else {
-      // Markets1 only uses satkamatka.com.in (NOT satta-king-fast.com)
-      // satta-king-fast.com is reserved for Markets2 only
-      console.log(`[Scraper] Markets1 - Using satkamatka.com.in ONLY for ${market.name}...`);
+      // Markets1 uses satkamatka.com.in
       scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
-      
-      if (!scraped.closeResult) {
-        console.log(`[Scraper] ❌ No result found on satkamatka.com.in for ${market.name} - Markets1 does not fallback to other sources`);
-      }
     }
-
-    console.log("========== RESULT DEBUG ==========");
-    console.log("Market:", market.name);
-    console.log("Open:", scraped.openResult);
-    console.log("Jodi:", scraped.jodiResult);
-    console.log("Close:", scraped.closeResult);
-    console.log("==================================");
-
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[Scraper] Error fetching ${market.name}: ${errorMessage}`);
 
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
@@ -807,17 +732,21 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: errorMessage };
   }
 
-  const isValid =
-    scraped.openResult &&
-    scraped.closeResult &&
-    scraped.jodiResult;
-
-  if (!isValid) {
-    console.log("❌ INVALID RESULT — NOT SAVING");
-    return { success: false, message: "Invalid result" };
+  // Validate all fields are present
+  if (!scraped.openResult || !scraped.closeResult || !scraped.jodiResult) {
+    return { success: false, message: "Result not found" };
   }
 
-  // ✅ TODAY's DATE (not YESTERDAY)
+  // Clean/validate the results (remove empty strings, ensure proper format)
+  const cleanedOpen = String(scraped.openResult).trim();
+  const cleanedJodi = String(scraped.jodiResult).trim();
+  const cleanedClose = String(scraped.closeResult).trim();
+
+  if (!cleanedOpen || !cleanedJodi || !cleanedClose) {
+    return { success: false, message: "Result values are empty" };
+  }
+
+  // ✅ Save to database with TODAY's date (IST)
   const resultDateStr = getTodayDateIST();
 
   const [existingResult] = await db
@@ -832,41 +761,43 @@ export async function fetchAndUpdateMarketResult(
 
   if (existingResult) {
     await db.update(resultsTable).set({
-      openResult: scraped.openResult,
-      closeResult: scraped.closeResult,
-      jodiResult: scraped.jodiResult,
+      openResult: cleanedOpen,
+      closeResult: cleanedClose,
+      jodiResult: cleanedJodi,
     }).where(eq(resultsTable.id, existingResult.id));
   } else {
     await db.insert(resultsTable).values({
       marketId: market.id,
       resultDate: resultDateStr,
-      openResult: scraped.openResult,
-      closeResult: scraped.closeResult,
-      jodiResult: scraped.jodiResult,
+      openResult: cleanedOpen,
+      closeResult: cleanedClose,
+      jodiResult: cleanedJodi,
     });
   }
 
+  // Update market table
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
-    openResult: scraped.openResult,
-    closeResult: scraped.closeResult,
-    jodiResult: scraped.jodiResult,
+    openResult: cleanedOpen,
+    closeResult: cleanedClose,
+    jodiResult: cleanedJodi,
   }).where(eq(marketsTable.id, marketId));
 
+  // Log success
   await db.insert(scraperLogsTable).values({
     marketId: market.id,
     marketName: market.name,
-    sourceUrl: market.sourceUrl || "no-url",
+    sourceUrl: market.sourceUrl || "satkamatka.com.in",
     success: true,
-    openResult: scraped.openResult,
-    closeResult: scraped.closeResult,
-    jodiResult: scraped.jodiResult,
+    openResult: cleanedOpen,
+    closeResult: cleanedClose,
+    jodiResult: cleanedJodi,
   });
 
   return {
     success: true,
-    message: "✅ Result saved (first page only) - TODAY's date",
-    data: scraped,
+    message: `✅ ${market.name} → ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
+    data: { openResult: cleanedOpen, jodiResult: cleanedJodi, closeResult: cleanedClose },
   };
 }

@@ -763,25 +763,12 @@ export async function fetchAndUpdateMarketResult(
     if (market.sourceUrl) {
       scraped = await scrapeResult(market.sourceUrl, market.name);
     } else {
-      // Markets1 only uses satkamatka.com.in (NOT satta-king-fast.com)
-      // satta-king-fast.com is reserved for Markets2 only
-      console.log(`[Scraper] Markets1 - Using satkamatka.com.in ONLY for ${market.name}...`);
+      // Markets1 uses satkamatka.com.in
       scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
-      
-      if (!scraped.closeResult) {
-        console.log(`[Scraper] ❌ No result found on satkamatka.com.in for ${market.name} - Markets1 does not fallback to other sources`);
-      }
     }
-
-    console.log("========== RESULT DEBUG ==========");
-    console.log("Market:", market.name);
-    console.log("Open:", scraped.openResult);
-    console.log("Jodi:", scraped.jodiResult);
-    console.log("Close:", scraped.closeResult);
-    console.log("==================================");
-
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[Scraper] Error fetching ${market.name}: ${errorMessage}`);
 
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
@@ -794,17 +781,21 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: errorMessage };
   }
 
-  const isValid =
-    scraped.openResult &&
-    scraped.closeResult &&
-    scraped.jodiResult;
-
-  if (!isValid) {
-    console.log("❌ INVALID RESULT — NOT SAVING");
-    return { success: false, message: "Invalid result" };
+  // Validate all fields are present
+  if (!scraped.openResult || !scraped.closeResult || !scraped.jodiResult) {
+    return { success: false, message: "Result not found" };
   }
 
-  // ✅ TODAY's DATE (not YESTERDAY)
+  // Clean/validate the results (remove empty strings, ensure proper format)
+  const cleanedOpen = String(scraped.openResult).trim();
+  const cleanedJodi = String(scraped.jodiResult).trim();
+  const cleanedClose = String(scraped.closeResult).trim();
+
+  if (!cleanedOpen || !cleanedJodi || !cleanedClose) {
+    return { success: false, message: "Result values are empty" };
+  }
+
+  // ✅ Save to database with TODAY's date (IST)
   const resultDateStr = getTodayDateIST();
 
   const [existingResult] = await db
@@ -819,41 +810,43 @@ export async function fetchAndUpdateMarketResult(
 
   if (existingResult) {
     await db.update(resultsTable).set({
-      openResult: scraped.openResult,
-      closeResult: scraped.closeResult,
-      jodiResult: scraped.jodiResult,
+      openResult: cleanedOpen,
+      closeResult: cleanedClose,
+      jodiResult: cleanedJodi,
     }).where(eq(resultsTable.id, existingResult.id));
   } else {
     await db.insert(resultsTable).values({
       marketId: market.id,
       resultDate: resultDateStr,
-      openResult: scraped.openResult,
-      closeResult: scraped.closeResult,
-      jodiResult: scraped.jodiResult,
+      openResult: cleanedOpen,
+      closeResult: cleanedClose,
+      jodiResult: cleanedJodi,
     });
   }
 
+  // Update market table
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
-    openResult: scraped.openResult,
-    closeResult: scraped.closeResult,
-    jodiResult: scraped.jodiResult,
+    openResult: cleanedOpen,
+    closeResult: cleanedClose,
+    jodiResult: cleanedJodi,
   }).where(eq(marketsTable.id, marketId));
 
+  // Log success
   await db.insert(scraperLogsTable).values({
     marketId: market.id,
     marketName: market.name,
-    sourceUrl: market.sourceUrl || "no-url",
+    sourceUrl: market.sourceUrl || "satkamatka.com.in",
     success: true,
-    openResult: scraped.openResult,
-    closeResult: scraped.closeResult,
-    jodiResult: scraped.jodiResult,
+    openResult: cleanedOpen,
+    closeResult: cleanedClose,
+    jodiResult: cleanedJodi,
   });
 
   return {
     success: true,
-    message: "✅ Result saved (first page only) - TODAY's date",
-    data: scraped,
+    message: `✅ ${market.name} → ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
+    data: { openResult: cleanedOpen, jodiResult: cleanedJodi, closeResult: cleanedClose },
   };
 }
