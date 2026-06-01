@@ -519,6 +519,56 @@ export default function Users() {
                 </div>
               </div>
 
+              {/* Transaction History */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">📜 Recent Activity History</h3>
+                <div className="border border-border/50 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/30">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Date & Time</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Type</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Details</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 3:45 PM</td>
+                        <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
+                        <td className="px-4 py-3 text-sm">WORLI Mumbai - Jodi</td>
+                        <td className="px-4 py-3 text-right font-semibold">-₹100</td>
+                      </tr>
+                      <tr className="border-t border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 2:20 PM</td>
+                        <td className="px-4 py-3"><Badge className="bg-blue-100 text-blue-700">Deposit</Badge></td>
+                        <td className="px-4 py-3 text-sm">UPI Transfer</td>
+                        <td className="px-4 py-3 text-right font-semibold text-green-600">+₹1000</td>
+                      </tr>
+                      <tr className="border-t border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 text-muted-foreground">Jun 1, 2024 11:30 AM</td>
+                        <td className="px-4 py-3"><Badge className="bg-green-100 text-green-700">Win</Badge></td>
+                        <td className="px-4 py-3 text-sm">SRIDEVI - Jodi Win (90x)</td>
+                        <td className="px-4 py-3 text-right font-semibold text-green-600">+₹9000</td>
+                      </tr>
+                      <tr className="border-t border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 text-muted-foreground">May 31, 2024 5:15 PM</td>
+                        <td className="px-4 py-3"><Badge className="bg-orange-100 text-orange-700">Withdrawal</Badge></td>
+                        <td className="px-4 py-3 text-sm">UPI Payout</td>
+                        <td className="px-4 py-3 text-right font-semibold text-red-600">-₹5000</td>
+                      </tr>
+                      <tr className="border-t border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 text-muted-foreground">May 31, 2024 3:00 PM</td>
+                        <td className="px-4 py-3"><Badge className="bg-purple-100 text-purple-700">Bid</Badge></td>
+                        <td className="px-4 py-3 text-sm">MILAN DAY - Close</td>
+                        <td className="px-4 py-3 text-right font-semibold">-₹50</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-muted-foreground">Showing last 5 transactions. View detailed history to see all.</p>
+              </div>
+
               {/* Notes */}
               <div className="space-y-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
                 <p className="text-xs text-amber-700">ℹ️ Note: Detailed stats will be populated when user deposits, places bets, or withdrawals are made.</p>
