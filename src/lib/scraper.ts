@@ -620,15 +620,13 @@ export async function fetchAndUpdateMarketResult(
     if (market.sourceUrl) {
       scraped = await scrapeResult(market.sourceUrl, market.name);
     } else {
-      // Fallback: Try scraping from all known sources by market name
-      // PRIMARY: satkamatka.com.in
-      console.log(`[Scraper] No sourceUrl for ${market.name}, trying satkamatka.com.in (primary)...`);
+      // Markets1 only uses satkamatka.com.in (NOT satta-king-fast.com)
+      // satta-king-fast.com is reserved for Markets2 only
+      console.log(`[Scraper] Markets1 - Using satkamatka.com.in ONLY for ${market.name}...`);
       scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
       
       if (!scraped.closeResult) {
-        // FALLBACK: satta-king-fast.com
-        console.log(`[Scraper] Primary source failed, trying satta-king-fast.com (fallback)...`);
-        scraped = await scrapeSattaKingFast(market.name).catch(() => ({}));
+        console.log(`[Scraper] ❌ No result found on satkamatka.com.in for ${market.name} - Markets1 does not fallback to other sources`);
       }
     }
 
