@@ -10,6 +10,7 @@ let midnightResetTask: cron.ScheduledTask | null = null;
 let lastRunAt: Date | null = null;
 let lastMidnightResetDate: string | null = null;  // Track last reset date (YYYY-MM-DD)
 let isRunning = false;
+let lastMarketStatus: Map<number, boolean> = new Map(); // Track market status changes to detect closures
 
 // Helper function to parse time string (HH:MM format)
 function parseTimeString(timeStr: string): { hours: number; minutes: number } {
@@ -139,7 +140,26 @@ export function startScheduler() {
       const markets = await db.select().from(marketsTable)
         .where(eq(marketsTable.autoUpdate, true));
 
-      const autoUpdateMarkets = markets.filter(m => m.sourceUrl);
+      // Detect recently closed markets and add them for immediate result fetching
+      const justClosedMarkets: typeof markets = [];
+      for (const market of markets) {
+        const wasActive = lastMarketStatus.get(market.id);
+        const isNowActive = market.isActive;
+        
+        // If market just transitioned from active to closed
+        if (wasActive === true && isNowActive === false) {
+          console.log(`[Scheduler] 🔴 Market just closed: ${market.name} - fetching results immediately`);
+          justClosedMarkets.push(market);
+        }
+        
+        // Update status tracking
+        lastMarketStatus.set(market.id, isNowActive);
+      }
+
+      // Combine active markets with just-closed markets for fetching
+      const autoUpdateMarkets = markets
+        .filter(m => m.sourceUrl && m.isActive)
+        .concat(justClosedMarkets.filter(m => m.sourceUrl));
 
       // Get all markets2 with autoUpdate enabled
       const markets2 = await db.select().from(markets2Table)
