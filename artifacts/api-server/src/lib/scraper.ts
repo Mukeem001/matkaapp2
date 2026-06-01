@@ -522,7 +522,11 @@ async function scrapeSattaKingFast(
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error in scrapeSattaKingFast: ${errorMsg}`);
+    // Suppress Cloudflare/WAF, timeout, and IP blocking errors - these are operational not bugs
+    const suppressible = errorMsg.includes("CF/WAF") || errorMsg.includes("Cloudflare") || errorMsg.includes("Website blocking") || errorMsg.includes("timeout") || errorMsg.includes("IP blocked");
+    if (!suppressible) {
+      console.error(`[Scraper] scrapeSattaKingFast error: ${errorMsg}`);
+    }
     return {};
   }
 }
@@ -732,7 +736,11 @@ export async function fetchAndUpdateMarketResult(
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[Scraper] Error fetching ${market.name}: ${errorMessage}`);
+    // Suppress Cloudflare/WAF, timeout, and IP blocking errors - these are operational not bugs
+    const suppressible = errorMessage.includes("CF/WAF") || errorMessage.includes("Cloudflare") || errorMessage.includes("Website blocking") || errorMessage.includes("timeout") || errorMessage.includes("IP blocked");
+    if (!suppressible) {
+      console.error(`[Scraper] Error fetching ${market.name}: ${errorMessage}`);
+    }
 
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
