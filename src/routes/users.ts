@@ -198,17 +198,17 @@ router.get("/users/:id/stats", authMiddleware, async (req, res): Promise<void> =
 
     const userId = params.data.id;
 
-    // Get total deposits (approved only)
+    // Get total deposits (success only)
     const [depositResult] = await db
       .select({ total: sum(depositsTable.amount) })
       .from(depositsTable)
-      .where(and(eq(depositsTable.userId, userId), eq(depositsTable.status, "approved")));
+      .where(and(eq(depositsTable.userId, userId), eq(depositsTable.status, "success")));
 
-    // Get total withdrawals (approved only)
+    // Get total withdrawals (success only)
     const [withdrawalResult] = await db
       .select({ total: sum(withdrawalsTable.amount) })
       .from(withdrawalsTable)
-      .where(and(eq(withdrawalsTable.userId, userId), eq(withdrawalsTable.status, "approved")));
+      .where(and(eq(withdrawalsTable.userId, userId), eq(withdrawalsTable.status, "success")));
 
     // Get total bids count
     const [totalBidsResult] = await db

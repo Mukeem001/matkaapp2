@@ -35,6 +35,8 @@ export default function Users() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'deposits' | 'withdrawals' | 'bids'>('all');
+  const [historyPageSize] = useState(5);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [userStats, setUserStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [transactionHistory, setTransactionHistory] = useState<any[]>([]);
@@ -45,6 +47,7 @@ export default function Users() {
     if (viewingUser) {
       setStatsLoading(true);
       setTransactionLoading(true);
+      setHistoryCurrentPage(1);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
       // Fetch stats
@@ -691,84 +694,148 @@ export default function Users() {
                             Loading transactions...
                           </td>
                         </tr>
-                      ) : transactionHistory.filter(t => {
-                        if (historyFilter === 'all') return true;
-                        if (historyFilter === 'deposits') return t.type === 'deposit';
-                        if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
-                        if (historyFilter === 'bids') return t.type.includes('bid');
-                        return true;
-                      }).length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                            No {historyFilter !== 'all' ? historyFilter : 'transactions'} found
-                          </td>
-                        </tr>
-                      ) : (
-                        transactionHistory
-                          .filter(t => {
-                            if (historyFilter === 'all') return true;
-                            if (historyFilter === 'deposits') return t.type === 'deposit';
-                            if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
-                            if (historyFilter === 'bids') return t.type.includes('bid');
-                            return true;
-                          })
-                          .map((tx, idx) => {
-                            let badgeClassName = 'bg-gray-100 text-gray-700';
-                            let amountColor = 'text-gray-600';
+                      ) : (() => {
+                        const filteredTransactions = transactionHistory.filter(t => {
+                          if (historyFilter === 'all') return true;
+                          if (historyFilter === 'deposits') return t.type === 'deposit';
+                          if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
+                          if (historyFilter === 'bids') return t.type.includes('bid');
+                          return true;
+                        });
 
-                            if (tx.type === 'deposit') {
-                              badgeClassName = 'bg-blue-100 text-blue-700';
-                              amountColor = 'text-green-600';
-                            } else if (tx.type === 'withdrawal') {
-                              badgeClassName = 'bg-orange-100 text-orange-700';
-                              amountColor = 'text-red-600';
-                            } else if (tx.type === 'bid-win') {
-                              badgeClassName = 'bg-green-100 text-green-700';
-                              amountColor = 'text-green-600';
-                            } else if (tx.type === 'bid-loss') {
-                              badgeClassName = 'bg-red-100 text-red-700';
-                              amountColor = 'text-red-600';
-                            } else {
-                              badgeClassName = 'bg-purple-100 text-purple-700';
-                              amountColor = 'text-gray-600';
-                            }
+                        const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / historyPageSize));
+                        const startIdx = (historyCurrentPage - 1) * historyPageSize;
+                        const endIdx = startIdx + historyPageSize;
+                        const paginatedTransactions = filteredTransactions.slice(startIdx, endIdx);
 
-                            const typeLabel =
-                              tx.type === 'deposit'
-                                ? 'Deposit'
-                                : tx.type === 'withdrawal'
-                                  ? 'Withdrawal'
-                                  : tx.type === 'bid-win'
-                                    ? 'Win'
-                                    : tx.type === 'bid-loss'
-                                      ? 'Loss'
-                                      : 'Bid';
+                        if (filteredTransactions.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                No {historyFilter !== 'all' ? historyFilter : 'transactions'} found
+                              </td>
+                            </tr>
+                          );
+                        }
 
-                            return (
-                              <tr key={idx} className="border-t border-border/30 hover:bg-muted/20">
-                                <td className="px-4 py-3 text-muted-foreground">
-                                  {format(tx.date, 'MMM d, yyyy h:mm a')}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <Badge className={badgeClassName}>
-                                    {typeLabel}
-                                  </Badge>
-                                </td>
-                                <td className="px-4 py-3 text-sm">{tx.details}</td>
-                                <td className={`px-4 py-3 text-right font-semibold ${amountColor}`}>
-                                  {tx.type === 'withdrawal' || tx.type === 'bid-loss' || (tx.type === 'deposit' && tx.status !== 'approved') || tx.type === 'bid'
-                                    ? '-'
-                                    : '+'}
-                                  ₹{Math.abs(tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                </td>
-                              </tr>
-                            );
-                          })
-                      )}
+                        return paginatedTransactions.map((tx, idx) => {
+                          let badgeClassName = 'bg-gray-100 text-gray-700';
+                          let amountColor = 'text-gray-600';
+
+                          if (tx.type === 'deposit') {
+                            badgeClassName = 'bg-blue-100 text-blue-700';
+                            amountColor = 'text-green-600';
+                          } else if (tx.type === 'withdrawal') {
+                            badgeClassName = 'bg-orange-100 text-orange-700';
+                            amountColor = 'text-red-600';
+                          } else if (tx.type === 'bid-win') {
+                            badgeClassName = 'bg-green-100 text-green-700';
+                            amountColor = 'text-green-600';
+                          } else if (tx.type === 'bid-loss') {
+                            badgeClassName = 'bg-red-100 text-red-700';
+                            amountColor = 'text-red-600';
+                          } else {
+                            badgeClassName = 'bg-purple-100 text-purple-700';
+                            amountColor = 'text-gray-600';
+                          }
+
+                          const typeLabel =
+                            tx.type === 'deposit'
+                              ? 'Deposit'
+                              : tx.type === 'withdrawal'
+                                ? 'Withdrawal'
+                                : tx.type === 'bid-win'
+                                  ? 'Win'
+                                  : tx.type === 'bid-loss'
+                                    ? 'Loss'
+                                    : 'Bid';
+
+                          return (
+                            <tr key={idx} className="border-t border-border/30 hover:bg-muted/20">
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {format(tx.date, 'MMM d, yyyy h:mm a')}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={badgeClassName}>
+                                  {typeLabel}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-sm">{tx.details}</td>
+                              <td className={`px-4 py-3 text-right font-semibold ${amountColor}`}>
+                                {tx.type === 'withdrawal' || tx.type === 'bid-loss' || (tx.type === 'deposit' && tx.status !== 'success') || tx.type === 'bid'
+                                  ? '-'
+                                  : '+'}
+                                ₹{Math.abs(tx.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-muted-foreground">Showing recent transactions filtered by type.</p>
+
+                {/* Pagination */}
+                {(() => {
+                  const filteredTransactions = transactionHistory.filter(t => {
+                    if (historyFilter === 'all') return true;
+                    if (historyFilter === 'deposits') return t.type === 'deposit';
+                    if (historyFilter === 'withdrawals') return t.type === 'withdrawal';
+                    if (historyFilter === 'bids') return t.type.includes('bid');
+                    return true;
+                  });
+
+                  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / historyPageSize));
+                  
+                  if (filteredTransactions.length === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="text-xs text-muted-foreground">
+                        Showing <span className="font-semibold">{Math.min((historyCurrentPage - 1) * historyPageSize + 1, filteredTransactions.length)}</span> to <span className="font-semibold">{Math.min(historyCurrentPage * historyPageSize, filteredTransactions.length)}</span> of <span className="font-semibold">{filteredTransactions.length}</span> transactions
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={historyCurrentPage === 1}
+                          className="h-8 px-3"
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1 px-2">
+                          <span className="text-xs text-muted-foreground">Page</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            max={totalPages}
+                            value={historyCurrentPage}
+                            onChange={(e) => {
+                              const page = parseInt(e.target.value) || 1;
+                              setHistoryCurrentPage(Math.min(Math.max(page, 1), totalPages));
+                            }}
+                            className="w-10 h-8 px-2 text-center text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">of {totalPages}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryCurrentPage(prev => prev + 1)}
+                          disabled={historyCurrentPage >= totalPages}
+                          className="h-8 px-3"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <p className="text-xs text-muted-foreground">Showing 5 transactions per page. Total {transactionHistory.length} transactions loaded.</p>
               </div>
 
               {/* Notes */}
