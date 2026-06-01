@@ -1,10 +1,17 @@
 import * as cheerio from "cheerio";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
-import puppeteer, { Browser, Page } from "puppeteer";
 import axios from "axios";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
+
+let puppeteer: any = null;
+
+try {
+  puppeteer = require("puppeteer");
+} catch {
+  console.warn("[Scraper] Puppeteer not available - will use axios fallback only");
+}
 
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -33,9 +40,13 @@ const browserLaunchOptions = {
 
 
 
-let sharedBrowser: Browser | null = null;
+let sharedBrowser: any = null;
 
-async function getBrowser(): Promise<Browser> {
+async function getBrowser(): Promise<any> {
+  if (!puppeteer) {
+    throw new Error("Puppeteer not available");
+  }
+
   if (sharedBrowser && sharedBrowser.isConnected()) {
     return sharedBrowser;
   }
@@ -110,7 +121,7 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
       if (usePuppeteer) {
         try {
           const browser = await getBrowser();
-          let page: Page | undefined;
+          let page: any | undefined;
 
           try {
             page = await browser.newPage();
@@ -507,19 +518,6 @@ export async function fetchAndUpdateMarketResult(
 
   if (!market.sourceUrl) {
     return { success: false, message: "No source URL" };
-  }
-
-  // ✅ Check if current time is after openTime + 10 minutes
-  if (!isAfterOpenWindow(market.openTime)) {
-    const { hours, minutes } = parseTimeString(market.openTime);
-    const openWindow = timeToMinutes(hours, minutes) + 10;
-    const openHrs = Math.floor(openWindow / 60) % 24;
-    const openMins = openWindow % 60;
-    const windowTimeStr = `${String(openHrs).padStart(2, '0')}:${String(openMins).padStart(2, '0')}`;
-    return { 
-      success: false, 
-      message: `Can fetch only after ${windowTimeStr} (openTime: ${market.openTime} + 10 min)` 
-    };
   }
 
   let scraped: ScrapedResult;
