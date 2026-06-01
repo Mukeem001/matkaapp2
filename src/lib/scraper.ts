@@ -647,48 +647,26 @@ export async function scrapeAkingSattaComIn(
     for (const url of urls) {
       try {
         console.log(`[Scraper] Trying ${url}...`);
-        response = await fetchUrl(url, { ...opts, retryCount: 3 });
-        if (response && response.data && response.data.length > 100) {
-          console.log(`[Scraper] Successfully fetched ${response.data.length} bytes from ${url}`);
+        response = await fetchUrl(url, { ...opts, forceProxy: true, retryCount: 2 });
+        if (response && response.data && response.data.length > 500) {
+          console.log(`[Scraper] ✅ Fetched ${response.data.length} bytes from ${url}`);
           break;
         }
       } catch (err) {
         lastError = err;
-        console.log(`[Scraper] Failed to fetch ${url}: ${err instanceof Error ? err.message : err}`);
-        continue;
+        console.log(`[Scraper] ❌ Failed ${url}: ${err instanceof Error ? err.message : err}`);
       }
     }
     
     if (!response || !response.data) {
-      console.error(`[Scraper] Could not fetch akingsatta.in. Last error: ${lastError}`);
+      console.error(`[Scraper] ❌ Could not fetch. Last error: ${lastError}`);
       return {};
     }
 
     const $ = cheerio.load(response.data);
     
-    // Try multiple selectors to find results
-    const selectors = [
-      "body",
-      ".results",
-      "#results",
-      ".market-results",
-      "table",
-      ".main",
-      ".container",
-    ];
-    
-    let text = "";
-    for (const selector of selectors) {
-      const element = $(selector).text();
-      if (element && element.length > 100) {
-        text = element;
-        break;
-      }
-    }
-    
-    if (!text) {
-      text = $("body").text();
-    }
+    // Try multiple selectors
+    let text = $("body").text();
     
     const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
     
@@ -707,9 +685,14 @@ export async function scrapeAkingSattaComIn(
       if (marketFound) {
         console.log(`[Scraper] Market found at line ${i}: "${line}"`);
         
-        // Search in same line and next 5 lines for results
-        for (let j = i; j < i + 6 && j < lines.length; j++) {
+        // Search next 20 lines (expanded from 5)
+        for (let j = i; j < Math.min(i + 20, lines.length); j++) {
           const checkLine = lines[j];
+
+          // Skip common non-result lines
+          if (checkLine.includes("Chart") || checkLine.includes("ध्यान दें") || checkLine.length < 2) {
+            continue;
+          }
 
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
           let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
