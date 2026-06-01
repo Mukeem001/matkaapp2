@@ -255,6 +255,8 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             decompress: true,
           });
 
+          console.log(`[Scraper] Axios request to ${url} got ${response.data?.length || 0} bytes, status ${response.status}`);
+
           if (response.status >= 400) {
             throw new Error(`HTTP ${response.status}`);
           }
@@ -421,6 +423,7 @@ async function scrapeSattaKingFast(
     const $ = cheerio.load(response.data);
     const directResult = findSattaKingFastMarketResult($, marketName);
     if (directResult.closeResult) {
+      console.log(`[Scraper] Found result via tr.game-result selector for "${marketName}": ${directResult.openResult}-${directResult.jodiResult}-${directResult.closeResult}`);
       return directResult;
     }
 
@@ -432,7 +435,20 @@ async function scrapeSattaKingFast(
 
     console.log(`[Scraper] Satta King Fast - Found ${lines.length} lines for market "${marketName}"`);
     
-    return findMarketResult(lines, marketName);
+    // Log first 50 lines for debugging
+    if (lines.length < 100) {
+      console.log("[Scraper] Page content (first 100 lines):", lines.slice(0, 100).join(" | "));
+    } else {
+      console.log("[Scraper] First 50 lines:", lines.slice(0, 50).join(" | "));
+    }
+    
+    const result = findMarketResult(lines, marketName);
+    if (result.closeResult) {
+      console.log(`[Scraper] Found result via market name matching for "${marketName}": ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
+    } else {
+      console.log(`[Scraper] No result found for market "${marketName}" in Satta King Fast`);
+    }
+    return result;
   } catch (error) {
     console.error(`[Scraper] Error in scrapeSattaKingFast:`, error);
     return {};
