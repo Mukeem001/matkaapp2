@@ -1,7 +1,8 @@
-0import * as cheerio from "cheerio";
+import * as cheerio from "cheerio";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 import puppeteer, { Browser, Page } from "puppeteer";
+import axios from "axios";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
 
@@ -101,65 +102,100 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
   const attempts = opts?.retryCount ? Math.max(1, opts.retryCount) : 4;
 
   let lastError: unknown;
+  let usePuppeteer = true;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const browser = await getBrowser();
-    let page: Page | undefined;
-
     try {
-      page = await browser.newPage();
-
-      // light fingerprint randomization (proxy-free)
-      const ua = pick(USER_AGENTS);
-      const viewport = pick(VIEWPORTS);
-
-      await page.setUserAgent(ua);
-      await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Upgrade-Insecure-Requests": "1",
-      });
-      await page.setCacheEnabled(false);
-      await page.setViewport(viewport);
-      await page.setDefaultNavigationTimeout(45000);
-      await page.setDefaultTimeout(45000);
-
-      // 1st try: networkidle2 (previous approach)
-      const response = await page.goto(url, {
-        waitUntil: "networkidle2",
-        timeout: 45000,
-      });
-
-      const status = response?.status();
-
-      await new Promise(resolve => setTimeout(resolve, 2500));
-
-      let content = await page.content();
-      let body = await page
-        .evaluate(() => (document as any).body?.innerText || "")
-        .catch(() => "");
-
-
-      // If it looks like CF challenge, retry using a less strict navigation strategy
-      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+      // Try Puppeteer first (if available)
+      if (usePuppeteer) {
         try {
-          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-          await new Promise(resolve => setTimeout(resolve, 2500));
-          content = await page.content();
-          body = await page.evaluate(() => (document as any).body?.innerText || "").catch(() => "");
+          const browser = await getBrowser();
+          let page: Page | undefined;
 
-        } catch {
-          // ignore fallback errors
+          try {
+            page = await browser.newPage();
+
+            // light fingerprint randomization (proxy-free)
+            const ua = pick(USER_AGENTS);
+            const viewport = pick(VIEWPORTS);
+
+            await page.setUserAgent(ua);
+            await page.setExtraHTTPHeaders({
+              "Accept-Language": "en-US,en;q=0.9",
+              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+              "Upgrade-Insecure-Requests": "1",
+            });
+            await page.setCacheEnabled(false);
+            await page.setViewport(viewport);
+            await page.setDefaultNavigationTimeout(45000);
+            await page.setDefaultTimeout(45000);
+
+            const response = await page.goto(url, {
+              waitUntil: "networkidle2",
+              timeout: 45000,
+            });
+
+            const status = response?.status();
+
+            await new Promise(resolve => setTimeout(resolve, 2500));
+
+            let content = await page.content();
+            let body = await page
+              .evaluate(() => (document as any).body?.innerText || "")
+              .catch(() => "");
+
+            // If it looks like CF challenge, retry using a less strict navigation strategy
+            if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+              try {
+                await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+                await new Promise(resolve => setTimeout(resolve, 2500));
+                content = await page.content();
+                body = await page.evaluate(() => (document as any).body?.innerText || "").catch(() => "");
+              } catch {
+                // ignore fallback errors
+              }
+            }
+
+            if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
+              const snippet = String(body || content || "").slice(0, 250);
+              throw new Error(`Cloudflare block detected status=${status} snippet=${snippet}`);
+            }
+
+            return { data: content, status } as any;
+          } finally {
+            if (page) {
+              await page.close().catch(() => undefined);
+            }
+          }
+        } catch (puppeteerError: unknown) {
+          // Check if this is a Chrome not found error
+          const errorMsg = String(puppeteerError);
+          if (errorMsg.includes("Could not find Chrome") || errorMsg.includes("ENOENT")) {
+            console.warn("[Scraper] Chrome not available, falling back to HTTP requests");
+            usePuppeteer = false;
+            lastError = puppeteerError;
+            // Continue to axios fallback
+          } else {
+            throw puppeteerError;
+          }
         }
       }
 
+      // Fallback: Use axios for simple HTTP requests
+      if (!usePuppeteer) {
+        const ua = pick(USER_AGENTS);
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": ua,
+            "Accept-Language": "en-US,en;q=0.9",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          },
+          timeout: 30000,
+          validateStatus: () => true, // Accept any status
+        });
 
-      if (isCloudflareBlock(body, status) || isCloudflareBlock(content, status)) {
-        const snippet = String(body || content || "").slice(0, 250);
-        throw new Error(`Cloudflare block detected status=${status} snippet=${snippet}`);
+        return { data: response.data, status: response.status } as any;
       }
-
-      return { data: content, status } as any;
     } catch (error: unknown) {
       lastError = error;
       await closeBrowser();
@@ -168,10 +204,6 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
         await sleep(delay);
       } else {
         throw error;
-      }
-    } finally {
-      if (page) {
-        await page.close().catch(() => undefined);
       }
     }
   }
