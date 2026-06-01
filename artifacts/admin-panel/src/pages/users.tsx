@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGetUsers, useUpdateUser, getGetUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Ban, CheckCircle2, Wallet, History, X, Trash2 } from "lucide-react";
+import { Search, Ban, CheckCircle2, Wallet, Eye, X, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +27,7 @@ export default function Users() {
   const [search, setSearch] = useState("");
   const [walletDialog, setWalletDialog] = useState<User | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<User | null>(null);
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>(null);
   const [customDateFrom, setCustomDateFrom] = useState("");
@@ -285,6 +286,14 @@ export default function Users() {
                     <Button 
                       variant="outline" 
                       size="sm" 
+                      className="h-8 gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
+                      onClick={() => setViewingUser(user)}
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
                       className="h-8 gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
                       onClick={() => {
                         setWalletDialog(user);
@@ -422,6 +431,100 @@ export default function Users() {
               {isDeleting ? "Deleting..." : "Delete User"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Details Modal */}
+      <Dialog open={!!viewingUser} onOpenChange={(o) => !o && setViewingUser(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              User Details - {viewingUser?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Comprehensive overview of user activity and information
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingUser && (
+            <div className="space-y-6">
+              {/* Personal Info */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">📋 Personal Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Name</p>
+                    <p className="font-medium">{viewingUser.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Phone</p>
+                    <p className="font-medium">{viewingUser.phone}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Email</p>
+                    <p className="font-medium">{viewingUser.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Joined</p>
+                    <p className="font-medium">{format(new Date(viewingUser.createdAt), 'PPP')}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Status</p>
+                    <Badge variant={viewingUser.isBlocked ? 'destructive' : 'default'} className={!viewingUser.isBlocked ? 'bg-blue-500' : ''}>
+                      {viewingUser.isBlocked ? 'Blocked' : 'Active'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Wallet Info */}
+              <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                <h3 className="font-semibold text-sm flex items-center gap-2">💰 Wallet Balance</h3>
+                <p className="text-2xl font-bold text-emerald-600">₹{(viewingUser.walletBalance ?? 0).toLocaleString()}</p>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-muted-foreground mb-1">💵 Total Deposits</p>
+                  <p className="text-xl font-bold text-blue-600">₹0</p>
+                </div>
+                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <p className="text-xs text-muted-foreground mb-1">📤 Total Withdrawals</p>
+                  <p className="text-xl font-bold text-orange-600">₹0</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <p className="text-xs text-muted-foreground mb-1">🎲 Total Bets</p>
+                  <p className="text-xl font-bold text-purple-600">0</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-xs text-muted-foreground mb-1">✅ Bets Won</p>
+                  <p className="text-xl font-bold text-green-600">0</p>
+                </div>
+              </div>
+
+              {/* Win/Loss Summary */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="font-semibold text-sm">📊 Win/Loss Summary</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><TrendingUp className="w-3 h-3" /> Total Winnings</p>
+                    <p className="text-lg font-bold text-green-600">₹0</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><TrendingDown className="w-3 h-3" /> Total Losses</p>
+                    <p className="text-lg font-bold text-red-600">₹0</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p className="text-xs text-amber-700">ℹ️ Note: Detailed stats will be populated when user deposits, places bets, or withdrawals are made.</p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
