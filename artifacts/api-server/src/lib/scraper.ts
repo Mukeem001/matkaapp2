@@ -2,6 +2,8 @@ import * as cheerio from "cheerio";
 import { eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 import axios from "axios";
+import * as http from "http";
+import * as https from "https";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { getTodayDateIST } from "./date-utils";
 
@@ -236,8 +238,8 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             validateStatus: () => true,
             decompress: true,
             maxRedirects: 5,
-            httpAgent: new (require("http").Agent)({ keepAlive: true }),
-            httpsAgent: new (require("https").Agent)({ keepAlive: true }),
+            httpAgent: new http.Agent({ keepAlive: true }),
+            httpsAgent: new https.Agent({ keepAlive: true }),
           });
 
           console.log(`[Scraper] Axios request to ${url} got ${response.data?.length || 0} bytes, status ${response.status}`);
@@ -704,17 +706,33 @@ export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?
     console.log("\n========== 🔴 [MARKETS2] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    // Markets2 uses ONLY satta-king-fast.com (NOT satkamatka.com.in)
-    console.log("[Scraper] Markets2 - Using satta-king-fast.com ONLY");
-    const sattaKingResult = await scrapeSattaKingFast(marketName, opts);
+    // Try satta-king-fast.com first
+    console.log("[Scraper] Markets2 - Attempting satta-king-fast.com...");
+    const sattaKingResult = await scrapeSattaKingFast(marketName, opts).catch(err => {
+      console.log(`[Scraper] satta-king-fast.com failed: ${err.message}`);
+      return {};
+    });
 
     if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND:", sattaKingResult);
+      console.log("✅ [MARKETS2] RESULT FOUND from satta-king-fast.com:", sattaKingResult);
       console.log("========== [MARKETS2] SCRAPING END - SUCCESS ==========");
       return sattaKingResult;
     }
 
-    console.log("❌ [MARKETS2] RESULT NOT FOUND on satta-king-fast.com");
+    // Fallback to satkamatka.com.in if satta-king-fast.com fails or returns empty
+    console.log("[Scraper] Fallback: Trying satkamatka.com.in for Markets2...");
+    const satkamatkaResult = await scrapeSattaMatkaComIn(marketName, opts).catch(err => {
+      console.log(`[Scraper] satkamatka.com.in also failed: ${err.message}`);
+      return {};
+    });
+
+    if (satkamatkaResult.openResult || satkamatkaResult.jodiResult || satkamatkaResult.closeResult) {
+      console.log("✅ [MARKETS2] RESULT FOUND from satkamatka.com.in (fallback):", satkamatkaResult);
+      console.log("========== [MARKETS2] SCRAPING END - SUCCESS (FALLBACK) ==========");
+      return satkamatkaResult;
+    }
+
+    console.log("❌ [MARKETS2] RESULT NOT FOUND on both sources");
     console.log("========== [MARKETS2] SCRAPING END - FAILED ==========");
     return {};
 
