@@ -598,7 +598,7 @@ export async function scrapeResult(
 }
 
 // ================= SATKAMATKA (FIRST PAGE ONLY) =================
-async function scrapeSattaMatkaComIn(
+export async function scrapeSattaMatkaComIn(
   marketName: string,
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {

@@ -7,6 +7,13 @@
     "hello": "tsx ./src/hello.ts",
     "seed-admin": "tsx ./src/seed-admin.ts",
     "seed-demo": "tsx ./src/seed-demo.ts",
+    "verify-markets": "tsx ./src/verify-markets1-results.ts",
+    "check-autoupdate": "tsx ./src/check-market-autoupdate.ts",
+    "test-update": "tsx ./src/test-update-market.ts",
+    "check-db": "tsx ./src/check-db-directly.ts",
+    "check-status": "tsx ./src/check-market-status.ts",
+    "check-dates": "tsx ./src/check-dates-range.ts",
+    "bulk-update": "tsx ./src/bulk-update-markets.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
