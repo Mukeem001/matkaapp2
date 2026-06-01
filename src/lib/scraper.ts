@@ -569,15 +569,27 @@ export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?
     console.log("\n========== 🔴 [LIVE] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    const result = await scrapeSattaKingFast(marketName, opts);
+    // Try satkamatka.com.in FIRST (primary source)
+    console.log("[Scraper] Trying primary source: satkamatka.com.in");
+    const satkaResult = await scrapeSattaMatkaComIn(marketName, opts);
 
-    if (result.openResult || result.jodiResult || result.closeResult) {
-      console.log("✅ [LIVE] MARKET RESULT FOUND:", result);
+    if (satkaResult.openResult || satkaResult.jodiResult || satkaResult.closeResult) {
+      console.log("✅ [LIVE] MARKET RESULT FOUND from satkamatka.com.in:", satkaResult);
       console.log("========== [LIVE] SCRAPING END - SUCCESS ==========");
-      return result;
+      return satkaResult;
     }
 
-    console.log("❌ [LIVE] MARKET NOT FOUND");
+    // Fallback: Try satta-king-fast.com
+    console.log("[Scraper] Primary source failed, trying fallback: satta-king-fast.com");
+    const sattaKingResult = await scrapeSattaKingFast(marketName, opts);
+
+    if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
+      console.log("✅ [LIVE] MARKET RESULT FOUND from satta-king-fast.com:", sattaKingResult);
+      console.log("========== [LIVE] SCRAPING END - SUCCESS (FALLBACK) ==========");
+      return sattaKingResult;
+    }
+
+    console.log("❌ [LIVE] MARKET NOT FOUND in any source");
     console.log("========== [LIVE] SCRAPING END - FAILED ==========");
     return {};
 
@@ -609,14 +621,14 @@ export async function fetchAndUpdateMarketResult(
       scraped = await scrapeResult(market.sourceUrl, market.name);
     } else {
       // Fallback: Try scraping from all known sources by market name
-      console.log(`[Scraper] No sourceUrl for ${market.name}, trying all sources...`);
-      
-      // Try satta-king-fast first
-      scraped = await scrapeSattaKingFast(market.name).catch(() => ({}));
+      // PRIMARY: satkamatka.com.in
+      console.log(`[Scraper] No sourceUrl for ${market.name}, trying satkamatka.com.in (primary)...`);
+      scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
       
       if (!scraped.closeResult) {
-        // Try satkamatka if satta-king-fast didn't work
-        scraped = await scrapeSattaMatkaComIn(market.name).catch(() => ({}));
+        // FALLBACK: satta-king-fast.com
+        console.log(`[Scraper] Primary source failed, trying satta-king-fast.com (fallback)...`);
+        scraped = await scrapeSattaKingFast(market.name).catch(() => ({}));
       }
     }
 
