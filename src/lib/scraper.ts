@@ -563,39 +563,29 @@ async function scrapeSattaMatkaComIn(
   return {};
 }
 
-// ================= SATKAMATKA LIVE RESULTS (DIRECTLY FROM WEBSITE) =================
+// ================= MARKETS2 LIVE RESULTS (SATTA-KING-FAST.COM ONLY) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
-    console.log("\n========== 🔴 [LIVE] SCRAPING START ==========");
+    console.log("\n========== 🔴 [MARKETS2] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
 
-    // Try satkamatka.com.in FIRST (primary source)
-    console.log("[Scraper] Trying primary source: satkamatka.com.in");
-    const satkaResult = await scrapeSattaMatkaComIn(marketName, opts);
-
-    if (satkaResult.openResult || satkaResult.jodiResult || satkaResult.closeResult) {
-      console.log("✅ [LIVE] MARKET RESULT FOUND from satkamatka.com.in:", satkaResult);
-      console.log("========== [LIVE] SCRAPING END - SUCCESS ==========");
-      return satkaResult;
-    }
-
-    // Fallback: Try satta-king-fast.com
-    console.log("[Scraper] Primary source failed, trying fallback: satta-king-fast.com");
+    // Markets2 uses ONLY satta-king-fast.com (NOT satkamatka.com.in)
+    console.log("[Scraper] Markets2 - Using satta-king-fast.com ONLY");
     const sattaKingResult = await scrapeSattaKingFast(marketName, opts);
 
     if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
-      console.log("✅ [LIVE] MARKET RESULT FOUND from satta-king-fast.com:", sattaKingResult);
-      console.log("========== [LIVE] SCRAPING END - SUCCESS (FALLBACK) ==========");
+      console.log("✅ [MARKETS2] RESULT FOUND:", sattaKingResult);
+      console.log("========== [MARKETS2] SCRAPING END - SUCCESS ==========");
       return sattaKingResult;
     }
 
-    console.log("❌ [LIVE] MARKET NOT FOUND in any source");
-    console.log("========== [LIVE] SCRAPING END - FAILED ==========");
+    console.log("❌ [MARKETS2] RESULT NOT FOUND on satta-king-fast.com");
+    console.log("========== [MARKETS2] SCRAPING END - FAILED ==========");
     return {};
 
   } catch (error) {
-    console.error("[LIVE] Error:", error);
-    console.log("========== [LIVE] SCRAPING END - ERROR ==========");
+    console.error("[MARKETS2] Error:", error);
+    console.log("========== [MARKETS2] SCRAPING END - ERROR ==========");
     return {};
   }
 }
