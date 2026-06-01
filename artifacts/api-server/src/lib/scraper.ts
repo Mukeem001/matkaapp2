@@ -571,7 +571,7 @@ export async function scrapeSattaMatkaComIn(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
   try {
-    const response = await fetchUrl("https://satkamatka.com.in/", opts);
+    const response = await fetchUrl("https://akingsatta.in/", opts);
 
     const $ = cheerio.load(response.data);
     const text = $("body").text();

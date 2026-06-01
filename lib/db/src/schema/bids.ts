@@ -13,6 +13,7 @@ export const bidsTable = pgTable("bids", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   number: text("number").notNull(),
   marketopenclose: text("market_open_close").default("open-bids"), // open-bids, close-bids, full-sangam, Open Ank - Close Patti, Open Patti - Close Ank
+  bidsStatus: text("bids_status").default("open-bids"), // open-bids, close-bids
   openTime: text("open_time").default(""),
   closeTime: text("close_time").default(""),
   currentTime: timestamp("current_time").defaultNow(),
