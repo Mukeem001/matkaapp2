@@ -203,6 +203,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
               Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
               "Cache-Control": "no-cache",
               "Pragma": "no-cache",
+              "Referer": "https://google.com",
+              "Accept-Encoding": "gzip, deflate",
+              "Connection": "keep-alive",
+              "Upgrade-Insecure-Requests": "1",
             },
             timeout: 30000,
             validateStatus: () => true,
@@ -211,16 +215,36 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
 
           console.log(`[Scraper] Axios request to ${url} got ${response.data?.length || 0} bytes, status ${response.status}`);
 
-          if (response.status >= 400) {
-            throw new Error(`HTTP ${response.status}`);
+          // Check for Cloudflare/WAF blocks even if status is not 400+
+          if (isCloudflareBlock(String(response.data || ""), response.status)) {
+            const snippet = String(response.data || "").slice(0, 250);
+            throw new Error(`Website blocking requests (CF/WAF) status=${response.status} snippet=${snippet}`);
+          }
+
+          if (response.status >= 500) {
+            throw new Error(`HTTP ${response.status} - Server Error`);
+          }
+
+          // For 403 Forbidden, still try to return the data if it looks like HTML
+          if (response.status === 403 && (!response.data || response.data.length < 1000)) {
+            throw new Error(`HTTP ${response.status} - Access Denied (likely IP blocked)`);
           }
 
           return { data: response.data, status: response.status } as any;
         } catch (axiosError) {
           lastError = axiosError;
+          const errorMsg = String(axiosError);
+          const is403Error = errorMsg.includes("403");
+          
           if (attempt < attempts) {
-            // Add longer delay for axios retries
-            const delay = 2000 * attempt + Math.floor(Math.random() * 1500);
+            // Longer delays for 403 errors (IP blocking), exponential backoff
+            let delay;
+            if (is403Error) {
+              delay = (3000 * attempt) + Math.floor(Math.random() * 2000);
+              console.log(`[Scraper] Got 403 - retry ${attempt}/${attempts} after ${delay}ms`);
+            } else {
+              delay = (2000 * attempt) + Math.floor(Math.random() * 1500);
+            }
             await sleep(delay);
           } else {
             throw axiosError;
