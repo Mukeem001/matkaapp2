@@ -578,7 +578,7 @@ async function scrapeSattaMatkaComIn(
     const lines = text
       .split("\n")
       .map(l => l.trim())
-      .filter(l => l.length > 0);  // Keep all lines
+      .filter(l => l.length > 0);
 
     console.log("\n========== 🔍 SCRAPING SATKAMATKA ==========");
     console.log("Looking for market:", `"${marketName}"`);
@@ -602,6 +602,23 @@ async function scrapeSattaMatkaComIn(
       marketList.forEach(m => console.log(`  - "${m}"`));
     }
 
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cleanLine = normalizeScrapeLine(line);
+
+      // Match only exact market name (word boundaries to avoid partial matches like SRIDEVI matching SRIDEVI DAY)
+      const marketFound =
+        cleanLine === cleanMarket ||
+        (` ${cleanLine} `).includes(` ${cleanMarket} `);  // Exact word match with space boundaries
+
+      if (marketFound) {
+        console.log(`🎯 MARKET FOUND at line ${i}:`, `"${line}"`);
+
+        // Search in next 5 lines for results (try multiple regex patterns)
+        for (let j = i; j < i + 5 && j < lines.length; j++) {
+          const checkLine = lines[j];
+          console.log(`  👉 Checking [${j}]:`, `"${checkLine}"`);
+
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
           let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
           if (match) {
@@ -624,25 +641,25 @@ async function scrapeSattaMatkaComIn(
             };
           }
 
-        // Try pattern 3: Just numbers (e.g., 156 25 267)
-        match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
-        if (match) {
-          console.log(`✅ FOUND PATTERN 3 (space-separated):`, match[0]);
-          return {
-            openResult: match[1],
-            jodiResult: match[2],
-            closeResult: match[3],
-          };
+          // Try pattern 3: Just numbers (e.g., 156 25 267)
+          match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
+          if (match) {
+            console.log(`✅ FOUND PATTERN 3 (space-separated):`, match[0]);
+            return {
+              openResult: match[1],
+              jodiResult: match[2],
+              closeResult: match[3],
+            };
+          }
         }
+        
+        console.log(`❌ No result format found after market`);
       }
-      
-      console.log(`❌ No result format found after market`);
     }
-  }
 
-  console.log("❌ MARKET NOT FOUND - tried to match:", `"${cleanMarket}"`);
-  console.log("========== SCRAPING SATKAMATKA END ==========\n");
-  return {};
+    console.log("❌ MARKET NOT FOUND - tried to match:", `"${cleanMarket}"`);
+    console.log("========== SCRAPING SATKAMATKA END ==========\n");
+    return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Scraper] Error in scrapeSattaMatkaComIn: ${errorMsg}`);
