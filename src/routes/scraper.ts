@@ -123,9 +123,7 @@ const today = getTodayDateIST();
           if (liveResult.closeResult) updateData.closeResult = liveResult.closeResult;
           updateData.declaredAt = new Date();
           
-          console.log("🟢 [LIVE-RESULTS] Update data:", updateData);
-          const updateResult = await db.update(resultsTable).set(updateData).where(eq(resultsTable.id, existingResult.id));
-          console.log("🟢 [LIVE-RESULTS] Update completed:", updateResult);
+          await db.update(resultsTable).set(updateData).where(eq(resultsTable.id, existingResult.id));
         } else {
           console.log("🟢 [LIVE-RESULTS] Creating new result for market", params.data.id);
           const insertData: any = {
@@ -137,9 +135,7 @@ const today = getTodayDateIST();
           if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
           if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
           
-          console.log("🟢 [LIVE-RESULTS] Insert data:", insertData);
-          const insertResult = await db.insert(resultsTable).values(insertData);
-          console.log("🟢 [LIVE-RESULTS] Insert completed:", insertResult);
+          await db.insert(resultsTable).values(insertData);
         }
         
         // 🟢 ALSO UPDATE MARKETS TABLE WITH LATEST RESULTS
@@ -151,10 +147,8 @@ const today = getTodayDateIST();
         marketUpdateData.lastFetchedAt = new Date();
         
         await db.update(marketsTable).set(marketUpdateData).where(eq(marketsTable.id, params.data.id));
-        console.log("🟢 [LIVE-RESULTS] Markets table updated");
         
-        console.log("🟢 [LIVE-RESULTS] Saving to scraper logs");
-        const logResult = await db.insert(scraperLogsTable).values({
+        await db.insert(scraperLogsTable).values({
           marketId: market.id,
           marketName: market.name,
           sourceUrl: market.sourceUrl ?? "https://satta-king-fast.com/",
@@ -163,7 +157,6 @@ const today = getTodayDateIST();
           closeResult: liveResult.closeResult,
           jodiResult: liveResult.jodiResult,
         });
-        console.log("🟢 [LIVE-RESULTS] Log saved:", logResult);
         
         console.log("🟢 [LIVE-RESULTS] Returning saved results");
         res.json({

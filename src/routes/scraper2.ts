@@ -120,10 +120,8 @@ router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
         marketUpdateData.lastFetchedAt = new Date();
         
         await db.update(markets2Table).set(marketUpdateData).where(eq(markets2Table.id, params.data.id));
-        console.log("🟢 [LIVE-RESULTS-Markets2] Markets2 table updated");
         
-        console.log("🟢 [LIVE-RESULTS-Markets2] Saving to scraper logs");
-        const logResult = await db.insert(scraperLogsTable).values({
+        await db.insert(scraperLogsTable).values({
           marketId: market.id,
           marketName: market.name,
           sourceUrl: market.sourceUrl ?? "https://satta-king-fast.com/",
@@ -132,7 +130,6 @@ router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
           closeResult: liveResult.closeResult,
           jodiResult: liveResult.jodiResult,
         });
-        console.log("🟢 [LIVE-RESULTS-Markets2] Log saved:", logResult);
         
         console.log("🟢 [LIVE-RESULTS-Markets2] Returning saved results");
         res.json({
