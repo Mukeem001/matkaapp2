@@ -693,14 +693,8 @@ export async function scrapeAkingSattaComIn(
 // ================= MARKETS2 LIVE RESULTS (SATTA-KING-FAST.COM + AKINGSATTA FALLBACK) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
-    // Try satta-king-fast.com first
-    const sattaKingResult = await scrapeSattaKingFast(marketName, opts).catch(() => ({}));
-
-    if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
-      return sattaKingResult;
-    }
-
-    // Fallback to akingsatta.in for markets2
+    // Markets2 uses akingsatta.in only
+    console.log(`[Scraper] Markets2 - Fetching from akingsatta.in for ${marketName}`);
     const akingSattaResult = await scrapeAkingSattaComIn(marketName, opts).catch(() => ({}));
     return akingSattaResult;
   } catch (error) {

@@ -750,39 +750,25 @@ export async function scrapeAkingSattaComIn(
   }
 }
 
-// ================= SATTA KING FAST LIVE RESULTS =================
+// ================= MARKETS2 SCRAPING (AKINGSATTA.IN ONLY) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
     console.log("\n========== 🔴 [MARKETS2] SCRAPING START ==========");
     console.log("Market:", `"${marketName}"`);
+    console.log("Source: akingsatta.in (ONLY)");
 
-    // Try satta-king-fast.com first
-    console.log("[Scraper] Markets2 - Attempting satta-king-fast.com...");
-    const sattaKingResult = await scrapeSattaKingFast(marketName, opts).catch(err => {
-      console.log(`[Scraper] satta-king-fast.com failed: ${err.message}`);
-      return {};
-    });
-
-    if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND from satta-king-fast.com:", sattaKingResult);
-      console.log("========== [MARKETS2] SCRAPING END - SUCCESS ==========");
-      return sattaKingResult;
-    }
-
-    // Fallback to akingsatta.in if satta-king-fast.com fails or returns empty
-    console.log("[Scraper] Fallback: Trying akingsatta.in for Markets2...");
     const akingSattaResult = await scrapeAkingSattaComIn(marketName, opts).catch(err => {
-      console.log(`[Scraper] akingsatta.in also failed: ${err.message}`);
+      console.log(`[Scraper] akingsatta.in failed: ${err.message}`);
       return {};
     });
 
     if (akingSattaResult.openResult || akingSattaResult.jodiResult || akingSattaResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND from akingsatta.in (fallback):", akingSattaResult);
-      console.log("========== [MARKETS2] SCRAPING END - SUCCESS (FALLBACK) ==========");
+      console.log("✅ [MARKETS2] RESULT FOUND from akingsatta.in:", akingSattaResult);
+      console.log("========== [MARKETS2] SCRAPING END - SUCCESS ==========");
       return akingSattaResult;
     }
 
-    console.log("❌ [MARKETS2] RESULT NOT FOUND on both sources");
+    console.log("❌ [MARKETS2] RESULT NOT FOUND on akingsatta.in");
     console.log("========== [MARKETS2] SCRAPING END - FAILED ==========");
     return {};
 
