@@ -375,8 +375,6 @@ function findSattaKingFastMarketResult(
   marketName: string
 ): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
-  console.log(`\n[findSattaKingFastMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
-
   const rows = $("tr.game-result").toArray();
   
   // STEP 1: Try exact match first
@@ -389,15 +387,12 @@ function findSattaKingFastMarketResult(
     const isExactMatch = cleanRowMarket === cleanMarket || (` ${cleanRowMarket} `).includes(` ${cleanMarket} `);
 
     if (isExactMatch) {
-      console.log(`✅ [EXACT MATCH] "${cleanRowMarket}" === "${cleanMarket}"`);
-      
       const todayValue = $row.find("td.today-number h3").first().text().trim() ||
         $row.find("td.today-number").first().text().trim();
 
       if (todayValue) {
         const candidate = parseTwoDigitResult(todayValue);
         if (candidate) {
-          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
           return candidate;
         }
       }
@@ -405,7 +400,6 @@ function findSattaKingFastMarketResult(
   }
 
   // STEP 2: Try fuzzy/partial match (if exact match fails)
-  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
   const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
   if (marketWords.length === 0) return {};
 
@@ -431,28 +425,23 @@ function findSattaKingFastMarketResult(
     }
 
     if (allWordsFound) {
-      console.log(`✅ [FUZZY MATCH] "${cleanRowMarket}" contains all words from "${cleanMarket}"`);
-      
       const todayValue = $row.find("td.today-number h3").first().text().trim() ||
         $row.find("td.today-number").first().text().trim();
 
       if (todayValue) {
         const candidate = parseTwoDigitResult(todayValue);
         if (candidate) {
-          console.log(`✅ Found result: ${candidate.openResult}-${candidate.jodiResult}-${candidate.closeResult}`);
           return candidate;
         }
       }
     }
   }
 
-  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
 function findMarketResult(lines: string[], marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
-  console.log(`\n[findMarketResult] Searching for: "${marketName}" (normalized: "${cleanMarket}")`);
 
   // STEP 1: Try exact match first
   for (let i = 0; i < lines.length; i++) {
@@ -463,13 +452,10 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
     const isExactMatch = line === cleanMarket || (` ${line} `).includes(` ${cleanMarket} `);
 
     if (isExactMatch) {
-      console.log(`✅ [EXACT MATCH] at line ${i}: "${line}" === "${cleanMarket}"`);
-      
       // Look in next 6 lines for result
       for (let j = i; j < i + 6 && j < lines.length; j++) {
         const result = parseTwoDigitResult(lines[j]);
         if (result) {
-          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
           return result;
         }
       }
@@ -477,9 +463,6 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
   }
 
   // STEP 2: Try fuzzy/partial match (if exact match fails)
-  // Handle cases like "SRIDEVI" in DB vs "SRIDEVI MORNING" on website
-  console.log(`⚠️  No exact match found for "${cleanMarket}", trying partial match...`);
-  
   const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
   if (marketWords.length === 0) return {};
 
@@ -503,20 +486,16 @@ function findMarketResult(lines: string[], marketName: string): ScrapedResult {
     }
 
     if (allWordsFound) {
-      console.log(`✅ [FUZZY MATCH] at line ${i}: "${line}" contains all words from "${cleanMarket}"`);
-      
       // Look in next 6 lines for result
       for (let j = i; j < i + 6 && j < lines.length; j++) {
         const result = parseTwoDigitResult(lines[j]);
         if (result) {
-          console.log(`✅ Found result ${j-i} lines after market: ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
           return result;
         }
       }
     }
   }
 
-  console.log(`❌ No market match found (exact or fuzzy) for "${cleanMarket}"`);
   return {};
 }
 
@@ -530,7 +509,6 @@ async function scrapeSattaKingFast(
     const $ = cheerio.load(response.data);
     const directResult = findSattaKingFastMarketResult($, marketName);
     if (directResult.closeResult) {
-      console.log(`[Scraper] Found result via tr.game-result selector for "${marketName}": ${directResult.openResult}-${directResult.jodiResult}-${directResult.closeResult}`);
       return directResult;
     }
 
@@ -539,22 +517,8 @@ async function scrapeSattaKingFast(
       .split("\n")
       .map(line => line.trim())
       .filter(line => line.length > 0);
-
-    console.log(`[Scraper] Satta King Fast - Found ${lines.length} lines for market "${marketName}"`);
-    
-    // Log first 50 lines for debugging
-    if (lines.length < 100) {
-      console.log("[Scraper] Page content (first 100 lines):", lines.slice(0, 100).join(" | "));
-    } else {
-      console.log("[Scraper] First 50 lines:", lines.slice(0, 50).join(" | "));
-    }
     
     const result = findMarketResult(lines, marketName);
-    if (result.closeResult) {
-      console.log(`[Scraper] Found result via market name matching for "${marketName}": ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
-    } else {
-      console.log(`[Scraper] No result found for market "${marketName}" in Satta King Fast`);
-    }
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

@@ -12,7 +12,7 @@ let puppeteer: any = null;
 try {
   puppeteer = require("puppeteer");
 } catch {
-  console.warn("[Scraper] Puppeteer not available - will use axios fallback only");
+  // Puppeteer not available - will use axios fallback
 }
 
 const DEFAULT_USER_AGENT =
@@ -239,13 +239,10 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             }
           }
         } catch (puppeteerError: unknown) {
-          // Check if this is a Chrome not found error or Puppeteer not available
           const errorMsg = String(puppeteerError);
           if (errorMsg.includes("Could not find Chrome") || errorMsg.includes("ENOENT") || errorMsg.includes("Puppeteer not available")) {
-            console.warn("[Scraper] Chrome/Puppeteer not available, falling back to HTTP requests");
             usePuppeteer = false;
             lastError = puppeteerError;
-            // Continue to axios fallback
           } else {
             throw puppeteerError;
           }
@@ -294,7 +291,6 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
             const waitTime = is403 ? (attempt * 8000 + Math.floor(Math.random() * 5000)) : (attempt * 3000);
             
             if (attempt < attempts) {
-              console.log(`[Scraper] CF/WAF block detected (status=${response.status}) - retry ${attempt}/${attempts} after ${waitTime}ms`);
               await sleep(waitTime);
               continue;
             }
@@ -308,7 +304,6 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
           if (response.status === 403 && (!response.data || response.data.length < 1000)) {
             const waitTime = attempt * 10000 + Math.floor(Math.random() * 6000);
             if (attempt < attempts) {
-              console.log(`[Scraper] Got 403 - retry ${attempt}/${attempts} after ${waitTime}ms (long delay)`);
               await sleep(waitTime);
               continue;
             }
@@ -324,12 +319,9 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
           if (attempt < attempts) {
             let delay;
             if (is403) {
-              // Very long delays for 403 to avoid repeated blocking
               delay = (10000 * attempt) + Math.floor(Math.random() * 8000);
-              console.log(`[Scraper] 403 Error - retry ${attempt}/${attempts} after ${delay}ms (very long delay)`);
             } else if (errorMsg.includes("timeout") || errorMsg.includes("ECONNRESET")) {
               delay = (4000 * attempt) + Math.floor(Math.random() * 3000);
-              console.log(`[Scraper] Connection error - retry ${attempt}/${attempts} after ${delay}ms`);
             } else {
               delay = (2000 * attempt) + Math.floor(Math.random() * 1500);
             }
@@ -345,7 +337,6 @@ async function fetchUrl(url: string, opts?: { retryCount?: number; forceProxy?: 
       
       if (attempt < attempts) {
         const delay = 2000 * attempt + Math.floor(Math.random() * 1000);
-        console.log(`[Scraper] Attempt ${attempt}/${attempts} failed, retrying after ${delay}ms`);
         await sleep(delay);
       } else {
         throw error;
@@ -554,7 +545,6 @@ async function scrapeSattaKingFast(
     const $ = cheerio.load(response.data);
     const directResult = findSattaKingFastMarketResult($, marketName);
     if (directResult.closeResult) {
-      console.log(`[Scraper] Found result via tr.game-result selector for "${marketName}": ${directResult.openResult}-${directResult.jodiResult}-${directResult.closeResult}`);
       return directResult;
     }
 
@@ -563,26 +553,12 @@ async function scrapeSattaKingFast(
       .split("\n")
       .map(line => line.trim())
       .filter(line => line.length > 0);
-
-    console.log(`[Scraper] Satta King Fast - Found ${lines.length} lines for market "${marketName}"`);
-    
-    // Log first 50 lines for debugging
-    if (lines.length < 100) {
-      console.log("[Scraper] Page content (first 100 lines):", lines.slice(0, 100).join(" | "));
-    } else {
-      console.log("[Scraper] First 50 lines:", lines.slice(0, 50).join(" | "));
-    }
     
     const result = findMarketResult(lines, marketName);
-    if (result.closeResult) {
-      console.log(`[Scraper] Found result via market name matching for "${marketName}": ${result.openResult}-${result.jodiResult}-${result.closeResult}`);
-    } else {
-      console.log(`[Scraper] No result found for market "${marketName}" in Satta King Fast`);
-    }
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error in scrapeSattaKingFast: ${errorMsg}`);
+    console.error(`[Scraper] scrapeSattaKingFast error: ${errorMsg}`);
     return {};
   }
 }
@@ -646,7 +622,7 @@ export async function scrapeSattaMatkaComIn(
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error scraping satkamatka.com.in for ${marketName}: ${errorMsg}`);
+    console.error(`[Scraper] Error fetching ${marketName}: ${errorMsg}`);
     return {};
   }
 }
@@ -654,42 +630,19 @@ export async function scrapeSattaMatkaComIn(
 // ================= MARKETS2 LIVE RESULTS (SATTA-KING-FAST.COM ONLY) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
-    console.log("\n========== 🔴 [MARKETS2] SCRAPING START ==========");
-    console.log("Market:", `"${marketName}"`);
-
     // Try satta-king-fast.com first
-    console.log("[Scraper] Markets2 - Attempting satta-king-fast.com...");
-    const sattaKingResult = await scrapeSattaKingFast(marketName, opts).catch(err => {
-      console.log(`[Scraper] satta-king-fast.com failed: ${err.message}`);
-      return {};
-    });
+    const sattaKingResult = await scrapeSattaKingFast(marketName, opts).catch(() => ({}));
 
     if (sattaKingResult.openResult || sattaKingResult.jodiResult || sattaKingResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND from satta-king-fast.com:", sattaKingResult);
-      console.log("========== [MARKETS2] SCRAPING END - SUCCESS ==========");
       return sattaKingResult;
     }
 
-    // Fallback to satkamatka.com.in if satta-king-fast.com fails or returns empty
-    console.log("[Scraper] Fallback: Trying satkamatka.com.in for Markets2...");
-    const satkamatkaResult = await scrapeSattaMatkaComIn(marketName, opts).catch(err => {
-      console.log(`[Scraper] satkamatka.com.in also failed: ${err.message}`);
-      return {};
-    });
-
-    if (satkamatkaResult.openResult || satkamatkaResult.jodiResult || satkamatkaResult.closeResult) {
-      console.log("✅ [MARKETS2] RESULT FOUND from satkamatka.com.in (fallback):", satkamatkaResult);
-      console.log("========== [MARKETS2] SCRAPING END - SUCCESS (FALLBACK) ==========");
-      return satkamatkaResult;
-    }
-
-    console.log("❌ [MARKETS2] RESULT NOT FOUND on both sources");
-    console.log("========== [MARKETS2] SCRAPING END - FAILED ==========");
-    return {};
-
+    // Fallback to satkamatka.com.in
+    const satkamatkaResult = await scrapeSattaMatkaComIn(marketName, opts).catch(() => ({}));
+    return satkamatkaResult;
   } catch (error) {
-    console.error("[MARKETS2] Error:", error);
-    console.log("========== [MARKETS2] SCRAPING END - ERROR ==========");
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Scraper] Error fetching live results for ${marketName}: ${errorMsg}`);
     return {};
   }
 }
