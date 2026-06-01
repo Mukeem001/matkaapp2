@@ -85,7 +85,7 @@ export default function Users() {
               type: 'deposit',
               date: new Date(d.createdAt),
               amount: typeof d.amount === 'string' ? parseFloat(d.amount) : d.amount,
-              details: `${d.status === 'approved' ? 'Approved' : 'Pending'} UPI Transfer`,
+              details: `${d.status === 'success' ? 'Approved' : 'Pending'} UPI Transfer`,
               status: d.status,
             });
           });
@@ -97,13 +97,13 @@ export default function Users() {
               type: 'withdrawal',
               date: new Date(w.createdAt),
               amount: typeof w.amount === 'string' ? parseFloat(w.amount) : w.amount,
-              details: `${w.status === 'approved' ? 'Approved' : 'Pending'} UPI Payout`,
+              details: `${w.status === 'success' ? 'Approved' : 'Pending'} UPI Payout`,
               status: w.status,
             });
           });
 
           // Add bids
-          const bids = Array.isArray(bidsData) ? bidsData : [];
+          const bids = Array.isArray(bidsData) ? bidsData : (bidsData?.bids || []);
           bids.forEach((b: any) => {
             if (b.status === 'won') {
               const multiplier = b.gameType === 'jodi' ? 90 : 9;
