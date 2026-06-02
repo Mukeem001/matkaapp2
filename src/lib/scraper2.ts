@@ -68,8 +68,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
     }
     
     if (hasAnyResult) {
-      // Format the result: extract jodi (middle value or main value) and break it down
-      const rawJodi = liveResult.jodiResult || liveResult.closeResult || '00';
+      // Format the result: use available jodi, or fallback to close/open
+      const rawJodi = liveResult.jodiResult || liveResult.closeResult || liveResult.openResult || '00';
       const formatted = formatMarkets2Result(rawJodi);
       
       console.log(`[Market2] ✅ Found result for ${market.name}`);
@@ -96,7 +96,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
         console.log(`[Market2] Query check completed, existing: ${existingResult ? existingResult.id : "none"}`);
         
         if (existingResult) {
-          console.log(`[Market2] Updating existing result ID: ${existingResult.id}`);
+          console.log(`[Market2] ✏️ Updating existing result ID: ${existingResult.id}`);
           
           try {
             // Update result with properly formatted jodi
@@ -105,13 +105,13 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
                 result: formatted.jodiResult,
               })
               .where(eq(results2Table.id, existingResult.id));
-            console.log(`[Market2] Update completed successfully`);
+            console.log(`[Market2] ✏️ Update completed successfully`);
           } catch (updateError) {
             console.error(`[Market2] Update error:`, updateError);
             throw updateError;
           }
         } else {
-          console.log(`[Market2] Creating new result for market ${marketId}`);
+          console.log(`[Market2] ✅ Creating new result for market ${marketId}`);
           const insertData: any = {
             marketId,
             resultDate: today,
@@ -120,7 +120,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           
           console.log(`[Market2] Insert data:`, insertData);
           await db.insert(results2Table).values(insertData);
-          console.log(`[Market2] Insert completed`);
+          console.log(`[Market2] ✅ Insert completed`);
         }
         
         // Update markets2 table with properly formatted results

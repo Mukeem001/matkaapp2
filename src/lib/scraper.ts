@@ -813,22 +813,23 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: errorMessage };
   }
 
-  // Validate all fields are present
-  if (!scraped.openResult || !scraped.closeResult || !scraped.jodiResult) {
+  // ✅ Accept partial results - at least ONE field must be present
+  // Website may delay publishing all fields after market closes
+  if (!scraped.openResult && !scraped.closeResult && !scraped.jodiResult) {
     return { success: false, message: "Result not found" };
   }
 
-  // Clean/validate the results (remove empty strings, ensure proper format)
-  const cleanedOpen = String(scraped.openResult).trim();
-  const cleanedJodi = String(scraped.jodiResult).trim();
-  const cleanedClose = String(scraped.closeResult).trim();
+  // Clean/validate the results (remove empty strings, use "XX" for missing values)
+  const cleanedOpen = String(scraped.openResult || "XX").trim();
+  const cleanedJodi = String(scraped.jodiResult || "XX").trim();
+  const cleanedClose = String(scraped.closeResult || "XX").trim();
 
-  if (!cleanedOpen || !cleanedJodi || !cleanedClose) {
-    return { success: false, message: "Result values are empty" };
-  }
+  console.log(`[Scraper] Result for ${market.name}:`);
+  console.log(`  └─ Open: ${cleanedOpen}, Jodi: ${cleanedJodi}, Close: ${cleanedClose}`);
 
   // ✅ Save to database with TODAY's date (IST)
   const resultDateStr = getTodayDateIST();
+  console.log(`[Scraper] Saving result for date: ${resultDateStr}`);
 
   const [existingResult] = await db
     .select()
@@ -841,12 +842,14 @@ export async function fetchAndUpdateMarketResult(
     );
 
   if (existingResult) {
+    console.log(`[Scraper] ✏️ Updating existing result (ID: ${existingResult.id})`);
     await db.update(resultsTable).set({
       openResult: cleanedOpen,
       closeResult: cleanedClose,
       jodiResult: cleanedJodi,
     }).where(eq(resultsTable.id, existingResult.id));
   } else {
+    console.log(`[Scraper] ✅ Creating new result for ${market.name}`);
     await db.insert(resultsTable).values({
       marketId: market.id,
       resultDate: resultDateStr,
@@ -857,6 +860,7 @@ export async function fetchAndUpdateMarketResult(
   }
 
   // Update market table
+  console.log(`[Scraper] Updating markets table with results`);
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
