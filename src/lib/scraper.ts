@@ -687,61 +687,124 @@ export async function scrapeAkingSattaComIn(
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cleanLine = normalizeScrapeLine(line);
-      const marketFound = cleanLine === cleanMarket || 
-                          (` ${cleanLine} `).includes(` ${cleanMarket} `) ||
-                          cleanLine.includes(cleanMarket) ||
-                          cleanMarket.includes(cleanLine);
-
-      if (marketFound) {
-        console.log(`[Scraper] Market found at line ${i}: "${line}"`);
+      
+      // ✅ STRICT MATCHING: Only match if cleanLine === cleanMarket (exact match only)
+      const isExactMatch = cleanLine === cleanMarket;
+      
+      if (isExactMatch) {
+        console.log(`\n[Scraper] 🎯 EXACT MATCH found at line ${i}`);
+        console.log(`[Scraper]   Looking for: "${cleanMarket}"`);
+        console.log(`[Scraper]   Found line: "${line}"`);
         
-        // Search next 20 lines (expanded from 5)
-        for (let j = i; j < Math.min(i + 20, lines.length); j++) {
+        // Search next 12 lines - skip time labels, pick first result
+        let foundResult: any = null;
+        
+        for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
           const checkLine = lines[j];
 
-          // Skip common non-result lines
-          if (checkLine.includes("Chart") || checkLine.includes("ध्यान दें") || checkLine.length < 2) {
+          // Skip time labels (e.g., "at 10:20 PM") and chart labels
+          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/) || checkLine.includes("Chart") || checkLine.includes("ध्यान दें")) {
+            console.log(`[Scraper]   Skipping label [line ${j}]: "${checkLine}"`);
             continue;
           }
+
+          // Skip empty/short lines
+          if (checkLine.length < 2) continue;
 
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
           let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
           if (match) {
-            console.log(`[Scraper] Found result (pattern 1): ${match[1]}-${match[2]}-${match[3]}`);
-            return {
+            console.log(`[Scraper]   ✅ Pattern 1 matched [line ${j}]: "${checkLine}" → ${match[1]}-${match[2]}-${match[3]}`);
+            foundResult = {
               openResult: match[1],
               jodiResult: match[2],
               closeResult: match[3],
             };
+            break;
           }
 
           // Try pattern 2: XXX-X (e.g., 567-8)
           match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
           if (match && !checkLine.includes("...")) {
-            console.log(`[Scraper] Found result (pattern 2): ${match[1]}-${match[2]}`);
-            return {
+            console.log(`[Scraper]   ✅ Pattern 2 matched [line ${j}]: "${checkLine}" → ${match[1]}-${match[2]}`);
+            foundResult = {
               openResult: match[1],
               jodiResult: match[2],
               closeResult: match[2],
             };
+            break;
           }
 
-          // Try pattern 3: Just numbers (e.g., 156 25 267)
+          // Try pattern 3: Space-separated (e.g., 156 25 267)
           match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
           if (match) {
-            console.log(`[Scraper] Found result (pattern 3): ${match[1]} ${match[2]} ${match[3]}`);
-            return {
+            console.log(`[Scraper]   ✅ Pattern 3 matched [line ${j}]: "${checkLine}" → ${match[1]} ${match[2]} ${match[3]}`);
+            foundResult = {
               openResult: match[1],
               jodiResult: match[2],
               closeResult: match[3],
             };
+            break;
           }
 
-          // Try pattern 4: Just 2 digits (e.g., "25" or "81") - for markets2
-          match = checkLine.match(/\b(\d{2})\b/);
-          if (match && !checkLine.match(/\d{3,}/)) {
-            // Make sure line doesn't contain other longer numbers
-            console.log(`[Scraper] Found result (pattern 4 - 2 digit): ${match[1]}`);
+          // Try pattern 4: ONLY 2 digits (for markets2)
+          match = checkLine.match(/^(\d{2})$/);
+          if (match) {
+            console.log(`[Scraper]   ✅ Pattern 4 matched [line ${j}]: "${checkLine}" → ${match[1]}`);
+            foundResult = {
+              openResult: match[1].charAt(0),
+              jodiResult: match[1],
+              closeResult: match[1].charAt(1),
+            };
+            break;
+          }
+        }
+        
+        if (foundResult) {
+          console.log(`[Scraper] ✅ RETURNING RESULT for ${marketName}:`, foundResult);
+          return foundResult;
+        } else {
+          console.log(`[Scraper] ⚠️ No result pattern found in next 12 lines`);
+        }
+      }
+    }
+    
+    console.log(`[Scraper] ❌ Market "${cleanMarket}" not found on page`);
+    console.log(`[Scraper] Attempting fuzzy/partial match as fallback...`);
+    
+    // Fallback: Try partial/fuzzy matching
+    const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
+    if (marketWords.length === 0) return {};
+    
+    console.log(`[Scraper] Searching for partial match with words: [${marketWords.join(", ")}]`);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cleanLine = normalizeScrapeLine(line);
+      const lineWords = cleanLine.split(/\s+/);
+      
+      // Check if ALL market words exist in this line
+      let allWordsFound = true;
+      for (const marketWord of marketWords) {
+        if (!lineWords.includes(marketWord)) {
+          allWordsFound = false;
+          break;
+        }
+      }
+      
+      if (allWordsFound) {
+        console.log(`[Scraper] 🔄 FUZZY MATCH found at line ${i}: "${line}"`);
+        
+        // Search next 12 lines for result
+        for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
+          const checkLine = lines[j];
+          
+          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/) || checkLine.includes("Chart")) continue;
+          if (checkLine.length < 2) continue;
+          
+          let match = checkLine.match(/^(\d{2})$/);
+          if (match) {
+            console.log(`[Scraper] ✅ Fuzzy match result: "${checkLine}" → ${match[1]}`);
             return {
               openResult: match[1].charAt(0),
               jodiResult: match[1],
@@ -752,7 +815,7 @@ export async function scrapeAkingSattaComIn(
       }
     }
     
-    console.log(`[Scraper] No result pattern matched for market: ${marketName}`);
+    console.log(`[Scraper] ❌ No result found for ${marketName} (exact or fuzzy)`);
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

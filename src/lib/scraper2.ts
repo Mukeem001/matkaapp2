@@ -57,7 +57,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
     // Scrape live results using real scraper
     const liveResult = await scrapeLiveResults(market.name, opts);
     
-    console.log(`[Market2] Scrape result:`, JSON.stringify(liveResult, null, 2));
+    console.log(`[Market2] 📍 Market DB name: "${market.name}"`);
+    console.log(`[Market2] 🔍 Scrape result:`, JSON.stringify(liveResult, null, 2));
     
     // Check if we have ANY result
     const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
