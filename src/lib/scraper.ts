@@ -842,13 +842,77 @@ export async function scrapeAkingSattaComIn(
   }
 }
 
-// ================= MARKETS2 LIVE RESULTS (SATTA-KING-FAST.COM + AKINGSATTA FALLBACK) =================
+// ================= MARKETS2 LIVE RESULTS (AKINGSATTA WITH PROPER HTML PARSING) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
   try {
-    // Markets2 uses akingsatta.in only
+    // Markets2 uses akingsatta.in with better HTML structure parsing
     console.log(`[Scraper] Markets2 - Fetching from akingsatta.in for ${marketName}`);
-    const akingSattaResult = await scrapeAkingSattaComIn(marketName, opts).catch(() => ({}));
-    return akingSattaResult;
+    console.log(`[Scraper] Using HTML DOM parsing to get TODAY'S result specifically`);
+    
+    const response = await fetchUrl("https://akingsatta.in/", { ...opts, forceProxy: true, retryCount: 2 });
+    if (!response || !response.data) {
+      console.error(`[Scraper] ❌ Could not fetch akingsatta.in`);
+      return {};
+    }
+    
+    const $ = cheerio.load(response.data);
+    const cleanMarket = normalizeScrapeLine(marketName);
+    
+    console.log(`[Scraper] Searching for market: "${cleanMarket}"`);
+    
+    // Find the tr with the market
+    const rows = $("tr.game-result").toArray();
+    console.log(`[Scraper] Found ${rows.length} game result rows on page`);
+    
+    for (const row of rows) {
+      const $row = $(row);
+      const nameElem = $row.find("h3.game-name").first();
+      const marketText = nameElem.text().trim();
+      
+      if (!marketText) continue;
+      
+      const cleanRowMarket = normalizeScrapeLine(marketText);
+      
+      if (cleanRowMarket === cleanMarket) {
+        console.log(`[Scraper] ✅ FOUND MARKET in HTML: "${marketText}"`);
+        
+        // Get TODAY'S number (not yesterday's!)
+        const todayNumberElem = $row.find("td.today-number h3").first();
+        const todayNumber = todayNumberElem.text().trim();
+        
+        // Get YESTERDAY'S number as fallback
+        const yesterdayNumberElem = $row.find("td.yesterday-number h3").first();
+        const yesterdayNumber = yesterdayNumberElem.text().trim();
+        
+        console.log(`[Scraper]   Today's number: "${todayNumber}"`);
+        console.log(`[Scraper]   Yesterday's number: "${yesterdayNumber}"`);
+        
+        // Prefer TODAY's result; fall back to yesterday if not available
+        const resultNumber = todayNumber && todayNumber !== "XX" ? todayNumber : yesterdayNumber;
+        
+        if (!resultNumber || resultNumber === "XX") {
+          console.log(`[Scraper] ❌ No result available (today) or marked as XX`);
+          return {};
+        }
+        
+        console.log(`[Scraper] ✅ Using result: "${resultNumber}"`);
+        
+        // Extract as 2-digit jodi
+        const match = String(resultNumber).match(/(\d{2})/);
+        if (match) {
+          return {
+            openResult: match[1].charAt(0),
+            jodiResult: match[1],
+            closeResult: match[1].charAt(1),
+          };
+        }
+      }
+    }
+    
+    console.log(`[Scraper] ❌ Market "${cleanMarket}" not found in HTML rows`);
+    // Fallback to text-based parsing
+    return await scrapeAkingSattaComIn(marketName, opts);
+    
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Scraper] Error fetching live results for ${marketName}: ${errorMsg}`);
