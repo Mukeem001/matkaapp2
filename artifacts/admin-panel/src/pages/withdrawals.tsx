@@ -97,10 +97,10 @@ export default function Withdrawals() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-display font-bold">Withdrawal Requests</h2>
-        <p className="text-muted-foreground mt-1">Review and process user cashouts.</p>
+        <h2 className="text-xl sm:text-2xl font-display font-bold">Withdrawal Requests</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Review and process user cashouts.</p>
       </div>
 
       {/* Date Filter Buttons */}
@@ -192,79 +192,145 @@ export default function Withdrawals() {
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="pl-6">Date</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Account Details</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right pr-6">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : totalWithdrawals === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No withdrawal requests.</TableCell></TableRow>
-            ) : pageWithdrawals.map((w) => (
-              <TableRow key={w.id}>
-                <TableCell className="pl-6 text-sm text-muted-foreground">
-                  {format(new Date(w.createdAt), 'PP p')}
-                </TableCell>
-                <TableCell className="font-semibold">{w.userName}</TableCell>
-                <TableCell>
-                  <div className="flex gap-3 items-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                      <Landmark className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      {w.upiId ? (
-                        <>
-                          <span className="text-xs text-muted-foreground font-medium">UPI</span>
-                          <span className="font-mono text-sm">{w.upiId}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-xs text-muted-foreground font-medium">{w.bankName}</span>
-                          <span className="font-mono text-sm">{w.accountNumber} <span className="text-muted-foreground opacity-50 ml-1">({w.ifscCode})</span></span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-mono font-bold text-lg text-rose-600">₹{w.amount}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'secondary'} 
-                         className={w.status === 'approved' ? 'bg-emerald-500' : w.status === 'pending' ? 'bg-amber-500' : ''}>
-                    {w.status.toUpperCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-6 text-right">
-                  {w.status === 'pending' && (
-                    <div className="flex justify-end gap-2">
-                      <Button size="icon" className="h-8 w-8 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none" onClick={() => handleAction(w.id, 'approve')}>
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" className="h-8 w-8 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none" onClick={() => handleAction(w.id, 'reject')}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </TableCell>
+        <div className="overflow-x-auto lg:overflow-visible">
+          <Table>
+            <TableHeader className="bg-muted/30 hidden lg:table-header-group">
+              <TableRow>
+                <TableHead className="pl-2 sm:pl-4 lg:pl-6 text-xs sm:text-sm">Date</TableHead>
+                <TableHead className="px-2 sm:px-4 text-xs sm:text-sm">User</TableHead>
+                <TableHead className="px-2 sm:px-4 text-xs sm:text-sm">Account Details</TableHead>
+                <TableHead className="px-2 sm:px-4 text-right text-xs sm:text-sm">Amount</TableHead>
+                <TableHead className="px-2 sm:px-4 text-center text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="pr-2 sm:pr-4 lg:pr-6 text-right text-xs sm:text-sm">Action</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-xs sm:text-sm">Loading...</TableCell></TableRow>
+              ) : totalWithdrawals === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground text-xs sm:text-sm">No withdrawal requests.</TableCell></TableRow>
+              ) : pageWithdrawals.map((w) => (
+                <>
+                  {/* Desktop View */}
+                  <TableRow key={`desktop-${w.id}`} className="hidden lg:table-row">
+                    <TableCell className="pl-2 sm:pl-4 lg:pl-6 text-xs sm:text-sm text-muted-foreground">
+                      {format(new Date(w.createdAt), 'PP p')}
+                    </TableCell>
+                    <TableCell className="px-2 sm:px-4 font-semibold text-xs sm:text-sm">{w.userName}</TableCell>
+                    <TableCell className="px-2 sm:px-4">
+                      <div className="flex gap-2 sm:gap-3 items-center">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                          <Landmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          {w.upiId ? (
+                            <>
+                              <span className="text-xs text-muted-foreground font-medium">UPI</span>
+                              <span className="font-mono text-xs sm:text-sm truncate">{w.upiId}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs text-muted-foreground font-medium">{w.bankName}</span>
+                              <span className="font-mono text-xs sm:text-sm truncate">{w.accountNumber} <span className="text-muted-foreground opacity-50 ml-1">({w.ifscCode})</span></span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-2 sm:px-4 text-right font-mono font-bold text-sm sm:text-lg text-rose-600">₹{w.amount}</TableCell>
+                    <TableCell className="px-2 sm:px-4 text-center">
+                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'secondary'} 
+                             className={`${w.status === 'approved' ? 'bg-emerald-500' : w.status === 'pending' ? 'bg-amber-500' : ''} text-xs`}>
+                        {w.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-2 sm:pr-4 lg:pr-6 text-right">
+                      {w.status === 'pending' && (
+                        <div className="flex justify-end gap-1 sm:gap-2">
+                          <Button size="icon" className="h-7 w-7 sm:h-8 sm:w-8 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none" onClick={() => handleAction(w.id, 'approve')}>
+                            <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </Button>
+                          <Button size="icon" className="h-7 w-7 sm:h-8 sm:w-8 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none" onClick={() => handleAction(w.id, 'reject')}>
+                            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Mobile View */}
+                  <TableRow key={`mobile-${w.id}`} className="lg:hidden block border-b mb-4">
+                    <TableCell className="block p-2 sm:p-4 space-y-2 sm:space-y-3">
+                      <div className="flex justify-between items-start gap-2 mb-2 sm:mb-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Date</p>
+                          <p className="text-xs sm:text-sm text-foreground">{format(new Date(w.createdAt), 'PP p')}</p>
+                        </div>
+                        <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'secondary'} 
+                               className={`${w.status === 'approved' ? 'bg-emerald-500' : w.status === 'pending' ? 'bg-amber-500' : ''} text-xs flex-shrink-0`}>
+                          {w.status.toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      <div className="bg-muted/50 p-2 sm:p-3 rounded-lg space-y-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">User</p>
+                          <p className="text-xs sm:text-sm font-semibold text-foreground">{w.userName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Amount</p>
+                          <p className="text-xs sm:text-sm font-mono font-bold text-rose-600">₹{w.amount}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/30 p-2 sm:p-3 rounded-lg">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Account Details</p>
+                        <div className="flex gap-1.5 sm:gap-2 items-start">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                            <Landmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            {w.upiId ? (
+                              <>
+                                <span className="text-xs text-muted-foreground font-medium">UPI</span>
+                                <span className="font-mono text-xs sm:text-sm break-all">{w.upiId}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs text-muted-foreground font-medium">{w.bankName}</span>
+                                <span className="font-mono text-xs text-foreground">{w.accountNumber}</span>
+                                <span className="font-mono text-xs text-muted-foreground">({w.ifscCode})</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {w.status === 'pending' && (
+                        <div className="flex gap-1.5 sm:gap-2 pt-2">
+                          <Button size="sm" className="flex-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none text-xs sm:text-sm h-8 sm:h-9" onClick={() => handleAction(w.id, 'approve')}>
+                            <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" className="flex-1 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none text-xs sm:text-sm h-8 sm:h-9" onClick={() => handleAction(w.id, 'reject')}>
+                            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Reject
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm">
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Showing {totalWithdrawals === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalWithdrawals)} of {totalWithdrawals} withdrawals
         </p>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} className="text-xs sm:text-sm h-8 sm:h-9">
             Previous
           </Button>
           <Input
@@ -278,9 +344,9 @@ export default function Withdrawals() {
                 setCurrentPage(nextPage);
               }
             }}
-            className="w-20 text-center"
+            className="w-16 sm:w-20 text-center text-xs sm:text-sm h-8 sm:h-9"
           />
-          <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}>
+          <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))} className="text-xs sm:text-sm h-8 sm:h-9">
             Next
           </Button>
         </div>

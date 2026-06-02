@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { useGetBids, useUpdateBid, getGetBidsQueryKey } from "@workspace/api-client-react";
+import { useState, useMemo, useEffect, Fragment } from "react";
+import { useGetBids, useUpdateBid, getGetBidsQueryKey, useGetGameRates } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
@@ -59,7 +59,10 @@ const getBidsType = (bid: any): string => {
 
 // Helper function to calculate win amount based on gameType and rates
 const calculateWinAmount = (bidAmount: number, gameType: string, gameRates: any): number => {
-  if (!gameRates) return 0;
+  if (!gameRates) {
+    console.warn("[Bids] gameRates not loaded yet, returning 0");
+    return 0;
+  }
   
   // Normalize gameType: convert to lowercase and handle spaces/hyphens
   const normalized = (gameType || "").toLowerCase().trim().replace(/\s+/g, "_");
@@ -80,9 +83,10 @@ const calculateWinAmount = (bidAmount: number, gameType: string, gameRates: any)
   const rateKey = gameTypeMapping[normalized] || "singleDigit";
   const rate = parseFloat(gameRates[rateKey]) || 9;
   
-  console.log(`[Bids] Win calculation: gameType='${gameType}' normalized='${normalized}' rateKey='${rateKey}' rate=${rate} amount=${bidAmount}`);
+  const winAmount = Math.round(bidAmount * rate);
+  console.log(`[Bids] Win calculation: gameType='${gameType}' normalized='${normalized}' rateKey='${rateKey}' rate=${rate} amount=${bidAmount} winAmount=${winAmount}`);
   
-  return Math.round(bidAmount * rate);
+  return winAmount;
 };
 
 export default function Bids() {
@@ -96,36 +100,23 @@ export default function Bids() {
   const [editStatus, setEditStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [gameRates, setGameRates] = useState<any>(null);
-  const [loadingRates, setLoadingRates] = useState(true);
 
   const queryClient = useQueryClient();
-
-  // Fetch game rates when component mounts
+  
+  // Fetch game rates using the API client
+  const { data: gameRatesData, isLoading: loadingRates, error: ratesError } = useGetGameRates();
+  const gameRates = gameRatesData || null;
+  
   useEffect(() => {
-    const fetchGameRates = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/game-rates", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const rates = await response.json();
-          setGameRates(rates);
-          console.log("[Bids] Game rates loaded:", rates);
-        } else {
-          console.error("[Bids] Failed to fetch game rates");
-        }
-      } catch (error) {
-        console.error("[Bids] Error fetching game rates:", error);
-      } finally {
-        setLoadingRates(false);
-      }
-    };
-    fetchGameRates();
-  }, []);
+    if (gameRatesData) {
+      console.log("[Bids] Game rates loaded:", gameRatesData);
+      console.log("[Bids] Game rates type:", typeof gameRatesData);
+      console.log("[Bids] Game rates keys:", Object.keys(gameRatesData || {}));
+    }
+    if (ratesError) {
+      console.error("[Bids] Error fetching game rates:", ratesError);
+    }
+  }, [gameRatesData, ratesError]);
   
   // Build query parameters
   let queryParams: any = {
@@ -238,18 +229,18 @@ export default function Bids() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-display font-bold">Game Bids</h2>
-          <p className="text-muted-foreground mt-1">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-display font-bold">Game Bids</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Real-time view of all user bets across markets.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 flex-wrap w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40 rounded-xl bg-card border-border/50">
+            <SelectTrigger className="w-full sm:w-40 rounded-xl bg-card border-border/50 h-8 sm:h-9 text-xs sm:text-sm">
               <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
             <SelectContent>
@@ -350,109 +341,192 @@ export default function Bids() {
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="pl-6">Date</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Market</TableHead>
-              <TableHead>Game Type</TableHead>
-              <TableHead className="text-center">Bid Digit</TableHead>
-              <TableHead className="text-center">Bids Type</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Win Amount</TableHead>
-              <TableHead className="pr-6 text-right">Status</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {isLoading ? (
+        <div className="overflow-x-auto lg:overflow-visible">
+          <Table>
+            <TableHeader className="bg-muted/30 hidden lg:table-header-group">
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8">
-                  Loading...
-                </TableCell>
+                <TableHead className="pl-6">Date</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Market</TableHead>
+                <TableHead>Game Type</TableHead>
+                <TableHead className="text-center">Bid Digit</TableHead>
+                <TableHead className="text-center">Bids Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Win Amount</TableHead>
+                <TableHead className="pr-6 text-right">Status</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
-            ) : bids.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
-                  No bids found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              bids.map((bid) => (
-                <TableRow key={bid.id}>
-                  <TableCell className="pl-6 text-sm text-muted-foreground">
-                    {format(new Date(bid.createdAt), "PP p")}
-                  </TableCell>
+            </TableHeader>
 
-                  <TableCell className="font-medium">
-                    {bid.userName || "N/A"}
-                  </TableCell>
-
-                  <TableCell className="font-semibold text-blue-600">
-                    {bid.marketName}
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant="outline">{bid.gameType}</Badge>
-                  </TableCell>
-
-                  <TableCell className="text-center font-mono font-bold">
-                    {bid.digit}
-                  </TableCell>
-
-                  <TableCell className="text-center text-sm">
-                    {getBidsType(bid) === 'open-bids' ? (
-                      <Badge className="bg-green-100 text-green-700 border border-green-200">Open Bids</Badge>
-                    ) : (
-                      <Badge className="bg-red-100 text-red-700 border border-red-200">Close Bids</Badge>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-right font-mono font-bold text-emerald-600">
-                    ₹{bid.amount}
-                  </TableCell>
-
-                  <TableCell className="text-right font-mono font-bold">
-                    {bid.status === 'won' ? (
-                      <span className="text-green-600">₹{calculateWinAmount(bid.amount, bid.gameType, gameRates)}</span>
-                    ) : bid.status === 'lost' ? (
-                      <span className="text-red-600">-₹{bid.amount}</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="pr-6 text-right">
-                    <Badge
-                      variant={
-                        bid.status === "won"
-                          ? "default"
-                          : bid.status === "lost"
-                          ? "destructive"
-                          : "secondary"
-                      }
-                      className={bid.status === "won" ? "bg-emerald-500" : ""}
-                    >
-                      {bid.status.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell className="text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditClick(bid)}
-                    >
-                      Edit
-                    </Button>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-8">
+                    Loading...
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : bids.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                    No bids found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                bids.map((bid) => (
+                  <Fragment key={`bid-${bid.id}`}>
+                    {/* Desktop View */}
+                    <TableRow key={`desktop-${bid.id}`} className="hidden lg:table-row">
+                      <TableCell className="pl-6 text-sm text-muted-foreground">
+                        {format(new Date(bid.createdAt), "PP p")}
+                      </TableCell>
+
+                      <TableCell className="font-medium">
+                        {bid.userName || "N/A"}
+                      </TableCell>
+
+                      <TableCell className="font-semibold text-blue-600">
+                        {bid.marketName}
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge variant="outline">{bid.gameType}</Badge>
+                      </TableCell>
+
+                      <TableCell className="text-center font-mono font-bold">
+                        {bid.digit}
+                      </TableCell>
+
+                      <TableCell className="text-center text-sm">
+                        {getBidsType(bid) === 'open-bids' ? (
+                          <Badge className="bg-green-100 text-green-700 border border-green-200">Open Bids</Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-700 border border-red-200">Close Bids</Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono font-bold text-emerald-600">
+                        ₹{bid.amount}
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono font-bold">
+                        {bid.status === 'won' ? (
+                          <span className="text-green-600">₹{calculateWinAmount(bid.amount, bid.gameType, gameRates)}</span>
+                        ) : bid.status === 'lost' ? (
+                          <span className="text-red-600">-₹{bid.amount}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="pr-6 text-right">
+                        <Badge
+                          variant={
+                            bid.status === "won"
+                              ? "default"
+                              : bid.status === "lost"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={bid.status === "won" ? "bg-emerald-500" : ""}
+                        >
+                          {bid.status.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(bid)}
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Mobile View */}
+                    <TableRow key={`mobile-${bid.id}`} className="lg:hidden block border-b mb-4">
+                      <TableCell className="block p-4 space-y-3">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Date</p>
+                            <p className="text-sm text-foreground">{format(new Date(bid.createdAt), "PP p")}</p>
+                          </div>
+                          <Badge
+                            variant={
+                              bid.status === "won"
+                                ? "default"
+                                : bid.status === "lost"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className={bid.status === "won" ? "bg-emerald-500" : ""}
+                          >
+                            {bid.status.toUpperCase()}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 bg-muted/50 p-3 rounded-lg">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">User</p>
+                            <p className="text-sm font-medium text-foreground">{bid.userName || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Market</p>
+                            <p className="text-sm font-semibold text-blue-600">{bid.marketName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Game Type</p>
+                            <Badge variant="outline" className="text-xs">{bid.gameType}</Badge>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Bid Digit</p>
+                            <p className="text-sm font-mono font-bold text-foreground">{bid.digit}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 bg-muted/30 p-3 rounded-lg">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Bids Type</p>
+                            {getBidsType(bid) === 'open-bids' ? (
+                              <Badge className="bg-green-100 text-green-700 border border-green-200 text-xs">Open</Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-700 border border-red-200 text-xs">Close</Badge>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Amount</p>
+                            <p className="text-sm font-mono font-bold text-emerald-600">₹{bid.amount}</p>
+                          </div>
+                        </div>
+
+                        <div className="bg-muted/30 p-3 rounded-lg">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Win Amount</p>
+                          {bid.status === 'won' ? (
+                            <p className="text-sm font-mono font-bold text-green-600">₹{calculateWinAmount(bid.amount, bid.gameType, gameRates)}</p>
+                          ) : bid.status === 'lost' ? (
+                            <p className="text-sm font-mono font-bold text-red-600">-₹{bid.amount}</p>
+                          ) : (
+                            <p className="text-sm font-mono font-bold text-gray-400">-</p>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(bid)}
+                          className="w-full"
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Pagination Controls */}
@@ -510,16 +584,16 @@ export default function Bids() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95%] max-w-[425px] sm:max-w-[425px] p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Edit Bid #{editingBidId}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Edit Bid #{editingBidId}</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               Update the amount, bid number, and/or status for this bid.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3 sm:gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="amount">Amount (₹)</Label>
+              <Label htmlFor="amount" className="text-xs sm:text-sm">Amount (₹)</Label>
               <Input
                 id="amount"
                 type="number"
@@ -528,22 +602,24 @@ export default function Bids() {
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
                 placeholder="Enter new amount"
+                className="h-8 sm:h-9 text-xs sm:text-sm"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="number">Bid Number</Label>
+              <Label htmlFor="number" className="text-xs sm:text-sm">Bid Number</Label>
               <Input
                 id="number"
                 type="text"
                 value={editNumber}
                 onChange={(e) => setEditNumber(e.target.value)}
                 placeholder="Enter new bid number"
+                className="h-8 sm:h-9 text-xs sm:text-sm"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status" className="text-xs sm:text-sm">Status</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger className="rounded-xl">
+                <SelectTrigger className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -554,7 +630,7 @@ export default function Bids() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex gap-2 flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
@@ -563,6 +639,7 @@ export default function Bids() {
                 setEditNumber("");
                 setEditStatus("");
               }}
+              className="w-full sm:w-auto h-8 sm:h-9 text-xs sm:text-sm"
             >
               Cancel
             </Button>
@@ -572,7 +649,7 @@ export default function Bids() {
                 e.stopPropagation();
                 handleSaveEdit();
               }}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto h-8 sm:h-9 text-xs sm:text-sm"
             >
               Save Changes
             </Button>

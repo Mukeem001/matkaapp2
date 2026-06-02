@@ -57,8 +57,8 @@ export default function Dashboard() {
   const autoUpdateMarkets = Array.isArray(markets) ? markets.filter(m => m.autoUpdate) : [];
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {statCards.map((stat, i) => (
           <motion.div
             key={stat.title}
@@ -89,37 +89,68 @@ export default function Dashboard() {
               <CardTitle className="text-lg font-display">Recent Bids</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/20 hover:bg-muted/20">
-                    <TableHead className="pl-6">User</TableHead>
-                    <TableHead>Market</TableHead>
-                    <TableHead>Game</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(stats.recentBids ?? []).slice(0, 8).map((bid) => (
-                    <TableRow key={bid.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="pl-6 font-medium">{bid.userName}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{bid.marketName}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{bid.gameType}</Badge></TableCell>
-                      <TableCell className="text-right font-semibold text-emerald-600">₹{bid.amount}</TableCell>
-                      <TableCell>
-                        <Badge variant={bid.status === "won" ? "default" : bid.status === "lost" ? "destructive" : "secondary"} className="text-xs">
-                          {bid.status.toUpperCase()}
-                        </Badge>
-                      </TableCell>
+              <div className="overflow-x-auto lg:overflow-visible">
+                <Table>
+                  <TableHeader className="hidden lg:table-header-group">
+                    <TableRow className="bg-muted/20 hover:bg-muted/20">
+                      <TableHead className="pl-6">User</TableHead>
+                      <TableHead>Market</TableHead>
+                      <TableHead>Game</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                  {(stats.recentBids ?? []).length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No recent bids found.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(stats.recentBids ?? []).slice(0, 8).map((bid) => (
+                      <>
+                        {/* Desktop View */}
+                        <TableRow key={`desktop-${bid.id}`} className="hidden lg:table-row hover:bg-muted/30 transition-colors">
+                          <TableCell className="pl-6 font-medium">{bid.userName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{bid.marketName}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs">{bid.gameType}</Badge></TableCell>
+                          <TableCell className="text-right font-semibold text-emerald-600">₹{bid.amount}</TableCell>
+                          <TableCell>
+                            <Badge variant={bid.status === "won" ? "default" : bid.status === "lost" ? "destructive" : "secondary"} className="text-xs">
+                              {bid.status.toUpperCase()}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Mobile View */}
+                        <TableRow key={`mobile-${bid.id}`} className="lg:hidden block border-b">
+                          <TableCell className="block p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <p className="font-medium text-sm">{bid.userName}</p>
+                              <Badge variant={bid.status === "won" ? "default" : bid.status === "lost" ? "destructive" : "secondary"} className="text-xs">
+                                {bid.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Market</p>
+                                <p className="text-muted-foreground">{bid.marketName}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Amount</p>
+                                <p className="font-semibold text-emerald-600">₹{bid.amount}</p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-xs font-medium text-muted-foreground">Game Type</p>
+                                <Badge variant="outline" className="text-xs">{bid.gameType}</Badge>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    ))}
+                    {(stats.recentBids ?? []).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No recent bids found.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>

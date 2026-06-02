@@ -103,14 +103,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background/50">
+      <div className="flex min-h-screen w-screen bg-background/50">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-border/40 bg-background/80 px-6 backdrop-blur-xl">
-            <SidebarTrigger className="-ml-2 md:hidden" />
-            <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">{title}</h1>
+        <div className="flex-1 flex flex-col min-w-0 w-full">
+          <header className="sticky top-0 z-30 flex h-12 sm:h-14 lg:h-16 shrink-0 items-center gap-1.5 sm:gap-3 border-b border-border/40 bg-background/95 px-2 sm:px-4 md:px-6 lg:px-8 backdrop-blur-xl">
+            <SidebarTrigger className="-ml-1 md:hidden flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9" />
+            <h1 className="text-sm sm:text-base lg:text-xl font-display font-semibold tracking-tight text-foreground truncate">{title}</h1>
           </header>
-          <main className="flex-1 p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto w-full px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-6 max-w-[1600px] mx-auto">
             {children}
           </main>
         </div>

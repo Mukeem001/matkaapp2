@@ -18,26 +18,26 @@ export default function MarketResultHistory() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Market Result History</h1>
-        <p className="text-gray-600 mt-2">View historical results for all markets</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Market Result History</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">View historical results for all markets</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Filter Results</CardTitle>
-          <CardDescription>Search by market and date</CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Filter Results</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Search by market and date</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <Label htmlFor="market">Market</Label>
+              <Label htmlFor="market" className="text-xs sm:text-sm">Market</Label>
               <select
                 id="market"
                 value={marketId || ""}
                 onChange={(e) => setMarketId(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full px-3 py-2 border rounded-md bg-white"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg bg-white text-xs sm:text-sm h-8 sm:h-9"
                 disabled={marketsLoading}
               >
                 <option value="">All Markets</option>
@@ -50,12 +50,13 @@ export default function MarketResultHistory() {
             </div>
 
             <div>
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="date" className="text-xs sm:text-sm">Date</Label>
               <Input
                 id="date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                className="h-8 sm:h-9 text-xs sm:text-sm"
               />
             </div>
 
@@ -66,7 +67,7 @@ export default function MarketResultHistory() {
                   setDate("");
                 }}
                 variant="outline"
-                className="w-full"
+                className="w-full h-8 sm:h-9 text-xs sm:text-sm"
               >
                 Clear Filters
               </Button>
@@ -77,8 +78,8 @@ export default function MarketResultHistory() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Results</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Results</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             {results?.length || 0} results found
           </CardDescription>
         </CardHeader>
@@ -89,32 +90,32 @@ export default function MarketResultHistory() {
             </div>
           ) : results && results.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b bg-gray-50">
+              <table className="w-full text-xs sm:text-sm">
+                <thead className="border-b bg-muted">
                   <tr>
-                    <th className="px-4 py-2 text-left">Market</th>
-                    <th className="px-4 py-2 text-left">Date</th>
-                    <th className="px-4 py-2 text-center">Open</th>
-                    <th className="px-4 py-2 text-center">Close</th>
-                    <th className="px-4 py-2 text-center">Jodi</th>
-                    <th className="px-4 py-2 text-left">Declared At</th>
+                    <th className="px-2 sm:px-4 py-2 text-left">Market</th>
+                    <th className="px-2 sm:px-4 py-2 text-left">Date</th>
+                    <th className="px-2 sm:px-4 py-2 text-center">Open</th>
+                    <th className="px-2 sm:px-4 py-2 text-center">Close</th>
+                    <th className="px-2 sm:px-4 py-2 text-center">Jodi</th>
+                    <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Declared At</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((result: any) => (
-                    <tr key={result.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{result.marketName}</td>
-                      <td className="px-4 py-3">{result.resultDate}</td>
-                      <td className="px-4 py-3 text-center font-mono">
+                    <tr key={result.id} className="border-b hover:bg-muted/50">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 font-medium">{result.marketName}</td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3">{result.resultDate}</td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
                         {result.openResult || "—"}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
                         {result.closeResult || "—"}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
                         {result.jodiResult || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs text-muted-foreground hidden sm:table-cell">
                         {result.declaredAt
                           ? new Date(result.declaredAt).toLocaleString()
                           : "—"}
@@ -125,7 +126,7 @@ export default function MarketResultHistory() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-xs sm:text-sm text-muted-foreground">
               No results found
             </div>
           )}

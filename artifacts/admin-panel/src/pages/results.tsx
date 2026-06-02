@@ -59,10 +59,10 @@ export default function Results() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-display font-bold">Declare Results</h2>
-        <p className="text-muted-foreground mt-1">Manage game outcomes and declare market results.</p>
+        <h2 className="text-xl sm:text-2xl font-display font-bold">Declare Results</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage game outcomes and declare market results.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -121,36 +121,61 @@ export default function Results() {
             />
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-6">Market</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-center">Result (Open - Jodi - Close)</TableHead>
-                  <TableHead className="pr-6 text-right">Declared At</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8">Loading...</TableCell></TableRow>
-                ) : results?.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">No results found for this date.</TableCell></TableRow>
-                ) : !Array.isArray(results) ? null : (results as any[]).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="pl-6 font-semibold">{r.marketName}</TableCell>
-                    <TableCell>{format(new Date(r.resultDate), 'PP')}</TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-mono text-lg font-bold text-primary tracking-widest bg-primary/5 px-4 py-1.5 rounded-lg border border-primary/20">
-                        {r.openResult || '***'} - {r.jodiResult || '**'} - {r.closeResult || '***'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right text-muted-foreground text-sm">
-                      {r.declaredAt ? format(new Date(r.declaredAt), 'p') : '-'}
-                    </TableCell>
+            <div className="overflow-x-auto lg:overflow-visible">
+              <Table>
+                <TableHeader className="hidden lg:table-header-group">
+                  <TableRow>
+                    <TableHead className="pl-2 sm:pl-4 lg:pl-6 text-xs sm:text-sm">Market</TableHead>
+                    <TableHead className="px-2 sm:px-4 text-xs sm:text-sm">Date</TableHead>
+                    <TableHead className="px-2 sm:px-4 text-center text-xs sm:text-sm">Result (Open - Jodi - Close)</TableHead>
+                    <TableHead className="pr-2 sm:pr-4 lg:pr-6 text-right text-xs sm:text-sm">Declared At</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-xs sm:text-sm">Loading...</TableCell></TableRow>
+                  ) : results?.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground text-xs sm:text-sm">No results found for this date.</TableCell></TableRow>
+                  ) : !Array.isArray(results) ? null : (results as any[]).map((r) => (
+                    <>
+                      {/* Desktop View */}
+                      <TableRow key={`desktop-${r.id}`} className="hidden lg:table-row">
+                        <TableCell className="pl-2 sm:pl-4 lg:pl-6 font-semibold text-xs sm:text-sm">{r.marketName}</TableCell>
+                        <TableCell className="px-2 sm:px-4 text-xs sm:text-sm">{format(new Date(r.resultDate), 'PP')}</TableCell>
+                        <TableCell className="px-2 sm:px-4 text-center">
+                          <span className="font-mono font-bold text-primary tracking-widest bg-primary/5 px-2 sm:px-4 py-1 sm:py-1.5 rounded-lg border border-primary/20 text-xs sm:text-sm">
+                            {r.openResult || '***'} - {r.jodiResult || '**'} - {r.closeResult || '***'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="pr-2 sm:pr-4 lg:pr-6 text-right text-muted-foreground text-xs sm:text-sm">
+                          {r.declaredAt ? format(new Date(r.declaredAt), 'p') : '-'}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Mobile View */}
+                      <TableRow key={`mobile-${r.id}`} className="lg:hidden block border-b mb-4">
+                        <TableCell className="block p-2 sm:p-4 space-y-2 sm:space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <h3 className="font-semibold text-xs sm:text-sm text-foreground flex-1">{r.marketName}</h3>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">{format(new Date(r.resultDate), 'PP')}</span>
+                          </div>
+                          <div className="bg-primary/5 p-2 sm:p-3 rounded-lg border border-primary/20">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
+                            <p className="font-mono font-bold text-primary tracking-widest text-center text-xs sm:text-sm">
+                              {r.openResult || '***'} - {r.jodiResult || '**'} - {r.closeResult || '***'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Declared At</p>
+                            <p className="text-xs sm:text-sm text-foreground">{r.declaredAt ? format(new Date(r.declaredAt), 'p') : '-'}</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

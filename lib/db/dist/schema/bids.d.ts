@@ -139,6 +139,23 @@ export declare const bidsTable: import("drizzle-orm/pg-core").PgTableWithColumns
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        bidsStatus: import("drizzle-orm/pg-core").PgColumn<{
+            name: "bids_status";
+            tableName: "bids";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         openTime: import("drizzle-orm/pg-core").PgColumn<{
             name: "open_time";
             tableName: "bids";

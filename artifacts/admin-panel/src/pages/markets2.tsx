@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Clock, RefreshCw, Wifi, WifiOff, AlertCircle, CheckCircle2, Zap, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -87,32 +87,32 @@ function MarketDialog({ market, open, setOpen, onSave }: { market?: Market | nul
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95%] max-w-[425px] sm:max-w-[425px] p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>{market ? "Edit Market" : "Add New Market"}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">{market ? "Edit Market" : "Add New Market"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-3 sm:space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Market Name</Label>
-            <Input {...form.register("name")} placeholder="e.g. KALYAN" className="rounded-xl" />
+            <Label className="text-xs sm:text-sm">Market Name</Label>
+            <Input {...form.register("name")} placeholder="e.g. KALYAN" className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <div className="space-y-2">
-              <Label>Open Time</Label>
-              <Input type="time" {...form.register("openTime")} className="rounded-xl" />
+              <Label className="text-xs sm:text-sm">Open Time</Label>
+              <Input type="time" {...form.register("openTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
             </div>
             <div className="space-y-2">
-              <Label>Close Time</Label>
-              <Input type="time" {...form.register("closeTime")} className="rounded-xl" />
+              <Label className="text-xs sm:text-sm">Close Time</Label>
+              <Input type="time" {...form.register("closeTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
             </div>
           </div>
-          <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30">
-            <Label className="cursor-pointer">Active Status</Label>
+          <div className="flex items-center justify-between p-2 sm:p-4 rounded-xl border border-border/50 bg-muted/30">
+            <Label className="cursor-pointer text-xs sm:text-sm">Active Status</Label>
             <Switch checked={form.watch("isActive")} onCheckedChange={(c) => form.setValue("isActive", c)} />
           </div>
           <Button
             type="submit"
-            className="w-full btn-primary-gradient mt-2"
+            className="w-full btn-primary-gradient mt-2 h-8 sm:h-9 text-xs sm:text-sm"
             disabled={isSaving}
           >
             {market ? "Update Market" : "Create Market"}
@@ -149,33 +149,33 @@ function AutoConfigDialog({ market, open, setOpen, onSave }: { market: Market; o
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="w-[95%] max-w-[480px] sm:max-w-[480px] p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Auto-Update Config — {market.name}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Auto-Update Config — {market.name}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5 pt-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30">
-            <div>
-              <Label className="font-medium">Enable Auto Update</Label>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-3 sm:space-y-5 pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 sm:p-4 rounded-xl border border-border/50 bg-muted/30 gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <Label className="font-medium text-xs sm:text-sm">Enable Auto Update</Label>
               <p className="text-xs text-muted-foreground mt-0.5">Automatically fetch results every minute</p>
             </div>
-            <Switch checked={form.watch("autoUpdate")} onCheckedChange={(c) => form.setValue("autoUpdate", c)} />
+            <Switch checked={form.watch("autoUpdate")} onCheckedChange={(c) => form.setValue("autoUpdate", c)} className="flex-shrink-0" />
           </div>
           <div className="space-y-2">
-            <Label>Source URL</Label>
+            <Label className="text-xs sm:text-sm">Source URL</Label>
             <Input
               {...form.register("sourceUrl")}
-              placeholder="https://example.com/results or https://api.example.com/results.json"
-              className="rounded-xl font-mono text-sm"
+              placeholder="https://example.com/results"
+              className="rounded-xl font-mono text-xs sm:text-sm h-8 sm:h-9"
             />
             <p className="text-xs text-muted-foreground">
-              Supports JSON APIs and HTML pages. JSON keys: open, close, jodi. HTML will be scraped automatically.
+              Supports JSON APIs and HTML pages.
             </p>
             {form.formState.errors.sourceUrl && (
               <p className="text-xs text-destructive">{form.formState.errors.sourceUrl.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full btn-primary-gradient" disabled={isSaving}>
+          <Button type="submit" className="w-full btn-primary-gradient h-8 sm:h-9 text-xs sm:text-sm" disabled={isSaving}>
             Save Configuration
           </Button>
         </form>
@@ -508,31 +508,31 @@ export default function Markets2() {
   if (isLoading) return <div className="animate-pulse h-64 bg-muted rounded-2xl" />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-display font-bold">Markets 2</h2>
-          <p className="text-muted-foreground mt-1">Manage markets, timings, and auto-result updates.</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-display font-bold">Markets 2</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage markets, timings, and auto-result updates.</p>
         </div>
-        <Button onClick={openCreate} className="btn-primary-gradient gap-2">
-          <Plus className="w-4 h-4" /> Add Market
+        <Button onClick={openCreate} className="btn-primary-gradient gap-2 w-full sm:w-auto flex-shrink-0 text-sm sm:text-base h-9 sm:h-10">
+          <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Market</span><span className="sm:hidden">Add</span>
         </Button>
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto lg:overflow-visible">
           <Table>
             <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="pl-6 min-w-[140px]">Market Name</TableHead>
-                <TableHead className="min-w-[130px]">Timings</TableHead>
-                <TableHead className="min-w-[160px]">Yesterday (O/J/C)</TableHead>
-                <TableHead className="min-w-[160px]">Today (O/J/C)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="min-w-[100px]">Auto Update</TableHead>
-                <TableHead className="min-w-[180px]">Source URL</TableHead>
-                <TableHead className="min-w-[140px]">Last Fetched</TableHead>
-                <TableHead className="text-right pr-6 min-w-[150px]">Actions</TableHead>
+              <TableRow className="hidden lg:table-row">
+                <TableHead className="pl-2 sm:pl-4 lg:pl-6 min-w-[140px] text-xs sm:text-sm">Market Name</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[130px] text-xs sm:text-sm">Timings</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[160px] text-xs sm:text-sm">Yesterday (O/J/C)</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[160px] text-xs sm:text-sm">Today (O/J/C)</TableHead>
+                <TableHead className="px-2 sm:px-4 text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[100px] text-xs sm:text-sm">Auto Update</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[180px] text-xs sm:text-sm">Source URL</TableHead>
+                <TableHead className="px-2 sm:px-4 min-w-[140px] text-xs sm:text-sm">Last Fetched</TableHead>
+                <TableHead className="pr-2 sm:pr-4 lg:pr-6 text-right min-w-[150px] text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -542,33 +542,34 @@ export default function Markets2() {
                 const autoUpdate = typeof market.autoUpdate === 'string' ? market.autoUpdate === 'true' : market.autoUpdate;
                 
                 return (
-                <TableRow key={market.id}>
-                  <TableCell className="pl-6 font-semibold">{market.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <>
+                    <TableRow key={`desktop-${market.id}`} className="hidden lg:table-row">
+                  <TableCell className="pl-2 sm:pl-4 lg:pl-6 font-semibold text-xs sm:text-sm">{market.name}</TableCell>
+                  <TableCell className="px-2 sm:px-4">
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" />
                       <span>
                         {market.openTime} – {market.closeTime}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <div className="space-y-1 text-xs">
                       <div className="text-xs text-muted-foreground font-medium">{yesterdayResults[market.id]?.date || "—"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {yesterdayResults[market.id]?.open ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {yesterdayResults[market.id]?.jodi ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {yesterdayResults[market.id]?.close ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">O: {yesterdayResults[market.id]?.open ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">J: {yesterdayResults[market.id]?.jodi ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">C: {yesterdayResults[market.id]?.close ?? "**"}</div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <div className="space-y-1 text-xs">
                       <div className="text-xs text-muted-foreground font-medium">{todayResults[market.id]?.date || "—"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {todayResults[market.id]?.open ?? market.openResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {todayResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {todayResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">O: {todayResults[market.id]?.open ?? market.openResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">J: {todayResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary">C: {todayResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <Badge
                       variant={isActive ? "default" : "secondary"}
                       className={isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
@@ -576,7 +577,7 @@ export default function Markets2() {
                       {isActive ? "Active" : "Closed"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <div className="flex items-center gap-2">
                       {autoUpdate ? (
                         <Button
@@ -599,7 +600,7 @@ export default function Markets2() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <div className="flex items-center gap-1.5 max-w-[200px]">
                       {market.sourceUrl ? (
                         <>
@@ -620,31 +621,12 @@ export default function Markets2() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {market.sourceUrl ? (
-                      <div className="flex items-center gap-1.5 max-w-[200px] group">
-                        {isHardFetchError(market.fetchError) ? (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <AlertCircle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent>{market.fetchError}</TooltipContent>
-                          </Tooltip>
-                        ) : market.lastFetchedAt ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                        ) : null}
-                        <span className="text-xs text-muted-foreground truncate font-mono">{market.sourceUrl}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">Not configured</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 sm:px-4">
                     <span className="text-xs text-muted-foreground">
                       {market.lastFetchedAt ? format(new Date(market.lastFetchedAt), "dd MMM, HH:mm") : "Never"}
                     </span>
                   </TableCell>
-                  <TableCell className="pr-6 text-right">
+                  <TableCell className="pr-2 sm:pr-4 lg:pr-6 text-right">
                     <div className="flex justify-end gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -702,11 +684,183 @@ export default function Markets2() {
                     </div>
                   </TableCell>
                 </TableRow>
+
+                {/* Mobile Card View */}
+                <TableRow key={`mobile-${market.id}`} className="lg:hidden border-b">
+                  <TableCell colSpan={9} className="p-0">
+                    <div className="p-2 sm:p-4 space-y-2 sm:space-y-3 bg-white">
+                      {/* Market Name Header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-xs sm:text-sm text-foreground flex-1">{market.name}</h3>
+                        <Badge
+                          variant={isActive ? "default" : "secondary"}
+                          className={`flex-shrink-0 text-xs ${isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}
+                        >
+                          {isActive ? "Active" : "Closed"}
+                        </Badge>
+                      </div>
+
+                      {/* Timings */}
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                        <Clock className="w-3 h-3 flex-shrink-0" />
+                        <span>
+                          {market.openTime} – {market.closeTime}
+                        </span>
+                      </div>
+
+                      {/* Yesterday Results */}
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground font-medium mb-1">Yesterday (O/J/C)</p>
+                        <div className="text-xs text-muted-foreground">{yesterdayResults[market.id]?.date || "—"}</div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          O: {yesterdayResults[market.id]?.open ?? "**"}
+                        </div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          J: {yesterdayResults[market.id]?.jodi ?? "**"}
+                        </div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          C: {yesterdayResults[market.id]?.close ?? "**"}
+                        </div>
+                      </div>
+
+                      {/* Today Results */}
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground font-medium mb-1">Today (O/J/C)</p>
+                        <div className="text-xs text-muted-foreground">{todayResults[market.id]?.date || "—"}</div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          O: {todayResults[market.id]?.open ?? market.openResult ?? "**"}
+                        </div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          J: {todayResults[market.id]?.jodi ?? market.jodiResult ?? "**"}
+                        </div>
+                        <div className="font-mono font-semibold text-primary text-xs tracking-widest">
+                          C: {todayResults[market.id]?.close ?? market.closeResult ?? "**"}
+                        </div>
+                      </div>
+
+                      {/* Auto Update */}
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground font-medium mb-1.5">Auto Update</p>
+                        <div className="flex gap-2">
+                          {autoUpdate ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleAutoUpdate(market, false)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white gap-1 text-xs h-7 flex-1"
+                            >
+                              <Wifi className="w-3 h-3" /> ON
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleToggleAutoUpdate(market, true)}
+                              className="gap-1 text-xs h-7 flex-1"
+                            >
+                              <WifiOff className="w-3 h-3" /> OFF
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Source URL */}
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground font-medium mb-1">Source URL</p>
+                        <div className="flex items-center gap-1 text-xs">
+                          {market.sourceUrl ? (
+                            <>
+                              {isHardFetchError(market.fetchError) ? (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-[200px]">{market.fetchError}</TooltipContent>
+                                </Tooltip>
+                              ) : market.lastFetchedAt ? (
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                              ) : null}
+                              <span className="text-muted-foreground truncate font-mono break-all text-xs">{market.sourceUrl}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground italic">Not configured</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Last Fetched */}
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground font-medium mb-1">Last Fetched</p>
+                        <span className="text-xs text-muted-foreground">
+                          {market.lastFetchedAt ? format(new Date(market.lastFetchedAt), "dd MMM, HH:mm") : "Never"}
+                        </span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-1 pt-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleFetchNow(market)}
+                              disabled={fetchingId === market.id}
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-8 h-8"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${fetchingId === market.id ? "animate-spin" : ""}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Fetch Now</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setAutoConfigMarket(market)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-8 h-8"
+                            >
+                              <Zap className="w-3.5 h-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Auto Config</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => { setEditingMarket(market); setDialogOpen(true); }}
+                              className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 w-8 h-8"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(market.id)}
+                              className="text-destructive hover:text-red-700 hover:bg-red-50 w-8 h-8"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                </>
               );
               })}
               {(!Array.isArray(markets) || markets.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-xs sm:text-sm">
                     No markets found. Add your first market.
                   </TableCell>
                 </TableRow>

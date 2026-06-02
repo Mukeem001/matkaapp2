@@ -266,17 +266,17 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-display font-bold">Users</h2>
-          <p className="text-muted-foreground mt-1">Manage players, wallets, and access.</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-display font-bold">Users</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage players, wallets, and access.</p>
         </div>
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full sm:w-72 flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Search by name, email or phone..." 
-            className="pl-9 rounded-xl h-11 bg-card shadow-sm border-border/50"
+            placeholder="Search by name, email..." 
+            className="pl-9 rounded-xl h-8 sm:h-10 text-xs sm:text-sm bg-card shadow-sm border-border/50 w-full"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -380,91 +380,171 @@ export default function Users() {
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="pl-6">User Info</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead className="text-right">Wallet Balance</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right pr-6">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : !Array.isArray(data?.users) ? null : (data.users as any[]).map((user) => (
-              <TableRow key={user.id} className="group">
-                <TableCell className="pl-6">
-                  <div className="font-semibold text-foreground">{user.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Joined {format(new Date(user.createdAt), 'PP')}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">{user.phone}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="font-mono font-bold text-emerald-600 bg-emerald-50 w-max ml-auto px-3 py-1 rounded-md border border-emerald-100">
-                    ₹{(user.walletBalance ?? 0).toLocaleString()}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={user.isBlocked ? 'destructive' : 'default'} className={!user.isBlocked ? 'bg-blue-500' : ''}>
-                    {user.isBlocked ? 'Blocked' : 'Active'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-6 text-right">
-                  <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
-                      onClick={() => setViewingUser(user)}
-                    >
-                      <Eye className="w-3.5 h-3.5" /> View
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
-                      onClick={() => {
-                        setWalletDialog(user);
-                        form.reset({ walletBalance: user.walletBalance });
-                      }}
-                    >
-                      <Wallet className="w-3.5 h-3.5" /> Edit Wallet
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`h-8 gap-1.5 ${user.isBlocked ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-rose-200 text-rose-700 hover:bg-rose-50'}`}
-                      onClick={() => toggleBlock(user)}
-                    >
-                      {user.isBlocked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
-                      {user.isBlocked ? 'Unblock' : 'Block'}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50"
-                      onClick={() => setNotificationDialog(user)}
-                    >
-                      🔔 Notify
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
-                      onClick={() => setDeleteDialog(user)}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </Button>
-                  </div>
-                </TableCell>
+        <div className="overflow-x-auto lg:overflow-visible">
+          <Table>
+            <TableHeader className="bg-muted/30 hidden lg:table-header-group">
+              <TableRow>
+                <TableHead className="pl-6">User Info</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead className="text-right">Wallet Balance</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right pr-6">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
+              ) : !Array.isArray(data?.users) ? null : (data.users as any[]).map((user) => (
+                <>
+                  {/* Desktop View */}
+                  <TableRow key={`desktop-${user.id}`} className="hidden lg:table-row group">
+                    <TableCell className="pl-6">
+                      <div className="font-semibold text-foreground">{user.name}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Joined {format(new Date(user.createdAt), 'PP')}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{user.phone}</div>
+                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="font-mono font-bold text-emerald-600 bg-emerald-50 w-max ml-auto px-3 py-1 rounded-md border border-emerald-100">
+                        ₹{(user.walletBalance ?? 0).toLocaleString()}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={user.isBlocked ? 'destructive' : 'default'} className={!user.isBlocked ? 'bg-blue-500' : ''}>
+                        {user.isBlocked ? 'Blocked' : 'Active'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
+                          onClick={() => setViewingUser(user)}
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => {
+                            setWalletDialog(user);
+                            form.reset({ walletBalance: user.walletBalance });
+                          }}
+                        >
+                          <Wallet className="w-3.5 h-3.5" /> Edit Wallet
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`h-8 gap-1.5 ${user.isBlocked ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-rose-200 text-rose-700 hover:bg-rose-50'}`}
+                          onClick={() => toggleBlock(user)}
+                        >
+                          {user.isBlocked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                          {user.isBlocked ? 'Unblock' : 'Block'}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50"
+                          onClick={() => setNotificationDialog(user)}
+                        >
+                          🔔 Notify
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteDialog(user)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Mobile View */}
+                  <TableRow key={`mobile-${user.id}`} className="lg:hidden block border-b mb-4">
+                    <TableCell className="block p-4 space-y-3">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-semibold text-foreground">{user.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Joined {format(new Date(user.createdAt), 'PP')}</p>
+                        </div>
+                        <Badge variant={user.isBlocked ? 'destructive' : 'default'} className={!user.isBlocked ? 'bg-blue-500' : ''}>
+                          {user.isBlocked ? 'Blocked' : 'Active'}
+                        </Badge>
+                      </div>
+
+                      <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Contact</p>
+                          <p className="text-sm">{user.phone}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Wallet Balance</p>
+                        <p className="font-mono font-bold text-emerald-600">₹{(user.walletBalance ?? 0).toLocaleString()}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 text-xs"
+                          onClick={() => setViewingUser(user)}
+                        >
+                          <Eye className="w-3 h-3" /> View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs"
+                          onClick={() => {
+                            setWalletDialog(user);
+                            form.reset({ walletBalance: user.walletBalance });
+                          }}
+                        >
+                          <Wallet className="w-3 h-3" /> Wallet
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`h-8 gap-1 text-xs ${user.isBlocked ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-rose-200 text-rose-700 hover:bg-rose-50'}`}
+                          onClick={() => toggleBlock(user)}
+                        >
+                          {user.isBlocked ? <CheckCircle2 className="w-3 h-3" /> : <Ban className="w-3 h-3" />}
+                          {user.isBlocked ? 'Unblock' : 'Block'}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 border-orange-200 text-orange-700 hover:bg-orange-50 text-xs"
+                          onClick={() => setNotificationDialog(user)}
+                        >
+                          🔔 Notify
+                        </Button>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 w-full gap-1 border-red-200 text-red-700 hover:bg-red-50 text-xs"
+                        onClick={() => setDeleteDialog(user)}
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete User
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Pagination Controls */}
@@ -511,29 +591,29 @@ export default function Users() {
       )}
 
       <Dialog open={!!walletDialog} onOpenChange={(o) => !o && setWalletDialog(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95%] max-w-md sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Update Wallet Balance</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Update Wallet Balance</DialogTitle>
           </DialogHeader>
-          <div className="mb-4 mt-2 p-4 bg-muted/50 rounded-xl flex justify-between items-center border border-border/50">
+          <div className="mb-4 mt-2 p-2 sm:p-4 bg-muted/50 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center border border-border/50 gap-3">
             <div>
-              <p className="text-sm text-muted-foreground">User</p>
-              <p className="font-semibold">{walletDialog?.name}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">User</p>
+              <p className="font-semibold text-sm sm:text-base">{walletDialog?.name}</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Current Balance</p>
-              <p className="font-mono font-bold text-primary text-lg">₹{walletDialog?.walletBalance}</p>
+            <div className="text-left sm:text-right">
+              <p className="text-xs sm:text-sm text-muted-foreground">Current Balance</p>
+              <p className="font-mono font-bold text-primary text-base sm:text-lg">₹{walletDialog?.walletBalance}</p>
             </div>
           </div>
-          <form onSubmit={form.handleSubmit(onUpdateWallet)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onUpdateWallet)} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <Label>New Balance Amount</Label>
+              <Label className="text-xs sm:text-sm">New Balance Amount</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
-                <Input type="number" {...form.register("walletBalance")} className="pl-8 text-lg font-bold rounded-xl" autoFocus />
+                <Input type="number" {...form.register("walletBalance")} className="pl-8 text-xs sm:text-base h-8 sm:h-9 font-bold rounded-xl" autoFocus />
               </div>
             </div>
-            <Button type="submit" className="w-full btn-primary-gradient mt-2 h-11">
+            <Button type="submit" className="w-full btn-primary-gradient mt-2 h-8 sm:h-9 text-xs sm:text-sm">
               Confirm Update
             </Button>
           </form>
@@ -541,15 +621,15 @@ export default function Users() {
       </Dialog>
 
       <Dialog open={!!deleteDialog} onOpenChange={(o) => !o && setDeleteDialog(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95%] max-w-md sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Delete User</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               Permanently remove this user and all associated data. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
-            <p className="text-sm text-red-900 mb-3">
+          <div className="mt-4 p-3 sm:p-4 bg-red-50 rounded-xl border border-red-200">
+            <p className="text-xs sm:text-sm text-red-900 mb-3">
               Are you sure you want to delete <span className="font-bold">{deleteDialog?.name}</span>? This action cannot be undone.
             </p>
             <p className="text-xs text-red-700">User ID: {deleteDialog?.id} | Phone: {deleteDialog?.phone}</p>
@@ -576,23 +656,23 @@ export default function Users() {
 
       {/* User Details Modal */}
       <Dialog open={!!viewingUser} onOpenChange={(o) => !o && setViewingUser(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95%] max-w-2xl sm:max-w-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Eye className="w-4 sm:w-5 h-4 sm:h-5" />
               User Details - {viewingUser?.name}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               Comprehensive overview of user activity and information
             </DialogDescription>
           </DialogHeader>
           
           {viewingUser && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Personal Info */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2">📋 Personal Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <h3 className="font-semibold text-xs sm:text-sm flex items-center gap-2">📋 Personal Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <p className="text-muted-foreground">Name</p>
                     <p className="font-medium">{viewingUser.name}</p>
@@ -601,7 +681,7 @@ export default function Users() {
                     <p className="text-muted-foreground">Phone</p>
                     <p className="font-medium">{viewingUser.phone}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <p className="text-muted-foreground">Email</p>
                     <p className="font-medium">{viewingUser.email}</p>
                   </div>
@@ -883,21 +963,21 @@ export default function Users() {
 
       {/* Notification Dialog */}
       <Dialog open={!!notificationDialog} onOpenChange={(o) => !o && setNotificationDialog(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95%] max-w-md sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Send Notification</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Send Notification</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               Send a custom message to {notificationDialog?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-900">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="p-2 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm text-blue-900">
                 <span className="font-semibold">User:</span> {notificationDialog?.name} ({notificationDialog?.phone})
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notification-message">Message</Label>
+              <Label htmlFor="notification-message" className="text-xs sm:text-sm">Message</Label>
               <textarea
                 id="notification-message"
                 className="w-full min-h-[120px] p-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"

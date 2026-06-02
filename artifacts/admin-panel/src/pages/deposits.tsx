@@ -100,10 +100,10 @@ export default function Deposits() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-display font-bold">Deposit Requests</h2>
-        <p className="text-muted-foreground mt-1">Review and process user wallet deposits.</p>
+        <h2 className="text-xl sm:text-2xl font-display font-bold">Deposit Requests</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Review and process user wallet deposits.</p>
       </div>
 
       {/* Date Filter Buttons */}
@@ -195,65 +195,127 @@ export default function Deposits() {
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="pl-6">Date</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Details</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-center">Proof</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right pr-6">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : totalDeposits === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No deposit requests.</TableCell></TableRow>
-            ) : pageDeposits.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className="pl-6 text-sm text-muted-foreground">
-                  {format(new Date(d.createdAt), 'PP p')}
-                </TableCell>
-                <TableCell className="font-semibold">{d.userName}</TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-xs uppercase font-bold text-muted-foreground">{d.paymentMethod}</span>
-                    <span className="font-mono text-sm">{d.transactionId || '-'}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-mono font-bold text-lg text-emerald-600">₹{d.amount}</TableCell>
-                <TableCell className="text-center">
-                  {d.screenshotUrl ? (
-                    <Button variant="ghost" size="sm" onClick={() => setScreenshot(d.screenshotUrl!)}>
-                      <FileText className="w-4 h-4 text-blue-500" />
-                    </Button>
-                  ) : '-'}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={d.status === 'approved' ? 'default' : d.status === 'rejected' ? 'destructive' : 'secondary'} 
-                         className={d.status === 'approved' ? 'bg-emerald-500' : d.status === 'pending' ? 'bg-amber-500' : ''}>
-                    {d.status.toUpperCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-6 text-right">
-                  {d.status === 'pending' && (
-                    <div className="flex justify-end gap-2">
-                      <Button size="icon" className="h-8 w-8 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none" onClick={() => handleAction(d.id, 'approve')}>
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" className="h-8 w-8 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none" onClick={() => handleAction(d.id, 'reject')}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </TableCell>
+        <div className="overflow-x-auto lg:overflow-visible">
+          <Table>
+            <TableHeader className="bg-muted/30 hidden lg:table-header-group">
+              <TableRow>
+                <TableHead className="pl-6">Date</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-center">Proof</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right pr-6">Action</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
+              ) : totalDeposits === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No deposit requests.</TableCell></TableRow>
+              ) : pageDeposits.map((d) => (
+                <>
+                  {/* Desktop View */}
+                  <TableRow key={`desktop-${d.id}`} className="hidden lg:table-row">
+                    <TableCell className="pl-6 text-sm text-muted-foreground">
+                      {format(new Date(d.createdAt), 'PP p')}
+                    </TableCell>
+                    <TableCell className="font-semibold">{d.userName}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs uppercase font-bold text-muted-foreground">{d.paymentMethod}</span>
+                        <span className="font-mono text-sm">{d.transactionId || '-'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-bold text-lg text-emerald-600">₹{d.amount}</TableCell>
+                    <TableCell className="text-center">
+                      {d.screenshotUrl ? (
+                        <Button variant="ghost" size="sm" onClick={() => setScreenshot(d.screenshotUrl!)}>
+                          <FileText className="w-4 h-4 text-blue-500" />
+                        </Button>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={d.status === 'approved' ? 'default' : d.status === 'rejected' ? 'destructive' : 'secondary'} 
+                             className={d.status === 'approved' ? 'bg-emerald-500' : d.status === 'pending' ? 'bg-amber-500' : ''}>
+                        {d.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      {d.status === 'pending' && (
+                        <div className="flex justify-end gap-2">
+                          <Button size="icon" className="h-8 w-8 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none" onClick={() => handleAction(d.id, 'approve')}>
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" className="h-8 w-8 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none" onClick={() => handleAction(d.id, 'reject')}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Mobile View */}
+                  <TableRow key={`mobile-${d.id}`} className="lg:hidden block border-b mb-4">
+                    <TableCell className="block p-4 space-y-3">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Date</p>
+                          <p className="text-sm text-foreground">{format(new Date(d.createdAt), 'PP p')}</p>
+                        </div>
+                        <Badge variant={d.status === 'approved' ? 'default' : d.status === 'rejected' ? 'destructive' : 'secondary'} 
+                               className={d.status === 'approved' ? 'bg-emerald-500' : d.status === 'pending' ? 'bg-amber-500' : ''}>
+                          {d.status.toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">User</p>
+                          <p className="text-sm font-semibold text-foreground">{d.userName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Amount</p>
+                          <p className="text-sm font-mono font-bold text-emerald-600">₹{d.amount}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/30 p-3 rounded-lg space-y-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Payment Method</p>
+                          <p className="text-xs uppercase font-bold text-foreground">{d.paymentMethod}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Transaction ID</p>
+                          <p className="font-mono text-xs text-foreground">{d.transactionId || '-'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        {d.screenshotUrl && (
+                          <Button variant="outline" size="sm" onClick={() => setScreenshot(d.screenshotUrl!)} className="flex-1">
+                            <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                            View Proof
+                          </Button>
+                        )}
+                        {d.status === 'pending' && (
+                          <>
+                            <Button size="sm" className="flex-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none" onClick={() => handleAction(d.id, 'approve')}>
+                              <Check className="w-4 h-4 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" className="flex-1 bg-rose-100 text-rose-700 hover:bg-rose-200 shadow-none" onClick={() => handleAction(d.id, 'reject')}>
+                              <X className="w-4 h-4 mr-1" /> Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -284,12 +346,12 @@ export default function Deposits() {
       </div>
 
       <Dialog open={!!screenshot} onOpenChange={() => setScreenshot(null)}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="w-[95%] max-w-xl sm:max-w-xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Payment Screenshot</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Payment Screenshot</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center mt-4">
-            <img src={screenshot || ''} alt="Screenshot" className="max-w-full rounded-lg shadow-md border border-border/50" />
+          <div className="flex justify-center mt-2 sm:mt-4">
+            <img src={screenshot || ''} alt="Screenshot" className="max-w-full max-h-[70vh] rounded-lg shadow-md border border-border/50" />
           </div>
         </DialogContent>
       </Dialog>
