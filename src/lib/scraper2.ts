@@ -1,6 +1,6 @@
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { getTodayDateIST } from "./date-utils.js";
+import { getTodayDateIST, getYesterdayDateIST } from "./date-utils.js";
 import { scrapeLiveResults } from "./scraper.js";
 import { processMarkets2Bids } from "./bid-processor.js";
 
@@ -38,6 +38,7 @@ function formatMarkets2Result(jodiNumber: string): { openResult: string; jodiRes
 
 /**
  * FETCH AND UPDATE MARKETS2 RESULT - With Real Scraping
+ * Now fetches and stores both TODAY'S and YESTERDAY'S results
  */
 
 async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProxy?: boolean }) {
@@ -54,13 +55,13 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
 
     console.log(`[Market2] Fetching result for ${market.name}`);
 
-    // Scrape live results using real scraper
+    // Scrape live results using real scraper (gets both today and yesterday)
     const liveResult = await scrapeLiveResults(market.name, opts);
     
     console.log(`[Market2] 📍 Market DB name: "${market.name}"`);
     console.log(`[Market2] 🔍 Scrape result:`, JSON.stringify(liveResult, null, 2));
     
-    // Check if we have ANY result
+    // Check if we have ANY result (today's)
     const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
     
     if (!hasAnyResult) {
@@ -69,7 +70,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
     }
     
     if (hasAnyResult) {
-      // Format the result: use available jodi, or fallback to close/open
+      // Format TODAY'S result
       const rawJodi = liveResult.jodiResult || liveResult.closeResult || liveResult.openResult || '00';
       const formatted = formatMarkets2Result(rawJodi);
       
@@ -77,13 +78,13 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
       console.log(`[Market2] Raw jodi: ${rawJodi}`);
       console.log(`[Market2] Formatted: open=${formatted.openResult}, jodi=${formatted.jodiResult}, close=${formatted.closeResult}`);
       
-      // Save to results2_table with TODAY'S IST date only
+      // Save TODAY'S result to results2_table
       const today = getTodayDateIST();
       console.log(`[Market2] Today's date: ${today}`);
       
       try {
-        // Check if result exists for today
-        const queryResult = await db
+        // Check if TODAY'S result exists
+        const todayQueryResult = await db
           .select()
           .from(results2Table)
           .where(
@@ -93,38 +94,63 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
             )
           );
         
-        const existingResult = queryResult[0];
-        console.log(`[Market2] Query check completed, existing: ${existingResult ? existingResult.id : "none"}`);
+        const existingTodayResult = todayQueryResult[0];
+        console.log(`[Market2] Today's result check: ${existingTodayResult ? existingTodayResult.id : "new"}`);
         
-        if (existingResult) {
-          console.log(`[Market2] ✏️ Updating existing result ID: ${existingResult.id}`);
-          
-          try {
-            // Update result with properly formatted jodi
-            await db.update(results2Table)
-              .set({
-                result: formatted.jodiResult,
-              })
-              .where(eq(results2Table.id, existingResult.id));
-            console.log(`[Market2] ✏️ Update completed successfully`);
-          } catch (updateError) {
-            console.error(`[Market2] Update error:`, updateError);
-            throw updateError;
-          }
+        if (existingTodayResult) {
+          console.log(`[Market2] ✏️ Updating today's result ID: ${existingTodayResult.id}`);
+          await db.update(results2Table)
+            .set({
+              result: formatted.jodiResult,
+            })
+            .where(eq(results2Table.id, existingTodayResult.id));
         } else {
-          console.log(`[Market2] ✅ Creating new result for market ${marketId}`);
-          const insertData: any = {
+          console.log(`[Market2] ✅ Creating today's result for market ${marketId}`);
+          await db.insert(results2Table).values({
             marketId,
             resultDate: today,
             result: formatted.jodiResult,
-          };
-          
-          console.log(`[Market2] Insert data:`, insertData);
-          await db.insert(results2Table).values(insertData);
-          console.log(`[Market2] ✅ Insert completed`);
+          });
         }
         
-        // Update markets2 table with properly formatted results
+        // SAVE YESTERDAY'S RESULT if available
+        if (liveResult.yesterdayJodiResult && liveResult.yesterdayJodiResult !== "XX") {
+          const formattedYesterday = formatMarkets2Result(liveResult.yesterdayJodiResult);
+          const yesterday = getYesterdayDateIST();
+          
+          console.log(`[Market2] 📅 Saving yesterday's result: ${formattedYesterday.jodiResult} for date ${yesterday}`);
+          
+          // Check if yesterday's result exists
+          const yesterdayQueryResult = await db
+            .select()
+            .from(results2Table)
+            .where(
+              and(
+                eq(results2Table.marketId, marketId),
+                eq(results2Table.resultDate, yesterday)
+              )
+            );
+          
+          const existingYesterdayResult = yesterdayQueryResult[0];
+          
+          if (existingYesterdayResult) {
+            console.log(`[Market2] ✏️ Updating yesterday's result ID: ${existingYesterdayResult.id}`);
+            await db.update(results2Table)
+              .set({
+                result: formattedYesterday.jodiResult,
+              })
+              .where(eq(results2Table.id, existingYesterdayResult.id));
+          } else {
+            console.log(`[Market2] ✅ Creating yesterday's result for market ${marketId}`);
+            await db.insert(results2Table).values({
+              marketId,
+              resultDate: yesterday,
+              result: formattedYesterday.jodiResult,
+            });
+          }
+        }
+        
+        // Update markets2 table with TODAY'S result for quick display
         const marketUpdateData: any = {
           lastFetchedAt: new Date(),
           fetchError: null,
@@ -133,7 +159,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           closeResult: formatted.closeResult,
         };
 
-        console.log(`[Market2] Updating markets2 table with formatted results`);
+        console.log(`[Market2] Updating markets2 table with today's formatted results`);
         const updated = await db.update(markets2Table)
           .set(marketUpdateData)
           .where(eq(markets2Table.id, marketId))

@@ -4,6 +4,7 @@ import { db, markets2Table, results2Table } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
 import { authMiddleware, userAuthMiddleware } from "../middlewares/auth.js";
 import { fetchAndUpdateMarkets2Result } from "../lib/scraper2.js";
+import { getTodayDateIST, getYesterdayDateIST } from "../lib/date-utils.js";
 
 const router: IRouter = Router();
 
@@ -184,6 +185,66 @@ router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
     });
   } catch (error) {
     console.error("Error fetching market2 results by date:", error);
+    res.status(500).json({ error: "Failed to fetch results" });
+  }
+});
+
+/**
+ * Get both TODAY'S and YESTERDAY'S results for a market
+ * GET /api/markets2/:id/results-both-days
+ * Example: GET /api/markets2/10/results-both-days
+ */
+router.get("/markets2/:id/results-both-days", async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const marketId = parseInt(id, 10);
+
+    if (isNaN(marketId)) {
+      res.status(400).json({ error: "Invalid market ID" });
+      return;
+    }
+
+    // Check if market exists
+    const market = await db
+      .select()
+      .from(markets2Table)
+      .where(eq(markets2Table.id, marketId))
+      .then(r => r[0]);
+
+    if (!market) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+
+    // Get today's and yesterday's dates
+    const today = getTodayDateIST();
+    const yesterday = getYesterdayDateIST();
+
+    // Get results for both days
+    const results = await db
+      .select()
+      .from(results2Table)
+      .where(and(
+        eq(results2Table.marketId, marketId),
+      ));
+
+    // Separate today and yesterday
+    const todayResult = results.find(r => r.resultDate === today);
+    const yesterdayResult = results.find(r => r.resultDate === yesterday);
+
+    res.json({
+      marketId,
+      today: {
+        date: today,
+        result: todayResult?.result || null,
+      },
+      yesterday: {
+        date: yesterday,
+        result: yesterdayResult?.result || null,
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching market2 results for both days:", error);
     res.status(500).json({ error: "Failed to fetch results" });
   }
 });

@@ -19,6 +19,15 @@ export function getTodayDateIST(): string {
 }
 
 /**
+ * Get yesterday's date in IST formatted as yyyy-MM-dd
+ */
+export function getYesterdayDateIST(): string {
+  const now = getNowIST();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  return format(yesterday, "yyyy-MM-dd");
+}
+
+/**
  * Get today's start of day (00:00:00) in IST
  */
 export function getTodayStartIST(): Date {

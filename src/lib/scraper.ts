@@ -105,6 +105,12 @@ export interface ScrapedResult {
   jodiResult?: string;
 }
 
+export interface ScrapedResultWithYesterday extends ScrapedResult {
+  yesterdayOpenResult?: string;
+  yesterdayCloseResult?: string;
+  yesterdayJodiResult?: string;
+}
+
 // ================= HELPER FUNCTIONS =================
 function parseTimeString(timeStr: string): { hours: number; minutes: number } {
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -843,11 +849,11 @@ export async function scrapeAkingSattaComIn(
 }
 
 // ================= MARKETS2 LIVE RESULTS (AKINGSATTA WITH PROPER HTML PARSING) =================
-export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResult> {
+export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResultWithYesterday> {
   try {
     // Markets2 uses akingsatta.in with better HTML structure parsing
     console.log(`[Scraper] Markets2 - Fetching from akingsatta.in for ${marketName}`);
-    console.log(`[Scraper] Using HTML DOM parsing to get TODAY'S result specifically`);
+    console.log(`[Scraper] Fetching both TODAY'S and YESTERDAY'S results`);
     
     const response = await fetchUrl("https://akingsatta.in/", { ...opts, forceProxy: true, retryCount: 2 });
     if (!response || !response.data) {
@@ -876,36 +882,53 @@ export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?
       if (cleanRowMarket === cleanMarket) {
         console.log(`[Scraper] ✅ FOUND MARKET in HTML: "${marketText}"`);
         
-        // Get TODAY'S number (not yesterday's!)
+        // Get TODAY'S number
         const todayNumberElem = $row.find("td.today-number h3").first();
         const todayNumber = todayNumberElem.text().trim();
         
-        // Get YESTERDAY'S number as fallback
+        // Get YESTERDAY'S number
         const yesterdayNumberElem = $row.find("td.yesterday-number h3").first();
         const yesterdayNumber = yesterdayNumberElem.text().trim();
         
         console.log(`[Scraper]   Today's number: "${todayNumber}"`);
         console.log(`[Scraper]   Yesterday's number: "${yesterdayNumber}"`);
         
-        // Prefer TODAY's result; fall back to yesterday if not available
-        const resultNumber = todayNumber && todayNumber !== "XX" ? todayNumber : yesterdayNumber;
+        // Build result object with both today and yesterday
+        const result: ScrapedResultWithYesterday = {};
         
-        if (!resultNumber || resultNumber === "XX") {
-          console.log(`[Scraper] ❌ No result available (today) or marked as XX`);
-          return {};
+        // TODAY'S result
+        if (todayNumber && todayNumber !== "XX") {
+          const todayMatch = String(todayNumber).match(/(\d{2})/);
+          if (todayMatch) {
+            result.openResult = todayMatch[1].charAt(0);
+            result.jodiResult = todayMatch[1];
+            result.closeResult = todayMatch[1].charAt(1);
+            console.log(`[Scraper] ✅ Today's result: ${result.jodiResult}`);
+          }
+        } else {
+          console.log(`[Scraper] ℹ️ Today's result not available (XX or missing)`);
+          result.openResult = "XX";
+          result.jodiResult = "XX";
+          result.closeResult = "XX";
         }
         
-        console.log(`[Scraper] ✅ Using result: "${resultNumber}"`);
-        
-        // Extract as 2-digit jodi
-        const match = String(resultNumber).match(/(\d{2})/);
-        if (match) {
-          return {
-            openResult: match[1].charAt(0),
-            jodiResult: match[1],
-            closeResult: match[1].charAt(1),
-          };
+        // YESTERDAY'S result
+        if (yesterdayNumber && yesterdayNumber !== "XX") {
+          const yesterdayMatch = String(yesterdayNumber).match(/(\d{2})/);
+          if (yesterdayMatch) {
+            result.yesterdayOpenResult = yesterdayMatch[1].charAt(0);
+            result.yesterdayJodiResult = yesterdayMatch[1];
+            result.yesterdayCloseResult = yesterdayMatch[1].charAt(1);
+            console.log(`[Scraper] ✅ Yesterday's result: ${result.yesterdayJodiResult}`);
+          }
+        } else {
+          console.log(`[Scraper] ℹ️ Yesterday's result not available (XX or missing)`);
+          result.yesterdayOpenResult = "XX";
+          result.yesterdayJodiResult = "XX";
+          result.yesterdayCloseResult = "XX";
         }
+        
+        return result;
       }
     }
     

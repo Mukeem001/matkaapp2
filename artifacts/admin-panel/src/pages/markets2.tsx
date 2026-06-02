@@ -190,8 +190,8 @@ export default function Markets2() {
   const { toast } = useToast();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-    const [currentResults, setCurrentResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
-  const [dateResults, setDateResults] = useState<Record<number, { open?: string; jodi?: string; close?: string }>>({});
+  const [todayResults, setTodayResults] = useState<Record<number, { open?: string; jodi?: string; close?: string; date?: string }>>({});
+  const [yesterdayResults, setYesterdayResults] = useState<Record<number, { open?: string; jodi?: string; close?: string; date?: string }>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMarket, setEditingMarket] = useState<Market | null>(null);
   const [autoConfigMarket, setAutoConfigMarket] = useState<Market | null>(null);
@@ -239,20 +239,55 @@ export default function Markets2() {
   }, [fetchMarkets]);
 
 
-  // Initialize current results from market data (not a POST fetch)
+  // Initialize today's results from market data
   useEffect(() => {
     if (markets.length === 0) return;
-    const results: Record<number, { open?: string; jodi?: string; close?: string }> = {};
+    const results: Record<number, { open?: string; jodi?: string; close?: string; date?: string }> = {};
     for (const market of markets) {
       if (market.openResult || market.jodiResult || market.closeResult) {
         results[market.id] = {
           open: market.openResult,
           jodi: market.jodiResult,
           close: market.closeResult,
+          date: market.lastFetchedAt ? format(new Date(market.lastFetchedAt), "d MMM") : undefined,
         };
       }
     }
-    setCurrentResults(results);
+    setTodayResults(results);
+  }, [markets]);
+
+  // Fetch yesterday's results from API for each market
+  useEffect(() => {
+    if (markets.length === 0) return;
+    
+    const fetchYesterdayResults = async () => {
+      const results: Record<number, { open?: string; jodi?: string; close?: string; date?: string }> = {};
+      
+      for (const market of markets) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/markets2/${market.id}/results-both-days`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.yesterday && data.yesterday.result) {
+              // Parse the 2-digit jodi into open/jodi/close
+              const result = data.yesterday.result;
+              results[market.id] = {
+                jodi: result,
+                open: result.charAt(0),
+                close: result.charAt(1),
+                date: data.yesterday.date ? format(new Date(data.yesterday.date), "d MMM") : undefined,
+              };
+            }
+          }
+        } catch (err) {
+          console.log(`Could not fetch yesterday's result for market ${market.id}`);
+        }
+      }
+      
+      setYesterdayResults(results);
+    };
+    
+    fetchYesterdayResults();
   }, [markets]);
 
 
@@ -331,12 +366,13 @@ export default function Markets2() {
       }
 
       if (result.success && result.data) {
-        setCurrentResults((prev) => ({
+        setTodayResults((prev) => ({
           ...prev,
           [market.id]: {
             open: result.data.openResult ?? market.openResult ?? "***",
             jodi: result.data.jodiResult ?? market.jodiResult ?? "**",
             close: result.data.closeResult ?? market.closeResult ?? "***",
+            date: new Date().toLocaleDateString("en-US", { day: "numeric", month: "short" }),
           },
         }));
 
@@ -490,8 +526,8 @@ export default function Markets2() {
               <TableRow>
                 <TableHead className="pl-6 min-w-[140px]">Market Name</TableHead>
                 <TableHead className="min-w-[130px]">Timings</TableHead>
-                <TableHead className="min-w-[160px]">Current Results (O/J/C)</TableHead>
-                <TableHead className="min-w-[160px]">Results (O/J/C)</TableHead>
+                <TableHead className="min-w-[160px]">Yesterday (O/J/C)</TableHead>
+                <TableHead className="min-w-[160px]">Today (O/J/C)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="min-w-[100px]">Auto Update</TableHead>
                 <TableHead className="min-w-[180px]">Source URL</TableHead>
@@ -518,16 +554,18 @@ export default function Markets2() {
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1 text-xs">
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {currentResults[market.id]?.open ?? market.openResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {currentResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {currentResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{yesterdayResults[market.id]?.date || "—"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {yesterdayResults[market.id]?.open ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {yesterdayResults[market.id]?.jodi ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {yesterdayResults[market.id]?.close ?? "**"}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1 text-xs">
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {dateResults[market.id]?.open ?? market.openResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {dateResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
-                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {dateResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{todayResults[market.id]?.date || "—"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">O: {todayResults[market.id]?.open ?? market.openResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">J: {todayResults[market.id]?.jodi ?? market.jodiResult ?? "**"}</div>
+                      <div className="font-mono font-semibold tracking-widest text-primary text-sm">C: {todayResults[market.id]?.close ?? market.closeResult ?? "**"}</div>
                     </div>
                   </TableCell>
                   <TableCell>
