@@ -702,13 +702,31 @@ export async function scrapeAkingSattaComIn(
         for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
           const checkLine = lines[j];
 
-          // Skip time labels (e.g., "at 10:20 PM") and chart labels
-          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/) || checkLine.includes("Chart") || checkLine.includes("ध्यान दें")) {
-            console.log(`[Scraper]   Skipping label [line ${j}]: "${checkLine}"`);
+          // Check time labels first
+          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/)) {
+            console.log(`[Scraper]   Skipping time label [line ${j}]: "${checkLine}"`);
             continue;
           }
 
-          // Skip empty/short lines
+          // For "Record Chart" line: extract any 2-digit numbers from it
+          if (checkLine.includes("Record Chart")) {
+            console.log(`[Scraper]   Found "Record Chart" line [line ${j}]: "${checkLine}"`);
+            // Extract any 2-digit numbers from this line
+            const match = checkLine.match(/(\d{2})/);
+            if (match) {
+              console.log(`[Scraper]   ✅ Found number in Record Chart: ${match[1]}`);
+              foundResult = {
+                openResult: match[1].charAt(0),
+                jodiResult: match[1],
+                closeResult: match[1].charAt(1),
+              };
+              break;
+            }
+            continue;
+          }
+
+          // Skip label-only lines
+          if (checkLine.includes("ध्यान दें")) continue;
           if (checkLine.length < 2) continue;
 
           // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
