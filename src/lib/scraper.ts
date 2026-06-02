@@ -674,6 +674,16 @@ export async function scrapeAkingSattaComIn(
 
     const cleanMarket = normalizeScrapeLine(marketName);
 
+    // First pass: Show all potential market names on page (for debugging)
+    const potentialMarkets = [];
+    for (let i = 0; i < Math.min(50, lines.length); i++) {
+      const line = lines[i];
+      if (line && line.length > 3 && !line.includes("http") && !line.includes("©") && !line.match(/^\d+$/)) {
+        potentialMarkets.push(line);
+      }
+    }
+    console.log(`[Scraper] Potential market names on page: ${potentialMarkets.slice(0, 20).join(" | ")}`);
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cleanLine = normalizeScrapeLine(line);
@@ -724,6 +734,18 @@ export async function scrapeAkingSattaComIn(
               openResult: match[1],
               jodiResult: match[2],
               closeResult: match[3],
+            };
+          }
+
+          // Try pattern 4: Just 2 digits (e.g., "25" or "81") - for markets2
+          match = checkLine.match(/\b(\d{2})\b/);
+          if (match && !checkLine.match(/\d{3,}/)) {
+            // Make sure line doesn't contain other longer numbers
+            console.log(`[Scraper] Found result (pattern 4 - 2 digit): ${match[1]}`);
+            return {
+              openResult: match[1].charAt(0),
+              jodiResult: match[1],
+              closeResult: match[1].charAt(1),
             };
           }
         }
