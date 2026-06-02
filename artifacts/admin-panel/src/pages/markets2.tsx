@@ -320,17 +320,23 @@ export default function Markets2() {
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this market?")) return;
     try {
+      console.log(`[Markets2] Deleting market ${id}...`);
       const response = await fetch(`${API_BASE_URL}/api/markets2/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
+      console.log(`[Markets2] Delete response status: ${response.status}`);
+      
       if (response.ok) {
-        toast({ title: "Market deleted" });
+        toast({ title: "Market deleted successfully" });
         fetchMarkets();
       } else {
-        throw new Error("Failed to delete market");
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Markets2] Delete error:`, errorData);
+        throw new Error(errorData.error || errorData.message || `Failed to delete market (${response.status})`);
       }
     } catch (error) {
+      console.error(`[Markets2] Delete exception:`, error);
       toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     }
   };

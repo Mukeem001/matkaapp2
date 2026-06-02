@@ -109,22 +109,27 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
     const result = await db.select().from(markets2Table).where(eq(markets2Table.id, params.data.id));
     const market = result[0];
     if (!market) {
+      console.log(`[Markets2 Delete] Market ${params.data.id} not found`);
       res.status(404).json({ error: "Market not found" });
       return;
     }
 
-    console.log(`Deleting markets2 ${params.data.id} (${market.name})`);
+    console.log(`[Markets2 Delete] Starting delete for market ${params.data.id} (${market.name})`);
 
     // Delete all related results first (foreign key constraint)
+    console.log(`[Markets2 Delete] Deleting related results for market ${params.data.id}`);
     await db.delete(results2Table).where(eq(results2Table.marketId, params.data.id));
 
     // Now delete the market
+    console.log(`[Markets2 Delete] Deleting market ${params.data.id} from markets2_table`);
     await db.delete(markets2Table).where(eq(markets2Table.id, params.data.id));
 
+    console.log(`[Markets2 Delete] ✅ Market ${params.data.id} (${market.name}) deleted successfully`);
     res.json({ success: true, message: "Market deleted successfully" });
   } catch (error) {
-    console.error("Error deleting markets2:", error);
-    res.status(500).json({ error: "Failed to delete market" });
+    console.error("[Markets2 Delete] Error:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: `Failed to delete market: ${errorMsg}` });
   }
 });
 
