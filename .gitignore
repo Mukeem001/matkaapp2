@@ -8,6 +8,14 @@ dist
 build
 *.tsbuildinfo
 
+# TypeScript compiled files in src (should not be tracked)
+lib/**/src/**/*.js
+lib/**/src/**/*.js.map
+lib/**/src/**/*.d.ts
+lib/**/src/**/*.d.ts.map
+artifacts/**/src/**/*.js
+artifacts/**/src/**/*.js.map
+
 # Generated files
 lib/**/src/generated
 artifacts/**/src/generated
@@ -19,6 +27,11 @@ artifacts/**/src/generated
 *.log
 stdout.log
 stderr.log
+*.orig
+
+# Empty/deprecated directories
+.replit-artifact
+.replit
 
 # Environment files
 .env
