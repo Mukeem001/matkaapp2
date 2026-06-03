@@ -100,6 +100,9 @@ export default function Bids() {
   const [editStatus, setEditStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [searchMarketName, setSearchMarketName] = useState("");
+  const [searchUserName, setSearchUserName] = useState("");
+  const [searchUserPhone, setSearchUserPhone] = useState("");
 
   const queryClient = useQueryClient();
   
@@ -137,14 +140,38 @@ export default function Bids() {
   // 🔄 Update bid mutation
   const { mutate: updateBid } = useUpdateBid();
 
-  // 🔎 frontend status filter
+  // 🔎 frontend status filter + search filters
   const bids = useMemo(() => {
     if (!bidsData?.bids || !Array.isArray(bidsData.bids)) return [];
 
-    if (statusFilter === "all") return bidsData.bids;
+    let filtered = bidsData.bids;
 
-    return bidsData.bids.filter((bid: any) => bid.status === statusFilter);
-  }, [bidsData, statusFilter]);
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((bid: any) => bid.status === statusFilter);
+    }
+
+    // Apply search filters
+    if (searchMarketName.trim()) {
+      filtered = filtered.filter((bid: any) => 
+        bid.marketName?.toLowerCase().includes(searchMarketName.toLowerCase())
+      );
+    }
+
+    if (searchUserName.trim()) {
+      filtered = filtered.filter((bid: any) => 
+        bid.userName?.toLowerCase().includes(searchUserName.toLowerCase())
+      );
+    }
+
+    if (searchUserPhone.trim()) {
+      filtered = filtered.filter((bid: any) => 
+        bid.userPhone?.includes(searchUserPhone)
+      );
+    }
+
+    return filtered;
+  }, [bidsData, statusFilter, searchMarketName, searchUserName, searchUserPhone]);
 
   // Handle date filter
   const handleDateFilterClick = (type: DateFilterType) => {
@@ -253,6 +280,37 @@ export default function Bids() {
         </div>
       </div>
 
+      {/* Search Filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs sm:text-sm">Search Market</Label>
+          <Input
+            placeholder="Market name..."
+            value={searchMarketName}
+            onChange={(e) => setSearchMarketName(e.target.value)}
+            className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs sm:text-sm">Search User</Label>
+          <Input
+            placeholder="User name..."
+            value={searchUserName}
+            onChange={(e) => setSearchUserName(e.target.value)}
+            className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs sm:text-sm">Search Phone</Label>
+          <Input
+            placeholder="Phone number..."
+            value={searchUserPhone}
+            onChange={(e) => setSearchUserPhone(e.target.value)}
+            className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+          />
+        </div>
+      </div>
+
       {/* Date Filter Buttons */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
@@ -347,6 +405,7 @@ export default function Bids() {
               <TableRow>
                 <TableHead className="pl-6">Date</TableHead>
                 <TableHead>User</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Market</TableHead>
                 <TableHead>Game Type</TableHead>
                 <TableHead className="text-center">Bid Digit</TableHead>
@@ -361,13 +420,13 @@ export default function Bids() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={11} className="text-center py-8">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : bids.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                     No bids found.
                   </TableCell>
                 </TableRow>
@@ -382,6 +441,10 @@ export default function Bids() {
 
                       <TableCell className="font-medium">
                         {bid.userName || "N/A"}
+                      </TableCell>
+
+                      <TableCell className="text-sm text-muted-foreground font-mono">
+                        {bid.userPhone || "N/A"}
                       </TableCell>
 
                       <TableCell className="font-semibold text-blue-600">
@@ -470,6 +533,10 @@ export default function Bids() {
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">User</p>
                             <p className="text-sm font-medium text-foreground">{bid.userName || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Phone</p>
+                            <p className="text-sm font-mono text-muted-foreground">{bid.userPhone || "N/A"}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Market</p>
