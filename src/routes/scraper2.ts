@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, and } from "drizzle-orm";
-import { db, markets2Table, scraperLogsTable } from "@workspace/db";
+import { db, markets2Table, results2Table, scraperLogsTable } from "@workspace/db";
 import { GetScraperLogsQueryParams, UpdateMarketAutoConfigParams, UpdateMarketAutoConfigBody, FetchMarketResultNowParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
 import { fetchAndUpdateMarketResult, scrapeLiveResults } from "../lib/scraper.js";
@@ -165,39 +165,51 @@ router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
 });
 
 router.get("/markets2/:id/results/:date", async (req, res): Promise<void> => {
-  const marketId = parseInt(String(req.params.id));
+  const marketId = parseInt(String(req.params.id), 10);
   const resultDate = req.params.date as string; // format: "yyyy-MM-dd"
 
-  if (!marketId || isNaN(marketId)) {
+  if (isNaN(marketId)) {
     res.status(400).json({ error: "Invalid market ID" });
     return;
   }
 
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(resultDate)) {
+    res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+    return;
+  }
+
   try {
-    // Markets2 results are stored directly in markets2Table, not in a separate resultsTable
     const market = await db.select()
       .from(markets2Table)
       .where(eq(markets2Table.id, marketId))
       .then(r => r[0]);
 
     if (!market) {
-      res.status(404).json({ success: false, message: "Market not found", data: null });
+      res.status(404).json({ error: "Market not found" });
       return;
     }
 
-    // Check if results exist and lastFetchedAt matches the requested date
-    if (!market.openResult || !market.closeResult) {
-      res.json({ success: false, message: "No results declared for this market yet", data: null });
+    const result = await db.select()
+      .from(results2Table)
+      .where(and(
+        eq(results2Table.marketId, marketId),
+        eq(results2Table.resultDate, resultDate)
+      ))
+      .then(r => r[0]);
+
+    if (!result) {
+      res.json({ success: false, message: "No results found for this date", data: null });
       return;
     }
 
     res.json({
       success: true,
-      message: "Results found",
+      message: "Result found",
       data: {
-        openResult: market.openResult,
-        closeResult: market.closeResult,
-        jodiResult: market.jodiResult,
+        marketId,
+        date: resultDate,
+        result: result.result,
+        fetchedAt: result.createdAt.toISOString(),
       },
     });
   } catch (error) {
