@@ -8,6 +8,18 @@ dist
 build
 *.tsbuildinfo
 
+# Generated files
+lib/**/src/generated
+artifacts/**/src/generated
+
+# Backup and temporary files
+*.backup
+*.bak
+*.tmp
+*.log
+stdout.log
+stderr.log
+
 # Environment files
 .env
 .env.local

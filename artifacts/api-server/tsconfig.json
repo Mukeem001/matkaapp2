@@ -1,12 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "baseUrl": "../../",
+    "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
     "outDir": "dist",
     "skipLibCheck": true,
-    "noEmit": false,
+    "noEmit": true,
     "allowImportingTsExtensions": true
   },
   "include": ["src"]
