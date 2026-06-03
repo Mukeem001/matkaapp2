@@ -3,7 +3,7 @@ import { eq, desc, count, and } from "drizzle-orm";
 import { db, markets2Table, results2Table, scraperLogsTable } from "@workspace/db";
 import { GetScraperLogsQueryParams, UpdateMarketAutoConfigParams, UpdateMarketAutoConfigBody, FetchMarketResultNowParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
-import { fetchAndUpdateMarketResult, scrapeLiveResults } from "../lib/scraper.js";
+import { scrapeLiveResults } from "../lib/scraper.js";
 import { fetchAndUpdateMarkets2Result } from "../lib/scraper2.js";
 import { getSchedulerStatus } from "../lib/scheduler.js";
 
@@ -72,18 +72,14 @@ router.post("/markets2/:id/fetch-now", async (req, res): Promise<void> => {
 });
 
 router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
-  console.log("🔴 [LIVE-RESULTS-Markets2] Request received");
-  console.log("🔴 [LIVE-RESULTS-Markets2] req.params:", req.params);
-  
+  console.log("[M2][LIVE] Request received", req.params);
+
   const params = FetchMarketResultNowParams.safeParse(req.params);
-  
   if (!params.success) {
-    console.error("🔴 [LIVE-RESULTS-Markets2] Validation failed:", params.error);
+    console.error("[M2][LIVE] Invalid ID", params.error);
     res.status(400).json({ error: "Invalid ID", details: params.error });
     return;
   }
-
-  console.log("🟢 [LIVE-RESULTS-Markets2] Validated params:", params.data);
 
   const result = await db
     .select()
@@ -92,75 +88,51 @@ router.get("/markets2/:id/live-results", async (req, res): Promise<void> => {
 
   const market = result[0];
   if (!market) {
-    console.error("🔴 [LIVE-RESULTS-Markets2] Market not found:", params.data.id);
-    res.status(400).json({ error: "Market not found" });
+    console.error("[M2][LIVE] Market not found:", params.data.id);
+    res.status(404).json({ error: "Market not found" });
     return;
   }
 
-  console.log("🟢 [LIVE-RESULTS-Markets2] Market found:", market.name);
-
   try {
     const liveResult = await scrapeLiveResults(market.name);
-    
-    console.log("🟡 [LIVE-RESULTS-Markets2] Scrape result:", liveResult);
-    
-    // Success if we have ANY result
     const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
-    
-    if (hasAnyResult) {
-      console.log("🟢 [LIVE-RESULTS-Markets2] Saving to database");
-      
-      try {
-        // 🟢 UPDATE MARKETS2 TABLE WITH LATEST RESULTS
-        console.log("🟢 [LIVE-RESULTS-Markets2] Updating markets2 table with latest results");
-        const marketUpdateData: any = {};
-        if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
-        if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
-        if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
-        marketUpdateData.lastFetchedAt = new Date();
-        
-        await db.update(markets2Table).set(marketUpdateData).where(eq(markets2Table.id, params.data.id));
-        
-        await db.insert(scraperLogsTable).values({
-          marketId: market.id,
-          marketName: market.name,
-          sourceUrl: market.sourceUrl ?? "https://satta-king-fast.com/",
-          success: true,
-          openResult: liveResult.openResult,
-          closeResult: liveResult.closeResult,
-          jodiResult: liveResult.jodiResult,
-        });
-        
-        console.log("🟢 [LIVE-RESULTS-Markets2] Returning saved results");
-        res.json({
-          success: true,
-          message: "Live results found and saved to database",
-          data: liveResult,
-        });
-      } catch (dbError) {
-        console.error("🔴 [LIVE-RESULTS-Markets2] Database error:", dbError);
-        res.status(500).json({
-          success: false,
-          message: `Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
-          data: null,
-        });
-      }
-    } else {
-      console.log("🔴 [LIVE-RESULTS-Markets2] No results found");
-      res.json({
-        success: false,
-        message: "No live results available",
-        data: null,
+
+    if (!hasAnyResult) {
+      console.log("[M2][LIVE] No live result found for", market.name);
+      res.json({ success: false, message: "No live results available", data: null });
+      return;
+    }
+
+    console.log("[M2][LIVE] Live result found for", market.name, liveResult);
+
+    try {
+      const marketUpdateData: any = {
+        lastFetchedAt: new Date(),
+      };
+      if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
+      if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
+      if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
+
+      await db.update(markets2Table).set(marketUpdateData).where(eq(markets2Table.id, params.data.id));
+      await db.insert(scraperLogsTable).values({
+        marketId: market.id,
+        marketName: market.name,
+        sourceUrl: market.sourceUrl ?? "https://akingsatta.in/",
+        success: true,
+        openResult: liveResult.openResult,
+        closeResult: liveResult.closeResult,
+        jodiResult: liveResult.jodiResult,
       });
+
+      res.json({ success: true, message: "Live results found and saved to database", data: liveResult });
+    } catch (dbError) {
+      console.error("[M2][LIVE] Database error:", dbError);
+      res.status(500).json({ success: false, message: `Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}`, data: null });
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    console.error("🔴 [LIVE-RESULTS-Markets2] Exception:", errorMsg);
-    res.status(500).json({ 
-      success: false, 
-      message: errorMsg,
-      data: null,
-    });
+    console.error("[M2][LIVE] Exception:", errorMsg);
+    res.status(500).json({ success: false, message: errorMsg, data: null });
   }
 });
 

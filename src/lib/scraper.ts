@@ -379,6 +379,59 @@ function parseTwoDigitResult(line: string): ScrapedResult | undefined {
   };
 }
 
+function parseSattaMatkaComInNumber(value: string): ScrapedResult | undefined {
+  const cleaned = value.trim();
+  if (!cleaned || /^loading\.\.\./i.test(cleaned)) {
+    return undefined;
+  }
+
+  if (/\bXX\b/i.test(cleaned)) {
+    return { openResult: "XX", jodiResult: "XX", closeResult: "XX" };
+  }
+
+  const fullMatch = cleaned.match(/^(\d{1,3})-(\d{1,3})-(\d{1,3})$/);
+  if (fullMatch) {
+    return {
+      openResult: fullMatch[1],
+      jodiResult: fullMatch[2],
+      closeResult: fullMatch[3],
+    };
+  }
+
+  const partialMatch = cleaned.match(/^(\d{1,3})-(\d{1,3})$/);
+  if (partialMatch) {
+    return {
+      openResult: partialMatch[1],
+      jodiResult: partialMatch[2],
+    };
+  }
+
+  const spacedMatch = cleaned.match(/^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})$/);
+  if (spacedMatch) {
+    return {
+      openResult: spacedMatch[1],
+      jodiResult: spacedMatch[2],
+      closeResult: spacedMatch[3],
+    };
+  }
+
+  return undefined;
+}
+
+function normalizeMarketNameForMatch(name: string): string {
+  return normalizeScrapeLine(name)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSattaMatkaMarketMatch(cleanLine: string, cleanMarket: string): boolean {
+  return (
+    cleanLine === cleanMarket ||
+    (` ${cleanLine} `).includes(` ${cleanMarket} `) ||
+    (` ${cleanMarket} `).includes(` ${cleanLine} `)
+  );
+}
+
 function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
   const cleanMarket = normalizeScrapeLine(marketName);
   const rows = $("tr.game-result").toArray();
@@ -563,7 +616,7 @@ async function scrapeSattaKingFast(
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] scrapeSattaKingFast error: ${errorMsg}`);
+    errorM1(`scrapeSattaKingFast error: ${errorMsg}`);
     return {};
   }
 }
@@ -576,49 +629,66 @@ export async function scrapeSattaMatkaComIn(
   try {
     const response = await fetchUrl("https://satkamatka.com.in/", opts);
     const $ = cheerio.load(response.data);
+    const cleanMarket = normalizeMarketNameForMatch(marketName);
+
+    const gameRows = $(".game_list")
+      .toArray()
+      .map(el => {
+        const name = $(el).find(".game_name").text().trim();
+        const rawNumber = $(el).find(".game_number").text().trim();
+        return {
+          name,
+          rawNumber,
+          cleanName: normalizeMarketNameForMatch(name),
+        };
+      })
+      .filter(row => row.name && row.rawNumber && !/^loading\.\.\./i.test(row.rawNumber));
+
+    if (gameRows.length > 0) {
+      for (const row of gameRows) {
+        if (isSattaMatkaMarketMatch(row.cleanName, cleanMarket)) {
+          const parsed = parseSattaMatkaComInNumber(row.rawNumber);
+          if (parsed) {
+            return parsed;
+          }
+        }
+      }
+
+      const marketWords = cleanMarket.split(/\s+/).filter(Boolean);
+      if (marketWords.length > 0) {
+        for (const row of gameRows) {
+          const rowWords = row.cleanName.split(/\s+/).filter(Boolean);
+          let lastIndex = -1;
+          let allFound = true;
+          for (const word of marketWords) {
+            const foundIndex = rowWords.slice(lastIndex + 1).findIndex(w => w === word);
+            if (foundIndex === -1) {
+              allFound = false;
+              break;
+            }
+            lastIndex += foundIndex + 1;
+          }
+          if (!allFound) continue;
+          const parsed = parseSattaMatkaComInNumber(row.rawNumber);
+          if (parsed) {
+            return parsed;
+          }
+        }
+      }
+    }
+
     const text = $("body").text();
     const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-
-    const cleanMarket = normalizeScrapeLine(marketName);
+    const cleanMarketLine = normalizeMarketNameForMatch(marketName);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const cleanLine = normalizeScrapeLine(line);
-      const marketFound = cleanLine === cleanMarket || (` ${cleanLine} `).includes(` ${cleanMarket} `);
-
-      if (marketFound) {
-        // Search in next 5 lines for results (try multiple regex patterns)
+      const cleanLine = normalizeMarketNameForMatch(line);
+      if (isSattaMatkaMarketMatch(cleanLine, cleanMarketLine)) {
         for (let j = i; j < i + 5 && j < lines.length; j++) {
-          const checkLine = lines[j];
-
-          // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
-          let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
-          if (match) {
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
-          }
-
-          // Try pattern 2: XXX-X (e.g., 567-8)
-          match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
-          if (match && !checkLine.includes("...")) {
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              // Close result is not available yet for this partial format
-            };
-          }
-
-          // Try pattern 3: Just numbers (e.g., 156 25 267)
-          match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
-          if (match) {
-            return {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
+          const parsed = parseSattaMatkaComInNumber(lines[j]);
+          if (parsed) {
+            return parsed;
           }
         }
       }
@@ -627,7 +697,7 @@ export async function scrapeSattaMatkaComIn(
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error fetching ${marketName}: ${errorMsg}`);
+    errorM1(`Error fetching ${marketName}: ${errorMsg}`);
     return {};
   }
 }
@@ -638,212 +708,89 @@ export async function scrapeAkingSattaComIn(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
   try {
-    console.log(`[Scraper] Fetching from akingsatta.in for ${marketName}`);
-    
-    // Try multiple URLs for akingsatta.in
+    logM2(`Fetching fallback results from akingsatta.in for ${marketName}`);
+
     const urls = [
       "https://akingsatta.in/",
       "https://www.akingsatta.in/",
       "https://akingsatta.com/",
     ];
-    
+
     let response: any = null;
     let lastError: any = null;
-    
+
     for (const url of urls) {
       try {
-        console.log(`[Scraper] Trying ${url}...`);
+        logM2(`Trying ${url}`);
         response = await fetchUrl(url, { ...opts, forceProxy: true, retryCount: 2 });
         if (response && response.data && response.data.length > 500) {
-          console.log(`[Scraper] ✅ Fetched ${response.data.length} bytes from ${url}`);
+          logM2(`Fetched page content from ${url}`);
           break;
         }
       } catch (err) {
         lastError = err;
-        console.log(`[Scraper] ❌ Failed ${url}: ${err instanceof Error ? err.message : err}`);
+        warnM2(`Failed to fetch ${url}: ${err instanceof Error ? err.message : err}`);
       }
     }
-    
+
     if (!response || !response.data) {
-      console.error(`[Scraper] ❌ Could not fetch. Last error: ${lastError}`);
+      errorM2(`Could not fetch akingsatta.in. Last error: ${lastError}`);
       return {};
     }
 
     const $ = cheerio.load(response.data);
-    
-    // Try multiple selectors
-    let text = $("body").text();
-    
-    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-    
-    console.log(`[Scraper] Parsing ${lines.length} lines from page for market: ${marketName}`);
-
+    const lines = $("body").text().split("\n").map(l => l.trim()).filter(l => l.length > 0);
     const cleanMarket = normalizeScrapeLine(marketName);
 
-    // First pass: Show all potential market names on page (for debugging)
-    const potentialMarkets = [];
-    for (let i = 0; i < Math.min(50, lines.length); i++) {
-      const line = lines[i];
-      if (line && line.length > 3 && !line.includes("http") && !line.includes("©") && !line.match(/^\d+$/)) {
-        potentialMarkets.push(line);
-      }
-    }
-    console.log(`[Scraper] Potential market names on page: ${potentialMarkets.slice(0, 20).join(" | ")}`);
+    let foundResult: ScrapedResult | undefined;
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length && !foundResult; i++) {
       const line = lines[i];
       const cleanLine = normalizeScrapeLine(line);
-      
-      // ✅ STRICT MATCHING: Only match if cleanLine === cleanMarket (exact match only)
-      const isExactMatch = cleanLine === cleanMarket;
-      
-      if (isExactMatch) {
-        console.log(`\n[Scraper] 🎯 EXACT MATCH found at line ${i}`);
-        console.log(`[Scraper]   Looking for: "${cleanMarket}"`);
-        console.log(`[Scraper]   Found line: "${line}"`);
-        
-        // Search next 12 lines - skip time labels, pick first result
-        let foundResult: any = null;
-        
-        for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
-          const checkLine = lines[j];
+      if (cleanLine !== cleanMarket) continue;
 
-          // Check time labels first
-          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/)) {
-            console.log(`[Scraper]   Skipping time label [line ${j}]: "${checkLine}"`);
-            continue;
-          }
-
-          // For "Record Chart" line: extract any 2-digit numbers from it
-          if (checkLine.includes("Record Chart")) {
-            console.log(`[Scraper]   Found "Record Chart" line [line ${j}]: "${checkLine}"`);
-            // Extract any 2-digit numbers from this line
-            const match = checkLine.match(/(\d{2})/);
-            if (match) {
-              console.log(`[Scraper]   ✅ Found number in Record Chart: ${match[1]}`);
-              foundResult = {
-                openResult: match[1].charAt(0),
-                jodiResult: match[1],
-                closeResult: match[1].charAt(1),
-              };
-              break;
-            }
-            continue;
-          }
-
-          // Skip label-only lines
-          if (checkLine.includes("ध्यान दें")) continue;
-          if (checkLine.length < 2) continue;
-
-          // Try pattern 1: XXX-XX-XXX (e.g., 156-25-267)
-          let match = checkLine.match(/(\d{1,3})-(\d{1,3})-(\d{1,3})/);
-          if (match) {
-            console.log(`[Scraper]   ✅ Pattern 1 matched [line ${j}]: "${checkLine}" → ${match[1]}-${match[2]}-${match[3]}`);
-            foundResult = {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
-            break;
-          }
-
-          // Try pattern 2: XXX-X (e.g., 567-8)
-          match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
-          if (match && !checkLine.includes("...")) {
-            console.log(`[Scraper]   ✅ Pattern 2 matched [line ${j}]: "${checkLine}" → ${match[1]}-${match[2]}`);
-            foundResult = {
-              openResult: match[1],
-              jodiResult: match[2],
-              // Close result is not available yet for this partial format
-            };
-            break;
-          }
-
-          // Try pattern 3: Space-separated (e.g., 156 25 267)
-          match = checkLine.match(/(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/);
-          if (match) {
-            console.log(`[Scraper]   ✅ Pattern 3 matched [line ${j}]: "${checkLine}" → ${match[1]} ${match[2]} ${match[3]}`);
-            foundResult = {
-              openResult: match[1],
-              jodiResult: match[2],
-              closeResult: match[3],
-            };
-            break;
-          }
-
-          // Try pattern 4: ONLY 2 digits (for markets2)
-          match = checkLine.match(/^(\d{2})$/);
-          if (match) {
-            console.log(`[Scraper]   ✅ Pattern 4 matched [line ${j}]: "${checkLine}" → ${match[1]}`);
-            foundResult = {
-              openResult: match[1].charAt(0),
-              jodiResult: match[1],
-              closeResult: match[1].charAt(1),
-            };
-            break;
-          }
-        }
-        
-        if (foundResult) {
-          console.log(`[Scraper] ✅ RETURNING RESULT for ${marketName}:`, foundResult);
-          return foundResult;
-        } else {
-          console.log(`[Scraper] ⚠️ No result pattern found in next 12 lines`);
-        }
-      }
-    }
-    
-    console.log(`[Scraper] ❌ Market "${cleanMarket}" not found on page`);
-    console.log(`[Scraper] Attempting fuzzy/partial match as fallback...`);
-    
-    // Fallback: Try partial/fuzzy matching
-    const marketWords = cleanMarket.split(/\s+/).filter(w => w.length > 0);
-    if (marketWords.length === 0) return {};
-    
-    console.log(`[Scraper] Searching for partial match with words: [${marketWords.join(", ")}]`);
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const cleanLine = normalizeScrapeLine(line);
-      const lineWords = cleanLine.split(/\s+/);
-      
-      // Check if ALL market words exist in this line
-      let allWordsFound = true;
-      for (const marketWord of marketWords) {
-        if (!lineWords.includes(marketWord)) {
-          allWordsFound = false;
+      for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
+        const parsed = parseSattaMatkaComInNumber(lines[j]);
+        if (parsed) {
+          foundResult = parsed;
           break;
         }
       }
-      
-      if (allWordsFound) {
-        console.log(`[Scraper] 🔄 FUZZY MATCH found at line ${i}: "${line}"`);
-        
-        // Search next 12 lines for result
+    }
+
+    if (foundResult) {
+      logM2(`Found fallback result for ${marketName}`);
+      return foundResult;
+    }
+
+    const marketWords = cleanMarket.split(/\s+/).filter(Boolean);
+    if (marketWords.length > 0) {
+      for (let i = 0; i < lines.length && !foundResult; i++) {
+        const cleanLine = normalizeScrapeLine(lines[i]);
+        const lineWords = cleanLine.split(/\s+/);
+        const allWordsFound = marketWords.every(word => lineWords.includes(word));
+        if (!allWordsFound) continue;
+
         for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
-          const checkLine = lines[j];
-          
-          if (checkLine.match(/^at\s+\d{1,2}:\d{2}\s+[AP]M$/) || checkLine.includes("Chart")) continue;
-          if (checkLine.length < 2) continue;
-          
-          let match = checkLine.match(/^(\d{2})$/);
-          if (match) {
-            console.log(`[Scraper] ✅ Fuzzy match result: "${checkLine}" → ${match[1]}`);
-            return {
-              openResult: match[1].charAt(0),
-              jodiResult: match[1],
-              closeResult: match[1].charAt(1),
-            };
+          const parsed = parseSattaMatkaComInNumber(lines[j]);
+          if (parsed) {
+            foundResult = parsed;
+            break;
           }
         }
       }
     }
-    
-    console.log(`[Scraper] ❌ No result found for ${marketName} (exact or fuzzy)`);
+
+    if (foundResult) {
+      logM2(`Found fuzzy fallback result for ${marketName}`);
+      return foundResult;
+    }
+
+    warnM2(`No fallback result found for ${marketName}`);
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error fetching from akingsatta.in for ${marketName}: ${errorMsg}`);
+    errorM2(`Error fetching from akingsatta.in for ${marketName}: ${errorMsg}`);
     return {};
   }
 }
@@ -851,94 +798,69 @@ export async function scrapeAkingSattaComIn(
 // ================= MARKETS2 LIVE RESULTS (AKINGSATTA WITH PROPER HTML PARSING) =================
 export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?: boolean }): Promise<ScrapedResultWithYesterday> {
   try {
-    // Markets2 uses akingsatta.in with better HTML structure parsing
-    console.log(`[Scraper] Markets2 - Fetching from akingsatta.in for ${marketName}`);
-    console.log(`[Scraper] Fetching both TODAY'S and YESTERDAY'S results`);
-    
+    logM2(`Fetching live Markets2 results for ${marketName}`);
+
     const response = await fetchUrl("https://akingsatta.in/", { ...opts, forceProxy: true, retryCount: 2 });
     if (!response || !response.data) {
-      console.error(`[Scraper] ❌ Could not fetch akingsatta.in`);
+      errorM2(`Could not fetch live results for ${marketName}`);
       return {};
     }
-    
+
     const $ = cheerio.load(response.data);
     const cleanMarket = normalizeScrapeLine(marketName);
-    
-    console.log(`[Scraper] Searching for market: "${cleanMarket}"`);
-    
-    // Find the tr with the market
     const rows = $("tr.game-result").toArray();
-    console.log(`[Scraper] Found ${rows.length} game result rows on page`);
-    
+    logM2(`Found ${rows.length} market rows on akingsatta.in`);
+
     for (const row of rows) {
       const $row = $(row);
-      const nameElem = $row.find("h3.game-name").first();
-      const marketText = nameElem.text().trim();
-      
+      const marketText = $row.find("h3.game-name").first().text().trim();
       if (!marketText) continue;
-      
+
       const cleanRowMarket = normalizeScrapeLine(marketText);
-      
-      if (cleanRowMarket === cleanMarket) {
-        console.log(`[Scraper] ✅ FOUND MARKET in HTML: "${marketText}"`);
-        
-        // Get TODAY'S number
-        const todayNumberElem = $row.find("td.today-number h3").first();
-        const todayNumber = todayNumberElem.text().trim();
-        
-        // Get YESTERDAY'S number
-        const yesterdayNumberElem = $row.find("td.yesterday-number h3").first();
-        const yesterdayNumber = yesterdayNumberElem.text().trim();
-        
-        console.log(`[Scraper]   Today's number: "${todayNumber}"`);
-        console.log(`[Scraper]   Yesterday's number: "${yesterdayNumber}"`);
-        
-        // Build result object with both today and yesterday
-        const result: ScrapedResultWithYesterday = {};
-        
-        // TODAY'S result
-        if (todayNumber && todayNumber !== "XX") {
-          const todayMatch = String(todayNumber).match(/(\d{2})/);
-          if (todayMatch) {
-            result.openResult = todayMatch[1].charAt(0);
-            result.jodiResult = todayMatch[1];
-            result.closeResult = todayMatch[1].charAt(1);
-            console.log(`[Scraper] ✅ Today's result: ${result.jodiResult}`);
-          }
-        } else {
-          console.log(`[Scraper] ℹ️ Today's result not available (XX or missing)`);
-          result.openResult = "XX";
-          result.jodiResult = "XX";
-          result.closeResult = "XX";
+      if (cleanRowMarket !== cleanMarket) continue;
+
+      logM2(`Found market row for ${marketText}`);
+      const todayNumber = $row.find("td.today-number h3").first().text().trim();
+      const yesterdayNumber = $row.find("td.yesterday-number h3").first().text().trim();
+
+      const result: ScrapedResultWithYesterday = {};
+
+      if (todayNumber && todayNumber !== "XX") {
+        const todayMatch = String(todayNumber).match(/(\d{2})/);
+        if (todayMatch) {
+          result.openResult = todayMatch[1].charAt(0);
+          result.jodiResult = todayMatch[1];
+          result.closeResult = todayMatch[1].charAt(1);
+          logM2(`Today's result for ${marketName}: ${result.jodiResult}`);
         }
-        
-        // YESTERDAY'S result
-        if (yesterdayNumber && yesterdayNumber !== "XX") {
-          const yesterdayMatch = String(yesterdayNumber).match(/(\d{2})/);
-          if (yesterdayMatch) {
-            result.yesterdayOpenResult = yesterdayMatch[1].charAt(0);
-            result.yesterdayJodiResult = yesterdayMatch[1];
-            result.yesterdayCloseResult = yesterdayMatch[1].charAt(1);
-            console.log(`[Scraper] ✅ Yesterday's result: ${result.yesterdayJodiResult}`);
-          }
-        } else {
-          console.log(`[Scraper] ℹ️ Yesterday's result not available (XX or missing)`);
-          result.yesterdayOpenResult = "XX";
-          result.yesterdayJodiResult = "XX";
-          result.yesterdayCloseResult = "XX";
-        }
-        
-        return result;
+      } else {
+        result.openResult = "XX";
+        result.jodiResult = "XX";
+        result.closeResult = "XX";
       }
+
+      if (yesterdayNumber && yesterdayNumber !== "XX") {
+        const yesterdayMatch = String(yesterdayNumber).match(/(\d{2})/);
+        if (yesterdayMatch) {
+          result.yesterdayOpenResult = yesterdayMatch[1].charAt(0);
+          result.yesterdayJodiResult = yesterdayMatch[1];
+          result.yesterdayCloseResult = yesterdayMatch[1].charAt(1);
+          logM2(`Yesterday's result for ${marketName}: ${result.yesterdayJodiResult}`);
+        }
+      } else {
+        result.yesterdayOpenResult = "XX";
+        result.yesterdayJodiResult = "XX";
+        result.yesterdayCloseResult = "XX";
+      }
+
+      return result;
     }
-    
-    console.log(`[Scraper] ❌ Market "${cleanMarket}" not found in HTML rows`);
-    // Fallback to text-based parsing
+
+    warnM2(`Market ${marketName} not found in HTML rows, falling back to line parsing`);
     return await scrapeAkingSattaComIn(marketName, opts);
-    
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Error fetching live results for ${marketName}: ${errorMsg}`);
+    errorM2(`Error fetching live results for ${marketName}: ${errorMsg}`);
     return {};
   }
 }
@@ -968,7 +890,7 @@ export async function fetchAndUpdateMarketResult(
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[Scraper] Error fetching ${market.name}: ${errorMessage}`);
+    errorM1(`Error fetching ${market.name}: ${errorMessage}`);
 
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
@@ -992,12 +914,10 @@ export async function fetchAndUpdateMarketResult(
   const cleanedJodi = String(scraped.jodiResult || "XX").trim();
   const cleanedClose = String(scraped.closeResult || "XX").trim();
 
-  console.log(`[Scraper] Result for ${market.name}:`);
-  console.log(`  └─ Open: ${cleanedOpen}, Jodi: ${cleanedJodi}, Close: ${cleanedClose}`);
+  logM1(`Result for ${market.name}: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 
-  // ✅ Save to database with TODAY's date (IST)
   const resultDateStr = getTodayDateIST();
-  console.log(`[Scraper] Saving result for date: ${resultDateStr}`);
+  logM1(`Saving result for today: ${resultDateStr}`);
 
   const [existingResult] = await db
     .select()
@@ -1010,14 +930,14 @@ export async function fetchAndUpdateMarketResult(
     );
 
   if (existingResult) {
-    console.log(`[Scraper] ✏️ Updating existing result (ID: ${existingResult.id})`);
+    logM1(`Updating existing result ID ${existingResult.id}`);
     await db.update(resultsTable).set({
       openResult: cleanedOpen,
       closeResult: cleanedClose,
       jodiResult: cleanedJodi,
     }).where(eq(resultsTable.id, existingResult.id));
   } else {
-    console.log(`[Scraper] ✅ Creating new result for ${market.name}`);
+    logM1(`Creating new result for ${market.name}`);
     await db.insert(resultsTable).values({
       marketId: market.id,
       resultDate: resultDateStr,
@@ -1027,8 +947,7 @@ export async function fetchAndUpdateMarketResult(
     });
   }
 
-  // Update market table
-  console.log(`[Scraper] Updating markets table with results`);
+  logM1(`Updating market ${market.name} with latest results`);
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
