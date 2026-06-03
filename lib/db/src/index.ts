@@ -21,7 +21,7 @@ pool.on("error", (error) => {
 });
 
 pool.on("connect", () => {
-  console.log("[DB] ✅ Database connection established");
+  // Silent - avoid spamming logs on every connection pool event
 });
 
 export const db = drizzle(pool, { schema });

@@ -886,9 +886,6 @@ export async function fetchAndUpdateMarketResult(
     return { success: false, message: "Market not found" };
   }
 
-  logM1(`━━━━━ MARKETS1 SCRAPER START ━━━━━`);
-  logM1(`Market: ${market.name} (ID: ${marketId})`);
-  logM1(`Source: https://satkamatka.com.in/ (ONLY SOURCE FOR MARKETS1)`);
 
   let scraped: ScrapedResult = {};
 
@@ -897,7 +894,7 @@ export async function fetchAndUpdateMarketResult(
     scraped = await scrapeSattaMatkaComIn(market.name);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    errorM1(`❌ ERROR: ${errorMessage}`);
+    logM1(`❌ ERROR: ${errorMessage}`);
 
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
@@ -907,7 +904,6 @@ export async function fetchAndUpdateMarketResult(
       errorMessage,
     });
 
-    logM1(`━━━━━ MARKETS1 SCRAPER FAILED ━━━━━`);
     return { success: false, message: errorMessage };
   }
 
@@ -915,7 +911,6 @@ export async function fetchAndUpdateMarketResult(
   // Website may delay publishing all fields after market closes
   if (!scraped.openResult && !scraped.closeResult && !scraped.jodiResult) {
     logM1(`❌ No result found from satkamatka.com.in`);
-    logM1(`━━━━━ MARKETS1 SCRAPER END (FAILED) ━━━━━`);
     return { success: false, message: "Result not found" };
   }
 
@@ -927,7 +922,6 @@ export async function fetchAndUpdateMarketResult(
   logM1(`✅ SCRAPED RESULT: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 
   const resultDateStr = getTodayDateIST();
-  logM1(`📅 Result Date: ${resultDateStr}`);
 
   const [existingResult] = await db
     .select()
@@ -940,14 +934,12 @@ export async function fetchAndUpdateMarketResult(
     );
 
   if (existingResult) {
-    logM1(`🔄 UPDATING existing result ID ${existingResult.id}`);
     await db.update(resultsTable).set({
       openResult: cleanedOpen,
       closeResult: cleanedClose,
       jodiResult: cleanedJodi,
     }).where(eq(resultsTable.id, existingResult.id));
   } else {
-    logM1(`📝 CREATING new result for ${market.name}`);
     await db.insert(resultsTable).values({
       marketId: market.id,
       resultDate: resultDateStr,
@@ -957,7 +949,7 @@ export async function fetchAndUpdateMarketResult(
     });
   }
 
-  logM1(`Updating market ${market.name} with latest results`);
+  // Update market with latest results (silent - avoids console noise)
   await db.update(marketsTable).set({
     lastFetchedAt: new Date(),
     fetchError: null,
@@ -970,16 +962,17 @@ export async function fetchAndUpdateMarketResult(
   await db.insert(scraperLogsTable).values({
     marketId: market.id,
     marketName: market.name,
-    sourceUrl: market.sourceUrl || "satkamatka.com.in",
+    sourceUrl: "https://satkamatka.com.in/",
     success: true,
     openResult: cleanedOpen,
     closeResult: cleanedClose,
     jodiResult: cleanedJodi,
   });
 
+  logM1(`✨ SUCCESS - ${market.name}`);
   return {
     success: true,
-    message: `📊 M1 → ${market.name}: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
+    message: `✅ M1 → ${market.name}: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`,
     data: { openResult: cleanedOpen, jodiResult: cleanedJodi, closeResult: cleanedClose },
   };
 }
