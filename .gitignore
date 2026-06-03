@@ -16,10 +16,6 @@ lib/**/src/**/*.d.ts.map
 artifacts/**/src/**/*.js
 artifacts/**/src/**/*.js.map
 
-# Generated files
-lib/**/src/generated
-artifacts/**/src/generated
-
 # Backup and temporary files
 *.backup
 *.bak
