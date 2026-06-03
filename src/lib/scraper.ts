@@ -18,6 +18,13 @@ try {
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+// ========== LOG HELPERS FOR MARKETS1 AND MARKETS2 ==========
+const logM1 = (msg: string) => console.log(`[M1] ${msg}`);
+const errorM1 = (msg: string) => console.error(`[M1] ERROR: ${msg}`);
+const logM2 = (msg: string) => console.log(`[M2] ${msg}`);
+const warnM2 = (msg: string) => console.warn(`[M2] WARN: ${msg}`);
+const errorM2 = (msg: string) => console.error(`[M2] ERROR: ${msg}`);
+
 const CHROME_ARGS = [
   "--no-sandbox",
   "--disable-setuid-sandbox",
