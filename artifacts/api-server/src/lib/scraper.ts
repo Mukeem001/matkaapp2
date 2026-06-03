@@ -631,14 +631,14 @@ export async function scrapeSattaMatkaComIn(
             };
           }
 
-          // Try pattern 2: XXX-X (e.g., 567-8) - treat as open-jodi, close will be from next occurrence
+          // Try pattern 2: XXX-X (e.g., 567-8) - open and jodi only
           match = checkLine.match(/(\d{1,3})-(\d{1,3})(?!-)/);
           if (match && !checkLine.includes("...")) {
             console.log(`✅ FOUND PATTERN 2 (XXX-X):`, match[0]);
             return {
               openResult: match[1],
               jodiResult: match[2],
-              closeResult: match[2],  // Use jodi as close for now
+              // close result not available yet for this partial format
             };
           }
 
@@ -770,7 +770,7 @@ export async function scrapeAkingSattaComIn(
             return {
               openResult: match[1],
               jodiResult: match[2],
-              closeResult: match[2],
+              // close result not available yet for this partial format
             };
           }
 

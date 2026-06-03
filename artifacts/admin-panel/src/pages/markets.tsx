@@ -312,7 +312,7 @@ export default function Markets() {
               results[market.id] = {
                 open: data.data.openResult || "***",
                 jodi: data.data.jodiResult || "**",
-                close: data.data.closeResult || "***",
+                close: data.data.closeResult ?? undefined,
               };
               console.log(`[Markets] ${market.name} - Stored result:`, results[market.id]);
             }
@@ -365,7 +365,7 @@ export default function Markets() {
               results[market.id] = {
                 open: data.data.openResult || "***",
                 jodi: data.data.jodiResult || "**",
-                close: data.data.closeResult || "***",
+                close: data.data.closeResult ?? undefined,
               };
               console.log(`[Markets Live] ${market.name} - Stored live result:`, results[market.id]);
             }
@@ -427,7 +427,7 @@ export default function Markets() {
               results[market.id] = {
                 open: data.data.openResult || "***",
                 jodi: data.data.jodiResult || "**",
-                close: data.data.closeResult || "***",
+                close: data.data.closeResult ?? undefined,
               };
             }
           }
@@ -471,7 +471,7 @@ export default function Markets() {
               results[market.id] = {
                 open: data.data.openResult || "***",
                 jodi: data.data.jodiResult || "**",
-                close: data.data.closeResult || "***",
+                close: data.data.closeResult ?? undefined,
               };
             }
           }
@@ -554,11 +554,9 @@ const handleFetchNow = async (market: Market) => {
         [market.id]: {
           open: result.data?.openResult ?? "***",
           jodi: result.data?.jodiResult ?? "**",
-          close: result.data?.closeResult ?? "***",
+          close: result.data?.closeResult ?? undefined,
         },
       }));
-
-      queryClient.invalidateQueries({ queryKey: getGetMarketsQueryKey() });
 
       toast({
         title: "✓ Fetch successful",

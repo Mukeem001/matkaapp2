@@ -607,7 +607,7 @@ export async function scrapeSattaMatkaComIn(
             return {
               openResult: match[1],
               jodiResult: match[2],
-              closeResult: match[2],
+              // Close result is not available yet for this partial format
             };
           }
 
@@ -754,7 +754,7 @@ export async function scrapeAkingSattaComIn(
             foundResult = {
               openResult: match[1],
               jodiResult: match[2],
-              closeResult: match[2],
+              // Close result is not available yet for this partial format
             };
             break;
           }
