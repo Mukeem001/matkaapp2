@@ -2,6 +2,7 @@ packages:
   - 'artifacts/admin-panel'
   - 'artifacts/api-server'
   - 'lib/api-client-react'
+  - 'lib/api-spec'
   - 'lib/api-zod'
   - 'lib/db'
 allowBuilds:
