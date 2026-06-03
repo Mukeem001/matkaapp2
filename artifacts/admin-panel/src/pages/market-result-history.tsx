@@ -98,6 +98,7 @@ export default function MarketResultHistory() {
                     <th className="px-2 sm:px-4 py-2 text-center">Open</th>
                     <th className="px-2 sm:px-4 py-2 text-center">Close</th>
                     <th className="px-2 sm:px-4 py-2 text-center">Jodi</th>
+                    <th className="px-2 sm:px-4 py-2 text-center">Close</th>
                     <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Declared At</th>
                   </tr>
                 </thead>
@@ -113,7 +114,10 @@ export default function MarketResultHistory() {
                         {result.closeResult || "—"}
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
-                        {result.jodiResult && result.closeResult ? result.jodiResult : "xx"}
+                        {result.jodiResult || "—"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
+                        {result.closeResult || "xx"}
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs text-muted-foreground hidden sm:table-cell">
                         {result.declaredAt

@@ -107,7 +107,7 @@ export default function Logs() {
                         <TableCell className="px-2 sm:px-4">
                           {log.openResult || log.closeResult || log.jodiResult ? (
                             <span className="font-mono font-semibold text-primary text-xs sm:text-sm">
-                              {log.openResult || "***"} - {log.closeResult ? (log.jodiResult || "**") : "xx"} - {log.closeResult || "***"}
+                              {log.openResult || "***"} - {log.jodiResult || "**"} - {log.closeResult || "xx"}
                             </span>
                           ) : (
                             <span className="text-muted-foreground text-xs">No results</span>
