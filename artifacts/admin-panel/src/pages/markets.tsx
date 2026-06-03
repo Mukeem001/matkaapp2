@@ -741,12 +741,12 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                       </TableCell>
                       <TableCell>
                         <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                          {currentResults[market.id]?.open || "***"} - {currentResults[market.id]?.jodi || "**"} - {currentResults[market.id]?.close || "***"}
+                          {currentResults[market.id]?.open || "***"} - {currentResults[market.id]?.close ? (currentResults[market.id]?.jodi || "**") : "xx"} - {currentResults[market.id]?.close || "***"}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="font-mono font-semibold tracking-widest text-primary text-sm">
-                          {liveResults[market.id]?.open || "***"} - {liveResults[market.id]?.jodi || "**"} - {liveResults[market.id]?.close || "***"}
+                          {liveResults[market.id]?.open || "***"} - {liveResults[market.id]?.close ? (liveResults[market.id]?.jodi || "**") : "xx"} - {liveResults[market.id]?.close || "***"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -926,7 +926,7 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                             <div className="font-mono font-semibold tracking-widest text-primary text-sm">
                               {currentResults[market.id]?.open || "***"}
                               <br />
-                              {currentResults[market.id]?.jodi || "**"}
+                              {currentResults[market.id]?.close ? (currentResults[market.id]?.jodi || "**") : "xx"}
                               <br />
                               {currentResults[market.id]?.close || "***"}
                             </div>
@@ -936,7 +936,7 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                             <div className="font-mono font-semibold tracking-widest text-primary text-sm">
                               {liveResults[market.id]?.open || "***"}
                               <br />
-                              {liveResults[market.id]?.jodi || "**"}
+                              {liveResults[market.id]?.close ? (liveResults[market.id]?.jodi || "**") : "xx"}
                               <br />
                               {liveResults[market.id]?.close || "***"}
                             </div>

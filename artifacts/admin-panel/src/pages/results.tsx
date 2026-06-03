@@ -144,7 +144,7 @@ export default function Results() {
                         <TableCell className="px-2 sm:px-4 text-xs sm:text-sm">{format(new Date(r.resultDate), 'PP')}</TableCell>
                         <TableCell className="px-2 sm:px-4 text-center">
                           <span className="font-mono font-bold text-primary tracking-widest bg-primary/5 px-2 sm:px-4 py-1 sm:py-1.5 rounded-lg border border-primary/20 text-xs sm:text-sm">
-                            {r.openResult || '***'} - {r.jodiResult || '**'} - {r.closeResult || '***'}
+                            {r.openResult || '***'} - {r.closeResult ? (r.jodiResult || '**') : 'xx'} - {r.closeResult || '***'}
                           </span>
                         </TableCell>
                         <TableCell className="pr-2 sm:pr-4 lg:pr-6 text-right text-muted-foreground text-xs sm:text-sm">
@@ -162,7 +162,7 @@ export default function Results() {
                           <div className="bg-primary/5 p-2 sm:p-3 rounded-lg border border-primary/20">
                             <p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
                             <p className="font-mono font-bold text-primary tracking-widest text-center text-xs sm:text-sm">
-                              {r.openResult || '***'} - {r.jodiResult || '**'} - {r.closeResult || '***'}
+                              {r.openResult || '***'} - {r.closeResult ? (r.jodiResult || '**') : 'xx'} - {r.closeResult || '***'}
                             </p>
                           </div>
                           <div>

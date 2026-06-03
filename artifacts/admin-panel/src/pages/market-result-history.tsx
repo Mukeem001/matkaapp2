@@ -113,7 +113,7 @@ export default function MarketResultHistory() {
                         {result.closeResult || "—"}
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono">
-                        {result.jodiResult || "—"}
+                        {result.jodiResult && result.closeResult ? result.jodiResult : "xx"}
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs text-muted-foreground hidden sm:table-cell">
                         {result.declaredAt
