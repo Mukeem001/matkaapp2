@@ -634,10 +634,12 @@ export async function scrapeSattaMatkaComIn(
   opts?: { forceProxy?: boolean }
 ): Promise<ScrapedResult> {
   try {
+    logM1(`🔍 Scraping satkamatka.com.in for: "${marketName}"`);
     const response = await fetchUrl("https://satkamatka.com.in/", opts);
     const $ = cheerio.load(response.data);
     const cleanMarket = normalizeMarketNameForMatch(marketName);
 
+    logM1(`📄 Searching HTML for .game_list elements...`);
     const gameRows = $(".game_list")
       .toArray()
       .map(el => {
@@ -651,11 +653,20 @@ export async function scrapeSattaMatkaComIn(
       })
       .filter(row => row.name && row.rawNumber && !/^loading\.\.\./i.test(row.rawNumber));
 
+    logM1(`✅ Found ${gameRows.length} game rows on satkamatka.com.in`);
+    if (gameRows.length > 0) {
+      logM1(`📋 Available markets: ${gameRows.map(r => r.name).slice(0, 5).join(", ")}...`);
+    } else {
+      logM1(`⚠️ No .game_list elements found - selector may have changed on website`);
+    }
+
     if (gameRows.length > 0) {
       for (const row of gameRows) {
         if (isSattaMatkaMarketMatch(row.cleanName, cleanMarket)) {
+          logM1(`🎯 MATCH FOUND: "${row.name}"`);
           const parsed = parseSattaMatkaComInNumber(row.rawNumber);
           if (parsed) {
+            logM1(`✅ RESULT PARSED: ${row.rawNumber}`);
             return parsed;
           }
         }
@@ -684,23 +695,28 @@ export async function scrapeSattaMatkaComIn(
       }
     }
 
+    logM1(`⚠️ No exact match found in gameRows, trying fallback text parsing...`);
     const text = $("body").text();
     const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
     const cleanMarketLine = normalizeMarketNameForMatch(marketName);
 
+    logM1(`📝 Parsing ${lines.length} lines of text...`);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cleanLine = normalizeMarketNameForMatch(line);
       if (isSattaMatkaMarketMatch(cleanLine, cleanMarketLine)) {
+        logM1(`🎯 FALLBACK MATCH at line ${i}: "${line}"`);
         for (let j = i; j < i + 5 && j < lines.length; j++) {
           const parsed = parseSattaMatkaComInNumber(lines[j]);
           if (parsed) {
+            logM1(`✅ FALLBACK RESULT: ${lines[j]}`);
             return parsed;
           }
         }
       }
     }
 
+    logM1(`❌ No result found in fallback parsing`);
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
 import { GetScraperLogsQueryParams, UpdateMarketAutoConfigParams, UpdateMarketAutoConfigBody, FetchMarketResultNowParams } from "@workspace/api-zod";
 import { authMiddleware } from "../middlewares/auth.js";
-import { fetchAndUpdateMarketResult, scrapeLiveResults } from "../lib/scraper.js";
+import { fetchAndUpdateMarketResult } from "../lib/scraper.js";
 import { getSchedulerStatus } from "../lib/scheduler.js";
 import { getTodayDateIST } from "../lib/date-utils.js";
 
@@ -61,18 +61,14 @@ router.post("/markets/:id/fetch-now", authMiddleware, async (req, res): Promise<
 });
 
 router.get("/markets/:id/live-results", authMiddleware, async (req, res): Promise<void> => {
-  console.log("🔴 [LIVE-RESULTS] Request received");
-  console.log("🔴 [LIVE-RESULTS] req.params:", req.params);
-  
+  console.log("[M1][LIVE] Request received", req.params);
+
   const params = FetchMarketResultNowParams.safeParse(req.params);
-  
   if (!params.success) {
-    console.error("🔴 [LIVE-RESULTS] Validation failed:", params.error);
+    console.error("[M1][LIVE] Invalid ID", params.error);
     res.status(400).json({ error: "Invalid ID", details: params.error });
     return;
   }
-
-  console.log("🟢 [LIVE-RESULTS] Validated params:", params.data);
 
   const [market] = await db
     .select()
@@ -80,114 +76,19 @@ router.get("/markets/:id/live-results", authMiddleware, async (req, res): Promis
     .where(eq(marketsTable.id, params.data.id));
 
   if (!market) {
-    console.error("🔴 [LIVE-RESULTS] Market not found:", params.data.id);
-    res.status(400).json({ error: "Market not found" });
+    console.error("[M1][LIVE] Market not found:", params.data.id);
+    res.status(404).json({ error: "Market not found" });
     return;
   }
 
-  console.log("🟢 [LIVE-RESULTS] Market found:", market.name);
-
   try {
-    const liveResult = await scrapeLiveResults(market.name);
-    
-    console.log("� [LIVE-RESULTS] Scrape result:", liveResult);
-    
-    // Success if we have ANY result
-    const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
-    
-    if (hasAnyResult) {
-      console.log("🟢 [LIVE-RESULTS] Saving to database");
-      
-      // Save to database with TODAY'S DATE
-const today = getTodayDateIST();
-        console.log("🟢 [LIVE-RESULTS] Today's IST date:", today);
-      
-      try {
-        const [existingResult] = await db
-          .select()
-          .from(resultsTable)
-          .where(
-            and(
-              eq(resultsTable.marketId, params.data.id),
-              eq(resultsTable.resultDate, today)
-            )
-          );
-        
-        console.log("🟢 [LIVE-RESULTS] Query check completed, existing:", existingResult ? existingResult.id : "none");
-        
-        if (existingResult) {
-          console.log("🟢 [LIVE-RESULTS] Updating existing result ID:", existingResult.id);
-          const updateData: any = {};
-          if (liveResult.openResult) updateData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) updateData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) updateData.closeResult = liveResult.closeResult;
-          updateData.declaredAt = new Date();
-          
-          await db.update(resultsTable).set(updateData).where(eq(resultsTable.id, existingResult.id));
-        } else {
-          console.log("🟢 [LIVE-RESULTS] Creating new result for market", params.data.id);
-          const insertData: any = {
-            marketId: params.data.id,
-            resultDate: today,
-            declaredAt: new Date(),
-          };
-          if (liveResult.openResult) insertData.openResult = liveResult.openResult;
-          if (liveResult.jodiResult) insertData.jodiResult = liveResult.jodiResult;
-          if (liveResult.closeResult) insertData.closeResult = liveResult.closeResult;
-          
-          await db.insert(resultsTable).values(insertData);
-        }
-        
-        // 🟢 ALSO UPDATE MARKETS TABLE WITH LATEST RESULTS
-        console.log("🟢 [LIVE-RESULTS] Updating markets table with latest results");
-        const marketUpdateData: any = {};
-        if (liveResult.openResult) marketUpdateData.openResult = liveResult.openResult;
-        if (liveResult.jodiResult) marketUpdateData.jodiResult = liveResult.jodiResult;
-        if (liveResult.closeResult) marketUpdateData.closeResult = liveResult.closeResult;
-        marketUpdateData.lastFetchedAt = new Date();
-        
-        await db.update(marketsTable).set(marketUpdateData).where(eq(marketsTable.id, params.data.id));
-        
-        await db.insert(scraperLogsTable).values({
-          marketId: market.id,
-          marketName: market.name,
-          sourceUrl: market.sourceUrl ?? "https://satta-king-fast.com/",
-          success: true,
-          openResult: liveResult.openResult,
-          closeResult: liveResult.closeResult,
-          jodiResult: liveResult.jodiResult,
-        });
-        
-        console.log("🟢 [LIVE-RESULTS] Returning saved results");
-        res.json({
-          success: true,
-          message: "Live results found and saved to database",
-          data: liveResult,
-        });
-      } catch (dbError) {
-        console.error("🔴 [LIVE-RESULTS] Database error:", dbError);
-        res.status(500).json({
-          success: false,
-          message: `Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
-          data: null,
-        });
-      }
-    } else {
-      console.log("🔴 [LIVE-RESULTS] No results found");
-      res.json({
-        success: false,
-        message: "No live results available",
-        data: null,
-      });
-    }
+    const result = await fetchAndUpdateMarketResult(params.data.id);
+    console.log("[M1][LIVE] Result status:", result.success ? "saved" : "not found", result.message);
+    res.json(result);
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    console.error("🔴 [LIVE-RESULTS] Exception:", errorMsg);
-    res.status(500).json({ 
-      success: false, 
-      message: errorMsg,
-      data: null,
-    });
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[M1][LIVE] Exception:", errorMsg);
+    res.status(500).json({ success: false, message: errorMsg, data: null });
   }
 });
 
