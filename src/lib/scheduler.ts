@@ -1,9 +1,9 @@
 import * as cron from "node-cron";
-import { eq } from "drizzle-orm";
-import { db, marketsTable, markets2Table, resultsTable, results2Table } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, marketsTable, markets2Table, resultsTable, results2Table, bidsTable } from "@workspace/db";
 import { fetchAndUpdateMarketResult } from "./scraper.js";
 import { fetchAndUpdateMarkets2Result, updateMarket2ActivityStatus } from "./scraper2.js";
-import { processMarketBidsPreClose } from "./bid-processor.js";
+import { processMarketBidsPreClose, processMarketBids } from "./bid-processor.js";
 import { getTodayDateIST } from "./date-utils.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
@@ -113,6 +113,91 @@ async function updateMarketActivityStatus() {
   }
 }
 
+/**
+ * Process today's pending bids for closed markets
+ * Finds all pending bids whose markets have closed and have results, processes them automatically
+ */
+async function processTodaysPendingBidsForClosedMarkets() {
+  try {
+    // Get all pending bids
+    const pendingBids = await db.select({
+      id: bidsTable.id,
+      marketId: bidsTable.marketId,
+      status: bidsTable.status,
+    })
+      .from(bidsTable)
+      .where(eq(bidsTable.status, "pending"));
+
+    if (pendingBids.length === 0) {
+      return; // No pending bids, nothing to do
+    }
+
+    console.log(`[Bid Processor] Found ${pendingBids.length} total pending bids`);
+
+    // Group bids by market
+    const bidsByMarket = new Map<number, typeof pendingBids>();
+    for (const bid of pendingBids) {
+      if (!bidsByMarket.has(bid.marketId)) {
+        bidsByMarket.set(bid.marketId, []);
+      }
+      bidsByMarket.get(bid.marketId)!.push(bid);
+    }
+
+    const todayDate = getTodayDateIST();
+    let processedCount = 0;
+
+    // Check each market and process bids if market is closed and has result
+    for (const [marketId, bids] of bidsByMarket) {
+      const [market] = await db.select().from(marketsTable)
+        .where(eq(marketsTable.id, marketId));
+      
+      if (!market) {
+        continue;
+      }
+
+      // Check if market is closed (isActive = false)
+      if (market.isActive) {
+        continue;
+      }
+
+      // Check if market has result
+      const results = await db.select().from(resultsTable)
+        .where(eq(resultsTable.marketId, marketId));
+
+      if (results.length === 0) {
+        continue;
+      }
+
+      // Get the latest result
+      const result = results[results.length - 1];
+
+      // Process bids for this closed market with result
+      console.log(`[Bid Processor] ⏱️ Market closed - Processing ${bids.length} pending bids for: ${market.name}`);
+      
+      try {
+        const marketResult = {
+          openResult: result.openResult || undefined,
+          closeResult: result.closeResult || undefined,
+          jodiResult: result.jodiResult || undefined,
+          pannaResult: result.pannaResult || undefined,
+        };
+
+        await processMarketBids(marketId, marketResult);
+        console.log(`[Bid Processor] ✅ Successfully processed bids for market ${market.name}`);
+        processedCount++;
+      } catch (error) {
+        console.error(`[Bid Processor] ❌ Error processing bids for market ${market.name}:`, error);
+      }
+    }
+
+    if (processedCount > 0) {
+      console.log(`[Bid Processor] 📋 Processed ${processedCount} markets with pending bids`);
+    }
+  } catch (err) {
+    console.error("[Bid Processor] Error in processTodaysPendingBidsForClosedMarkets:", err);
+  }
+}
+
 export function startScheduler() {
   if (schedulerTask) {
     console.log("[Scheduler] Already running");
@@ -145,6 +230,9 @@ export function startScheduler() {
 
       // Update market2 activity status (Market 2)
       await updateMarket2ActivityStatus();
+
+      // Process today's pending bids for closed markets (auto-process when market closes and has result)
+      await processTodaysPendingBidsForClosedMarkets();
 
       // Get all markets with autoUpdate enabled and a source URL
       const markets = await db.select().from(marketsTable)
