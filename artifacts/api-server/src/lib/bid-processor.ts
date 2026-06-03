@@ -27,15 +27,19 @@ export interface GameRates {
 export function isBidWinner(bidNumber: string, gameType: string, result: MarketResult, marketopenclose?: string): boolean {
   const { openResult, closeResult, jodiResult, pannaResult } = result;
 
-  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, marketopenclose=${marketopenclose}, result=`, result);
+  // Normalize marketopenclose to handle potential whitespace or case variations
+  const normalizedMarketopenclose = marketopenclose ? marketopenclose.toLowerCase().trim() : "open-bids";
+
+  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, marketopenclose=${normalizedMarketopenclose} (raw: ${marketopenclose}), result=`, result);
 
   switch (gameType) {
     case "single_digit":
-      // Single digit matches the FIRST digit of jodiResult
+      // Single digit matches the open or close digit of jodiResult
       if (jodiResult && jodiResult.length > 0) {
-        const firstDigit = jodiResult.charAt(0);
-        const matchResult = bidNumber === firstDigit;
-        console.log(`Single digit check: jodiResult = ${jodiResult}, first digit = ${firstDigit}, bid = ${bidNumber}, match = ${matchResult}`);
+        const targetDigit = normalizedMarketopenclose === "close-bids" ? jodiResult.charAt(jodiResult.length - 1) : jodiResult.charAt(0);
+        const targetLabel = normalizedMarketopenclose === "close-bids" ? "last digit" : "first digit";
+        const matchResult = bidNumber === targetDigit;
+        console.log(`Single digit check: jodiResult = ${jodiResult}, ${targetLabel} = ${targetDigit}, bid = ${bidNumber}, marketopenclose = ${normalizedMarketopenclose}, match = ${matchResult}`);
         return matchResult;
       }
       return false;
@@ -51,37 +55,85 @@ export function isBidWinner(bidNumber: string, gameType: string, result: MarketR
 
     case "single_panna":
       // Single panna: open-bids matches openResult, close-bids matches closeResult
-      const resultForSinglePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForSinglePanna) {
-        const matchResult = bidNumber === resultForSinglePanna;
-        console.log(`Single panna check: marketopenclose=${marketopenclose}, result=${resultForSinglePanna}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Expected format: 3-digit number (e.g., "123")
+      const resultForSinglePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForSinglePanna) {
+        console.log(`❌ Single panna check FAILED: marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      // Validate panna result is 3 digits
+      if (resultForSinglePanna.length !== 3) {
+        console.log(`❌ Single panna check FAILED: result length invalid. Expected 3 digits, got ${resultForSinglePanna.length} in "${resultForSinglePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      // Validate bid is also 3 digits
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Single panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const singlePannaMatch = bidNumber === resultForSinglePanna;
+      console.log(`✓ Single panna check: marketopenclose=${normalizedMarketopenclose}, resultValue=${resultForSinglePanna}, bid=${bidNumber}, match=${singlePannaMatch}`);
+      return singlePannaMatch;
 
     case "double_panna":
-      // Double panna: open-bids matches openResult, close-bids matches closeResult (two same digits)
-      const resultForDoublePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForDoublePanna && resultForDoublePanna.length === 3) {
-        const digits = resultForDoublePanna.split("");
-        const uniqueDigits = [...new Set(digits)];
-        const matchResult = uniqueDigits.length === 2 && bidNumber === resultForDoublePanna;
-        console.log(`Double panna check: marketopenclose=${marketopenclose}, result=${resultForDoublePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Double panna: 3-digit result with exactly 2 unique digits
+      // Expected: result like "112" (2 unique digits), and bid must match exactly
+      const resultForDoublePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForDoublePanna) {
+        console.log(`❌ Double panna check FAILED: no result. marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      if (resultForDoublePanna.length !== 3) {
+        console.log(`❌ Double panna check FAILED: result length invalid. Expected 3 digits, got ${resultForDoublePanna.length} in "${resultForDoublePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Double panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const doublePannaDigits = resultForDoublePanna.split("");
+      const doublePannaUnique = [...new Set(doublePannaDigits)];
+      const isDoublePannaPattern = doublePannaUnique.length === 2;
+      const doublePannaMatch = isDoublePannaPattern && bidNumber === resultForDoublePanna;
+      
+      console.log(`✓ Double panna check: marketopenclose=${normalizedMarketopenclose}, result=${resultForDoublePanna}, uniqueDigits=${doublePannaUnique.length} (expected 2), bid=${bidNumber}, isPattern=${isDoublePannaPattern}, match=${doublePannaMatch}`);
+      return doublePannaMatch;
 
     case "triple_panna":
-      // Triple panna: open-bids matches openResult, close-bids matches closeResult (all different digits)
-      const resultForTriplePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForTriplePanna && resultForTriplePanna.length === 3) {
-        const digits = resultForTriplePanna.split("");
-        const uniqueDigits = [...new Set(digits)];
-        const matchResult = uniqueDigits.length === 3 && bidNumber === resultForTriplePanna;
-        console.log(`Triple panna check: marketopenclose=${marketopenclose}, result=${resultForTriplePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Triple panna: 3-digit result with all 3 unique digits
+      // Expected: result like "123" (3 unique digits), and bid must match exactly
+      const resultForTriplePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForTriplePanna) {
+        console.log(`❌ Triple panna check FAILED: no result. marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      if (resultForTriplePanna.length !== 3) {
+        console.log(`❌ Triple panna check FAILED: result length invalid. Expected 3 digits, got ${resultForTriplePanna.length} in "${resultForTriplePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Triple panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const triplePannaDigits = resultForTriplePanna.split("");
+      const triplePannaUnique = [...new Set(triplePannaDigits)];
+      const isTriplePannaPattern = triplePannaUnique.length === 3;
+      const triplePannaMatch = isTriplePannaPattern && bidNumber === resultForTriplePanna;
+      
+      console.log(`✓ Triple panna check: marketopenclose=${normalizedMarketopenclose}, result=${resultForTriplePanna}, uniqueDigits=${triplePannaUnique.length} (expected 3), bid=${bidNumber}, isPattern=${isTriplePannaPattern}, match=${triplePannaMatch}`);
+      return triplePannaMatch;
 
     case "half_sangam":
       // Half sangam logic pending - return false for now

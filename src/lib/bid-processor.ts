@@ -27,15 +27,19 @@ export interface GameRates {
 export function isBidWinner(bidNumber: string, gameType: string, result: MarketResult, marketopenclose?: string): boolean {
   const { openResult, closeResult, jodiResult, pannaResult } = result;
 
-  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, marketopenclose=${marketopenclose}, result=`, result);
+  // Normalize marketopenclose to handle potential whitespace or case variations
+  const normalizedMarketopenclose = marketopenclose ? marketopenclose.toLowerCase().trim() : "open-bids";
+
+  console.log(`Checking bid: number=${bidNumber}, gameType=${gameType}, marketopenclose=${normalizedMarketopenclose} (raw: ${marketopenclose}), result=`, result);
 
   switch (gameType) {
     case "single_digit":
-      // Single digit matches the FIRST digit of jodiResult
+      // Single digit matches the open or close digit of jodiResult
       if (jodiResult && jodiResult.length > 0) {
-        const firstDigit = jodiResult.charAt(0);
-        const matchResult = bidNumber === firstDigit;
-        console.log(`Single digit check: jodiResult = ${jodiResult}, first digit = ${firstDigit}, bid = ${bidNumber}, match = ${matchResult}`);
+        const targetDigit = normalizedMarketopenclose === "close-bids" ? jodiResult.charAt(jodiResult.length - 1) : jodiResult.charAt(0);
+        const targetLabel = normalizedMarketopenclose === "close-bids" ? "last digit" : "first digit";
+        const matchResult = bidNumber === targetDigit;
+        console.log(`Single digit check: jodiResult = ${jodiResult}, ${targetLabel} = ${targetDigit}, bid = ${bidNumber}, marketopenclose = ${normalizedMarketopenclose}, match = ${matchResult}`);
         return matchResult;
       }
       return false;
@@ -51,37 +55,85 @@ export function isBidWinner(bidNumber: string, gameType: string, result: MarketR
 
     case "single_panna":
       // Single panna: open-bids matches openResult, close-bids matches closeResult
-      const resultForSinglePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForSinglePanna) {
-        const matchResult = bidNumber === resultForSinglePanna;
-        console.log(`Single panna check: marketopenclose=${marketopenclose}, result=${resultForSinglePanna}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Expected format: 3-digit number (e.g., "123")
+      const resultForSinglePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForSinglePanna) {
+        console.log(`❌ Single panna check FAILED: marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      // Validate panna result is 3 digits
+      if (resultForSinglePanna.length !== 3) {
+        console.log(`❌ Single panna check FAILED: result length invalid. Expected 3 digits, got ${resultForSinglePanna.length} in "${resultForSinglePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      // Validate bid is also 3 digits
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Single panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const singlePannaMatch = bidNumber === resultForSinglePanna;
+      console.log(`✓ Single panna check: marketopenclose=${normalizedMarketopenclose}, resultValue=${resultForSinglePanna}, bid=${bidNumber}, match=${singlePannaMatch}`);
+      return singlePannaMatch;
 
     case "double_panna":
-      // Double panna: open-bids matches openResult, close-bids matches closeResult (two same digits)
-      const resultForDoublePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForDoublePanna && resultForDoublePanna.length === 3) {
-        const digits = resultForDoublePanna.split("");
-        const uniqueDigits = [...new Set(digits)];
-        const matchResult = uniqueDigits.length === 2 && bidNumber === resultForDoublePanna;
-        console.log(`Double panna check: marketopenclose=${marketopenclose}, result=${resultForDoublePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Double panna: 3-digit result with exactly 2 unique digits
+      // Expected: result like "112" (2 unique digits), and bid must match exactly
+      const resultForDoublePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForDoublePanna) {
+        console.log(`❌ Double panna check FAILED: no result. marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      if (resultForDoublePanna.length !== 3) {
+        console.log(`❌ Double panna check FAILED: result length invalid. Expected 3 digits, got ${resultForDoublePanna.length} in "${resultForDoublePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Double panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const doublePannaDigits = resultForDoublePanna.split("");
+      const doublePannaUnique = [...new Set(doublePannaDigits)];
+      const isDoublePannaPattern = doublePannaUnique.length === 2;
+      const doublePannaMatch = isDoublePannaPattern && bidNumber === resultForDoublePanna;
+      
+      console.log(`✓ Double panna check: marketopenclose=${normalizedMarketopenclose}, result=${resultForDoublePanna}, uniqueDigits=${doublePannaUnique.length} (expected 2), bid=${bidNumber}, isPattern=${isDoublePannaPattern}, match=${doublePannaMatch}`);
+      return doublePannaMatch;
 
     case "triple_panna":
-      // Triple panna: open-bids matches openResult, close-bids matches closeResult (all different digits)
-      const resultForTriplePanna = marketopenclose === "close-bids" ? closeResult : openResult;
-      if (resultForTriplePanna && resultForTriplePanna.length === 3) {
-        const digits = resultForTriplePanna.split("");
-        const uniqueDigits = [...new Set(digits)];
-        const matchResult = uniqueDigits.length === 3 && bidNumber === resultForTriplePanna;
-        console.log(`Triple panna check: marketopenclose=${marketopenclose}, result=${resultForTriplePanna}, unique digits=${uniqueDigits.length}, bid=${bidNumber}, match=${matchResult}`);
-        return matchResult;
+      // Triple panna: 3-digit result with all 3 unique digits
+      // Expected: result like "123" (3 unique digits), and bid must match exactly
+      const resultForTriplePanna = normalizedMarketopenclose === "close-bids" ? closeResult : openResult;
+      
+      if (!resultForTriplePanna) {
+        console.log(`❌ Triple panna check FAILED: no result. marketopenclose=${normalizedMarketopenclose}, openResult=${openResult}, closeResult=${closeResult}, bid=${bidNumber}`);
+        return false;
       }
-      return false;
+      
+      if (resultForTriplePanna.length !== 3) {
+        console.log(`❌ Triple panna check FAILED: result length invalid. Expected 3 digits, got ${resultForTriplePanna.length} in "${resultForTriplePanna}", bid=${bidNumber}`);
+        return false;
+      }
+      
+      if (bidNumber.length !== 3) {
+        console.log(`❌ Triple panna check FAILED: bid number invalid. Expected 3 digits, got ${bidNumber.length} in "${bidNumber}"`);
+        return false;
+      }
+      
+      const triplePannaDigits = resultForTriplePanna.split("");
+      const triplePannaUnique = [...new Set(triplePannaDigits)];
+      const isTriplePannaPattern = triplePannaUnique.length === 3;
+      const triplePannaMatch = isTriplePannaPattern && bidNumber === resultForTriplePanna;
+      
+      console.log(`✓ Triple panna check: marketopenclose=${normalizedMarketopenclose}, result=${resultForTriplePanna}, uniqueDigits=${triplePannaUnique.length} (expected 3), bid=${bidNumber}, isPattern=${isTriplePannaPattern}, match=${triplePannaMatch}`);
+      return triplePannaMatch;
 
     case "half_sangam":
       // Half sangam logic pending - return false for now
@@ -124,11 +176,14 @@ export function calculateWinnings(bidAmount: number, gameType: string, rates: Ga
   return bidAmount * multiplier;
 }
 
-/**
- * Process all pending bids for a market when results are declared
- */
 export async function processMarketBids(marketId: number, result: MarketResult): Promise<void> {
   console.log(`Processing bids for market ${marketId} with result:`, result);
+
+  // Validate result has required values for processing
+  if (!result || (!result.openResult && !result.closeResult && !result.jodiResult)) {
+    console.warn(`[WARN] No valid result found for market ${marketId}. Result:`, result);
+    return;
+  }
 
   // Get game rates
   const [rates] = await db.select().from(gameRatesTable).limit(1);
@@ -174,65 +229,81 @@ export async function processMarketBids(marketId: number, result: MarketResult):
   // Process each bid
   for (const bid of pendingBids) {
     const bidAmount = parseFloat(bid.amount as string);
-    const isWinner = isBidWinner(bid.number, bid.gameType, result, bid.marketopenclose);
+    
+    try {
+      const isWinner = isBidWinner(bid.number, bid.gameType, result, bid.marketopenclose);
 
-    console.log(`Processing bid ${bid.id}: number=${bid.number}, gameType=${bid.gameType}, amount=${bidAmount}, isWinner=${isWinner}`);
+      console.log(`Processing bid ${bid.id}: number=${bid.number}, gameType=${bid.gameType}, amount=${bidAmount}, isWinner=${isWinner}`);
 
-    if (isWinner) {
-      // Get the multiplier rate for this game type
-      const gameTypeMapping: Record<string, keyof GameRates> = {
-        "single_digit": "singleDigit",
-        "jodi": "jodiDigit",
-        "single_panna": "singlePanna",
-        "double_panna": "doublePanna",
-        "triple_panna": "triplePanna",
-        "half_sangam": "halfSangam",
-        "full_sangam": "fullSangam",
-      };
-      const rateKey = gameTypeMapping[bid.gameType];
-      const multiplier = rateKey ? gameRates[rateKey] : 1;
-      
-      // Calculate total payout: original bid + (bid * multiplier)
-      const profit = bidAmount * multiplier;
-      const totalPayout = bidAmount + profit;
+      if (isWinner) {
+        // Get the multiplier rate for this game type
+        const gameTypeMapping: Record<string, keyof GameRates> = {
+          "single_digit": "singleDigit",
+          "jodi": "jodiDigit",
+          "single_panna": "singlePanna",
+          "double_panna": "doublePanna",
+          "triple_panna": "triplePanna",
+          "half_sangam": "halfSangam",
+          "full_sangam": "fullSangam",
+        };
+        const rateKey = gameTypeMapping[bid.gameType];
+        const multiplier = rateKey ? gameRates[rateKey] : 1;
+        
+        // Calculate total payout: original bid + (bid * multiplier)
+        const profit = bidAmount * multiplier;
+        const totalPayout = bidAmount + profit;
 
-      console.log(`Bid ${bid.id} won! BidAmount: ${bidAmount}, Rate: ${multiplier}x, Profit: ${profit}, Total Payout: ${totalPayout}`);
+        console.log(`Bid ${bid.id} won! BidAmount: ${bidAmount}, Rate: ${multiplier}x, Profit: ${profit}, Total Payout: ${totalPayout}`);
 
-      // Update bid status and user wallet in transaction
-      try {
-        await db.transaction(async (tx) => {
-          // Update bid status to won
-          await tx.update(bidsTable)
-            .set({ status: "won" })
+        // Update bid status and user wallet in transaction
+        try {
+          await db.transaction(async (tx) => {
+            // Update bid status to won
+            await tx.update(bidsTable)
+              .set({ status: "won" })
+              .where(eq(bidsTable.id, bid.id));
+
+            console.log(`✅ Updated bid ${bid.id} status to won`);
+
+            // Add total payout to user wallet (original bet + profit)
+            await tx.update(usersTable)
+              .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalPayout}` })
+              .where(eq(usersTable.id, bid.userId));
+
+            console.log(`✅ Updated user ${bid.userId} wallet: +${totalPayout} (profit: ${profit})`);
+          });
+
+          console.log(`✅ SUCCESS: User ${bid.userId} won ${totalPayout} on bid ${bid.id}`);
+        } catch (error) {
+          console.error(`❌ ERROR processing win for bid ${bid.id}:`, error);
+        }
+      } else {
+        // Update bid status to lost
+        try {
+          await db.update(bidsTable)
+            .set({ status: "lost" })
             .where(eq(bidsTable.id, bid.id));
 
-          console.log(`✅ Updated bid ${bid.id} status to won`);
-
-          // Add total payout to user wallet (original bet + profit)
-          await tx.update(usersTable)
-            .set({ walletBalance: sql`${usersTable.walletBalance} + ${totalPayout}` })
-            .where(eq(usersTable.id, bid.userId));
-
-          console.log(`✅ Updated user ${bid.userId} wallet: +${totalPayout} (profit: ${profit})`);
-        });
-
-        console.log(`✅ SUCCESS: User ${bid.userId} won ${totalPayout} on bid ${bid.id}`);
-      } catch (error) {
-        console.error(`❌ ERROR processing win for bid ${bid.id}:`, error);
+          console.log(`✅ Updated bid ${bid.id} status to lost`);
+        } catch (error) {
+          console.error(`❌ ERROR marking bid ${bid.id} as lost:`, error);
+        }
       }
-    } else {
-      // Update bid status to lost
+    } catch (bidProcessError) {
+      console.error(`❌ CRITICAL ERROR processing bid ${bid.id}:`, bidProcessError);
+      // Mark bid as lost if there's an error during processing
       try {
         await db.update(bidsTable)
           .set({ status: "lost" })
           .where(eq(bidsTable.id, bid.id));
-
-        console.log(`✅ Updated bid ${bid.id} status to lost`);
-      } catch (error) {
-        console.error(`❌ ERROR marking bid ${bid.id} as lost:`, error);
+        console.log(`⚠️  Bid ${bid.id} marked as lost due to processing error`);
+      } catch (markLostError) {
+        console.error(`❌ FAILED to mark bid ${bid.id} as lost:`, markLostError);
       }
     }
   }
+
+  console.log(`✅ Finished processing all bids for market ${marketId}`);
 }
 
 /**
