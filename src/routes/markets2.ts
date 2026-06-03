@@ -116,16 +116,13 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
 
     console.log(`[Markets2 Delete] Starting delete for market ${params.data.id} (${market.name})`);
 
-    // Delete results but keep bids (historical record of user bets)
-    console.log(`[Markets2 Delete] Deleting results for market ${params.data.id}`);
-    await db.delete(results2Table).where(eq(results2Table.marketId, params.data.id));
-
-    // Delete the market (bids will remain orphaned for historical tracking)
-    console.log(`[Markets2 Delete] Deleting market ${params.data.id} from markets2_table`);
+    // Delete the market - results will be cascade deleted automatically
+    // Bids remain orphaned for historical tracking of user bets
+    console.log(`[Markets2 Delete] Deleting market ${params.data.id} from markets2_table (results will cascade delete)`);
     await db.delete(markets2Table).where(eq(markets2Table.id, params.data.id));
 
-    console.log(`[Markets2 Delete] ✅ Market ${params.data.id} (${market.name}) deleted successfully`);
-    res.json({ success: true, message: "Market deleted successfully" });
+    console.log(`[Markets2 Delete] ✅ Market ${params.data.id} (${market.name}) deleted successfully with all associated results`);
+    res.json({ success: true, message: "Market deleted successfully. Bid history preserved for records." });
   } catch (error) {
     console.error("[Markets2 Delete] Error:", error);
     const errorMsg = error instanceof Error ? error.message : String(error);

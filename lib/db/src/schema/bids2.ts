@@ -7,7 +7,7 @@ import { markets2Table } from "./markets2";
 export const bids2Table = pgTable("bids2", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id),
-  marketId: integer("market_id").notNull().references(() => markets2Table.id),
+  marketId: integer("market_id").notNull(), // No FK constraint - allows orphaned bids when market is deleted (historical record)
   marketName: text("market_name").default(""),
   
   // Bet type: left_digit, right_digit, odd_even, jodi
