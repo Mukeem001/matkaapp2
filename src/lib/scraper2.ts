@@ -50,22 +50,26 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
       .then(r => r[0]);
 
     if (!market) {
+      console.log(`[M2] ❌ Market ID ${marketId} not found`);
       return { success: false, message: `Market ${marketId} not found`, data: null };
     }
 
-    console.log(`[Market2] Fetching result for ${market.name}`);
+    console.log(`[M2] ━━━━━ MARKETS2 SCRAPER START ━━━━━`);
+    console.log(`[M2] Market: ${market.name} (ID: ${marketId})`);
+    console.log(`[M2] Source: https://akingsatta.in/ (ONLY SOURCE FOR MARKETS2)`);
 
-    // Scrape live results using real scraper (gets both today and yesterday)
+    // MARKETS2 ALWAYS USES akingsatta.in - NEVER USE OTHER SOURCES
     const liveResult = await scrapeLiveResults(market.name, opts);
     
-    console.log(`[Market2] 📍 Market DB name: "${market.name}"`);
-    console.log(`[Market2] 🔍 Scrape result:`, JSON.stringify(liveResult, null, 2));
+    console.log(`[M2] 📍 Market DB name: "${market.name}"`);
+    console.log(`[M2] 🔍 Raw scrape result:`, JSON.stringify(liveResult, null, 2));
     
     // Check if we have ANY result (today's)
     const hasAnyResult = liveResult.openResult || liveResult.jodiResult || liveResult.closeResult;
     
     if (!hasAnyResult) {
-      console.log(`[Market2] ❌ No result found for ${market.name}. Open: ${liveResult.openResult}, Jodi: ${liveResult.jodiResult}, Close: ${liveResult.closeResult}`);
+      console.log(`[M2] ❌ NO RESULT found from akingsatta.in for ${market.name}`);
+      console.log(`[M2] ━━━━━ MARKETS2 SCRAPER END (FAILED) ━━━━━`);
       return { success: false, message: `No result found for ${market.name}`, data: null };
     }
     
@@ -74,13 +78,13 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
       const rawJodi = liveResult.jodiResult || liveResult.closeResult || liveResult.openResult || '00';
       const formatted = formatMarkets2Result(rawJodi);
       
-      console.log(`[Market2] ✅ Found result for ${market.name}`);
-      console.log(`[Market2] Raw jodi: ${rawJodi}`);
-      console.log(`[Market2] Formatted: open=${formatted.openResult}, jodi=${formatted.jodiResult}, close=${formatted.closeResult}`);
+      console.log(`[M2] ✅ RESULT FOUND from akingsatta.in`);
+      console.log(`[M2] Raw: ${rawJodi}`);
+      console.log(`[M2] Formatted: Open=${formatted.openResult}, Jodi=${formatted.jodiResult}, Close=${formatted.closeResult}`);
       
       // Save TODAY'S result to results2_table
       const today = getTodayDateIST();
-      console.log(`[Market2] Today's date: ${today}`);
+      console.log(`[M2] 📅 Today's date: ${today}`);
       
       try {
         // Check if TODAY'S result exists
@@ -95,17 +99,16 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           );
         
         const existingTodayResult = todayQueryResult[0];
-        console.log(`[Market2] Today's result check: ${existingTodayResult ? existingTodayResult.id : "new"}`);
         
         if (existingTodayResult) {
-          console.log(`[Market2] ✏️ Updating today's result ID: ${existingTodayResult.id}`);
+          console.log(`[M2] 🔄 UPDATING today's result (ID: ${existingTodayResult.id})`);
           await db.update(results2Table)
             .set({
               result: formatted.jodiResult,
             })
             .where(eq(results2Table.id, existingTodayResult.id));
         } else {
-          console.log(`[Market2] ✅ Creating today's result for market ${marketId}`);
+          console.log(`[M2] 📝 CREATING new today's result`);
           await db.insert(results2Table).values({
             marketId,
             resultDate: today,
@@ -118,7 +121,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           const formattedYesterday = formatMarkets2Result(liveResult.yesterdayJodiResult);
           const yesterday = getYesterdayDateIST();
           
-          console.log(`[Market2] 📅 Saving yesterday's result: ${formattedYesterday.jodiResult} for date ${yesterday}`);
+          console.log(`[M2] 📅 Yesterday's result: ${formattedYesterday.jodiResult} (Date: ${yesterday})`);
           
           // Check if yesterday's result exists
           const yesterdayQueryResult = await db
@@ -134,14 +137,14 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           const existingYesterdayResult = yesterdayQueryResult[0];
           
           if (existingYesterdayResult) {
-            console.log(`[Market2] ✏️ Updating yesterday's result ID: ${existingYesterdayResult.id}`);
+            console.log(`[M2] 🔄 UPDATING yesterday's result (ID: ${existingYesterdayResult.id})`);
             await db.update(results2Table)
               .set({
                 result: formattedYesterday.jodiResult,
               })
               .where(eq(results2Table.id, existingYesterdayResult.id));
           } else {
-            console.log(`[Market2] ✅ Creating yesterday's result for market ${marketId}`);
+            console.log(`[M2] 📝 CREATING new yesterday's result`);
             await db.insert(results2Table).values({
               marketId,
               resultDate: yesterday,
@@ -151,6 +154,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
         }
         
         // Update markets2 table with TODAY'S result for quick display
+        console.log(`[M2] 💾 Saving today's formatted result to markets2 table`);
         const marketUpdateData: any = {
           lastFetchedAt: new Date(),
           fetchError: null,
@@ -159,31 +163,33 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
           closeResult: formatted.closeResult,
         };
 
-        console.log(`[Market2] Updating markets2 table with today's formatted results`);
+        console.log(`[M2] 🔄 Updating markets2 table...`);
         const updated = await db.update(markets2Table)
           .set(marketUpdateData)
           .where(eq(markets2Table.id, marketId))
           .returning();
-        console.log(`[Market2] Markets2 table updated`);
+        console.log(`[M2] ✅ Markets2 table updated`);
 
         // Process bids2 with the properly formatted jodi result
         if (formatted.jodiResult && formatted.jodiResult !== 'XX') {
-          console.log(`[Market2] Processing bids2 for market ${marketId} with result ${formatted.jodiResult}`);
+          console.log(`[M2] 💰 Processing bids2 for result ${formatted.jodiResult}...`);
           try {
             await processMarkets2Bids(marketId, formatted.jodiResult);
-            console.log(`[Market2] Bids2 processing completed`);
+            console.log(`[M2] ✅ Bids2 processing completed`);
           } catch (error) {
-            console.error(`[Market2] Error processing bids2:`, error);
+            console.error(`[M2] ❌ Error processing bids2:`, error);
           }
         }
         
+        console.log(`[M2] ━━━━━ MARKETS2 SCRAPER END (SUCCESS) ━━━━━`);
         return {
           success: true,
           message: `📈 M2 → ${market.name}: ${formatted.openResult}-${formatted.jodiResult}-${formatted.closeResult}`,
           data: updated[0]
         };
       } catch (dbError) {
-        console.error(`[Market2] Database error:`, dbError);
+        console.error(`[M2] ❌ Database error:`, dbError);
+        console.log(`[M2] ━━━━━ MARKETS2 SCRAPER END (FAILED) ━━━━━`);
         return {
           success: false,
           message: `Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
@@ -191,7 +197,7 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
         };
       }
     } else {
-      console.log(`[Market2] No results found`);
+      console.log(`[M2] ⚠️ No results found`);
       
       // Update with XX marker
       const updated = await db.update(markets2Table)
@@ -214,7 +220,8 @@ async function fetchAndUpdateMarkets2Result(marketId: number, opts?: { forceProx
 
   } catch(err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[Market2] Error:`, errorMsg);
+    console.error(`[M2] ❌ Error: ${errorMsg}`);
+    console.log(`[M2] ━━━━━ MARKETS2 SCRAPER END (FAILED) ━━━━━`);
 
     await db.update(markets2Table)
       .set({
