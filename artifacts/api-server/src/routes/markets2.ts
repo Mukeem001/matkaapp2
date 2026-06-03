@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, markets2Table, results2Table } from "@workspace/db";
+import { db, markets2Table, results2Table, bids2Table } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
 import { authMiddleware, userAuthMiddleware } from "../../../../src/middlewares/auth.ts";
 import { fetchAndUpdateMarkets2Result } from "../lib/scraper2.js";
@@ -115,11 +115,16 @@ router.delete("/markets2/:id", authMiddleware, async (req, res): Promise<void> =
 
     console.log(`[Markets2 Delete] Starting delete for market ${params.data.id} (${market.name})`);
 
-    // Delete all related results first (foreign key constraint)
-    console.log(`[Markets2 Delete] Deleting related results for market ${params.data.id}`);
+    // Delete in correct order due to foreign key constraints:
+    // 1. Delete bids first
+    console.log(`[Markets2 Delete] Deleting bids for market ${params.data.id}`);
+    await db.delete(bids2Table).where(eq(bids2Table.marketId, params.data.id));
+
+    // 2. Delete results
+    console.log(`[Markets2 Delete] Deleting results for market ${params.data.id}`);
     await db.delete(results2Table).where(eq(results2Table.marketId, params.data.id));
 
-    // Now delete the market
+    // 3. Finally delete the market
     console.log(`[Markets2 Delete] Deleting market ${params.data.id} from markets2_table`);
     await db.delete(markets2Table).where(eq(markets2Table.id, params.data.id));
 
