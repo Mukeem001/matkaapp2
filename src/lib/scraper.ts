@@ -432,11 +432,10 @@ function normalizeMarketNameForMatch(name: string): string {
 }
 
 function isSattaMatkaMarketMatch(cleanLine: string, cleanMarket: string): boolean {
-  return (
-    cleanLine === cleanMarket ||
-    (` ${cleanLine} `).includes(` ${cleanMarket} `) ||
-    (` ${cleanMarket} `).includes(` ${cleanLine} `)
-  );
+  // STRICT matching: Must be exact match ONLY
+  // Do NOT allow partial matches like "KALYAN" matching "KALYAN MORNING"
+  // This prevents duplicate results for different market variations
+  return cleanLine === cleanMarket;
 }
 
 function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
@@ -638,6 +637,7 @@ export async function scrapeSattaMatkaComIn(
     const response = await fetchUrl("https://satkamatka.com.in/", opts);
     const $ = cheerio.load(response.data);
     const cleanMarket = normalizeMarketNameForMatch(marketName);
+    logM1(`   Normalized search name: "${cleanMarket}"`);
 
     logM1(`📄 Searching HTML for .game_list elements...`);
     const gameRows = $(".game_list")
@@ -663,7 +663,7 @@ export async function scrapeSattaMatkaComIn(
     if (gameRows.length > 0) {
       for (const row of gameRows) {
         if (isSattaMatkaMarketMatch(row.cleanName, cleanMarket)) {
-          logM1(`🎯 MATCH FOUND: "${row.name}"`);
+          logM1(`🎯 EXACT MATCH: DB="${cleanMarket}" ↔ Website="${row.cleanName}" (Display: "${row.name}")`);
           const parsed = parseSattaMatkaComInNumber(row.rawNumber);
           if (parsed) {
             logM1(`✅ RESULT PARSED: ${row.rawNumber}`);
@@ -672,27 +672,7 @@ export async function scrapeSattaMatkaComIn(
         }
       }
 
-      const marketWords = cleanMarket.split(/\s+/).filter(Boolean);
-      if (marketWords.length > 0) {
-        for (const row of gameRows) {
-          const rowWords = row.cleanName.split(/\s+/).filter(Boolean);
-          let lastIndex = -1;
-          let allFound = true;
-          for (const word of marketWords) {
-            const foundIndex = rowWords.slice(lastIndex + 1).findIndex(w => w === word);
-            if (foundIndex === -1) {
-              allFound = false;
-              break;
-            }
-            lastIndex += foundIndex + 1;
-          }
-          if (!allFound) continue;
-          const parsed = parseSattaMatkaComInNumber(row.rawNumber);
-          if (parsed) {
-            return parsed;
-          }
-        }
-      }
+      logM1(`❌ No exact match found for "${cleanMarket}" in gameRows`);
     }
 
     logM1(`⚠️ No exact match found in gameRows, trying fallback text parsing...`);
@@ -700,12 +680,12 @@ export async function scrapeSattaMatkaComIn(
     const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
     const cleanMarketLine = normalizeMarketNameForMatch(marketName);
 
-    logM1(`📝 Parsing ${lines.length} lines of text...`);
+    logM1(`📝 Parsing ${lines.length} lines of text with EXACT matching only...`);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const cleanLine = normalizeMarketNameForMatch(line);
       if (isSattaMatkaMarketMatch(cleanLine, cleanMarketLine)) {
-        logM1(`🎯 FALLBACK MATCH at line ${i}: "${line}"`);
+        logM1(`🎯 FALLBACK EXACT MATCH at line ${i}: "${line}"`);
         for (let j = i; j < i + 5 && j < lines.length; j++) {
           const parsed = parseSattaMatkaComInNumber(lines[j]);
           if (parsed) {
@@ -716,7 +696,7 @@ export async function scrapeSattaMatkaComIn(
       }
     }
 
-    logM1(`❌ No result found in fallback parsing`);
+    logM1(`❌ No exact match found in fallback parsing`);
     return {};
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
