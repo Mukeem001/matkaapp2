@@ -293,8 +293,12 @@ export function startScheduler() {
       const closedMarkets = await db.select().from(marketsTable)
         .where(eq(marketsTable.isActive, false));
       
+      console.log(`[Scheduler] 🔍 Total CLOSED markets in DB: ${closedMarkets.length}`);
+      
       if (closedMarkets.length > 0) {
         const todayDate = getTodayDateIST();
+        console.log(`[Scheduler] 📅 Today's date: ${todayDate}`);
+        
         const marketsNeedingResults: typeof closedMarkets = [];
         
         // Check which closed markets don't have today's result
@@ -303,6 +307,8 @@ export function startScheduler() {
             .where(eq(resultsTable.marketId, market.id))
             .where(eq(resultsTable.resultDate, todayDate));
           
+          console.log(`[Scheduler] ├─ ${market.name} (ID: ${market.id}): Has result = ${todayResult.length > 0}`);
+          
           if (todayResult.length === 0) {
             marketsNeedingResults.push(market);
           }
@@ -310,7 +316,7 @@ export function startScheduler() {
         
         // Fetch results for closed markets missing today's results
         if (marketsNeedingResults.length > 0) {
-          console.log(`[Scheduler] 🔒 CLOSED MARKETS1 - Fetching ${marketsNeedingResults.length} market(s)...`);
+          console.log(`\n[Scheduler] 🔒 CLOSED MARKETS1 - Fetching ${marketsNeedingResults.length} market(s) missing results...\n`);
           
           const closedResults = await Promise.allSettled(
             marketsNeedingResults.map(market => fetchAndUpdateMarketResult(market.id))
@@ -324,6 +330,8 @@ export function startScheduler() {
               console.error(`[Scheduler] 🔐 ${market.name}: Failed - ${result.reason}`);
             }
           });
+        } else {
+          console.log(`[Scheduler] ✅ All closed markets have today's results`);
         }
 
         // 🎯 After fetching results, process bids automatically
