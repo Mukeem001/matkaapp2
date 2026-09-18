@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatTime12Hour, parseTimeTo24Hour } from "@/lib/time-utils";
 
 interface Market {
   id: number;
@@ -99,11 +100,23 @@ function MarketDialog({ market, open, setOpen, onSave }: { market?: Market | nul
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <div className="space-y-2">
               <Label className="text-xs sm:text-sm">Open Time</Label>
-              <Input type="time" {...form.register("openTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
+              <Input
+                type="text"
+                value={formatTime12Hour(form.watch("openTime"))}
+                onChange={(event) => form.setValue("openTime", parseTimeTo24Hour(event.target.value), { shouldValidate: true })}
+                placeholder="9:00 AM"
+                className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-xs sm:text-sm">Close Time</Label>
-              <Input type="time" {...form.register("closeTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
+              <Input
+                type="text"
+                value={formatTime12Hour(form.watch("closeTime"))}
+                onChange={(event) => form.setValue("closeTime", parseTimeTo24Hour(event.target.value), { shouldValidate: true })}
+                placeholder="9:00 PM"
+                className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+              />
             </div>
           </div>
           <div className="flex items-center justify-between p-2 sm:p-4 rounded-xl border border-border/50 bg-muted/30">
@@ -555,7 +568,7 @@ export default function Markets2() {
                     <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" />
                       <span>
-                        {market.openTime} – {market.closeTime}
+                        {formatTime12Hour(market.openTime)} – {formatTime12Hour(market.closeTime)}
                       </span>
                     </div>
                   </TableCell>
@@ -710,7 +723,7 @@ export default function Markets2() {
                       <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                         <Clock className="w-3 h-3 flex-shrink-0" />
                         <span>
-                          {market.openTime} – {market.closeTime}
+                          {formatTime12Hour(market.openTime)} – {formatTime12Hour(market.closeTime)}
                         </span>
                       </div>
 

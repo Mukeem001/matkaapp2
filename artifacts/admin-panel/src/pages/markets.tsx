@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Market } from "@workspace/api-client-react";
+import { formatTime12Hour, parseTimeTo24Hour } from "@/lib/time-utils";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -90,11 +91,23 @@ function MarketDialog({ market, open, setOpen }: { market?: Market | null; open:
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <div className="space-y-2">
               <Label className="text-xs sm:text-sm">Open Time</Label>
-              <Input type="time" {...form.register("openTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
+              <Input
+                type="text"
+                value={formatTime12Hour(form.watch("openTime"))}
+                onChange={(event) => form.setValue("openTime", parseTimeTo24Hour(event.target.value), { shouldValidate: true })}
+                placeholder="9:00 AM"
+                className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-xs sm:text-sm">Close Time</Label>
-              <Input type="time" {...form.register("closeTime")} className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm" />
+              <Input
+                type="text"
+                value={formatTime12Hour(form.watch("closeTime"))}
+                onChange={(event) => form.setValue("closeTime", parseTimeTo24Hour(event.target.value), { shouldValidate: true })}
+                placeholder="9:00 PM"
+                className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"
+              />
             </div>
           </div>
           <div className="flex items-center justify-between p-2 sm:p-4 rounded-xl border border-border/50 bg-muted/30">
@@ -733,7 +746,7 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <Clock className="w-3.5 h-3.5" />
                           <span>
-                            {market.openTime} – {market.closeTime}
+                            {formatTime12Hour(market.openTime)} – {formatTime12Hour(market.closeTime)}
                           </span>
                         </div>
                       </TableCell>
@@ -907,7 +920,7 @@ const handleSaveSourceUrl = async (market: Market, newUrl: string) => {
                             <h3 className="font-semibold text-lg text-foreground">{market.name}</h3>
                             <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
                               <Clock className="w-3.5 h-3.5" />
-                              <span>{market.openTime} – {market.closeTime}</span>
+                              <span>{formatTime12Hour(market.openTime)} – {formatTime12Hour(market.closeTime)}</span>
                             </div>
                           </div>
                           <Badge
