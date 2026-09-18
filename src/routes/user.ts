@@ -3,6 +3,7 @@ import { eq, and, desc, count, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, usersTable, marketsTable, markets2Table, bidsTable, depositsTable, withdrawalsTable, resultsTable, noticesTable, upiMethodsTable, apkFilesTable } from "@workspace/db";
 import { userAuthMiddleware, type AuthRequest } from "../middlewares/auth.js";
+import { parseTimeString } from "../lib/date-utils.js";
 
 const router: IRouter = Router();
 
@@ -66,7 +67,7 @@ function isValidMarketopenclose(gameType: string, value: string): boolean {
 function isBettingAllowed(closeTime: string): boolean {
   try {
     const now = new Date();
-    const [closeHour, closeMin] = closeTime.split(":").map(Number);
+    const { hours: closeHour, minutes: closeMin } = parseTimeString(closeTime);
     
     const closeDate = new Date();
     closeDate.setHours(closeHour, closeMin, 0, 0);

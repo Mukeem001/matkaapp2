@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { parseTimeString } from "../lib/date-utils.js";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { db, marketsTable, markets2Table } from "@workspace/db";
 import { updateMarketActivityStatus } from "../lib/scheduler.js";
@@ -74,8 +75,8 @@ router.get("/debug/check-market-status", async (_req, res) => {
     
     // For Market1: betting allowed until (openTime - 10 min)
     const formatMarket1Debug = (m: any) => {
-      const [mOpen, mClose] = m.openTime.split(":");
-      const openTimeInMinutes = parseInt(mOpen) * 60 + parseInt(mClose);
+      const { hours: openHour, minutes: openMinute } = parseTimeString(m.openTime);
+      const openTimeInMinutes = openHour * 60 + openMinute;
       const bettingCloseTime = openTimeInMinutes - 10;
       const shouldBeActive = currentTimeInMinutes < bettingCloseTime;
       
@@ -96,8 +97,8 @@ router.get("/debug/check-market-status", async (_req, res) => {
 
     // For Market2: betting allowed until closeTime
     const formatMarket2Debug = (m: any) => {
-      const [mClose, mCloseMin] = m.closeTime.split(":");
-      const closeTimeInMinutes = parseInt(mClose) * 60 + parseInt(mCloseMin);
+      const { hours: closeHour, minutes: closeMinute } = parseTimeString(m.closeTime);
+      const closeTimeInMinutes = closeHour * 60 + closeMinute;
       const shouldBeActive = currentTimeInMinutes < closeTimeInMinutes;
       
       const closeTimeStr = `${String(Math.floor(closeTimeInMinutes / 60)).padStart(2, '0')}:${String(closeTimeInMinutes % 60).padStart(2, '0')}`;

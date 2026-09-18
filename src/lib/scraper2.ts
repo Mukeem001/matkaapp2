@@ -1,6 +1,6 @@
 import { db, markets2Table, results2Table } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { getTodayDateIST, getYesterdayDateIST } from "./date-utils.js";
+import { getTodayDateIST, getYesterdayDateIST, parseTimeString } from "./date-utils.js";
 import { scrapeLiveResults } from "./scraper.js";
 import { processMarkets2Bids } from "./bid-processor.js";
 
@@ -253,9 +253,7 @@ async function updateMarket2ActivityStatus(){
 
   for(const market of markets){
 
-    const [closeH,closeM] = market.closeTime
-      .split(":")
-      .map(Number);
+    const { hours: closeH, minutes: closeM } = parseTimeString(market.closeTime);
 
     const close = closeH*60 + closeM;
 

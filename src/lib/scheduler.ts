@@ -4,7 +4,7 @@ import { db, marketsTable, markets2Table, resultsTable, results2Table, bidsTable
 import { fetchAndUpdateMarketResult } from "./scraper.js";
 import { fetchAndUpdateMarkets2Result, updateMarket2ActivityStatus } from "./scraper2.js";
 import { processMarketBidsPreClose, processMarketBids } from "./bid-processor.js";
-import { getTodayDateIST } from "./date-utils.js";
+import { getTodayDateIST, parseTimeString } from "./date-utils.js";
 
 let schedulerTask: cron.ScheduledTask | null = null;
 let midnightResetTask: cron.ScheduledTask | null = null;
@@ -12,12 +12,6 @@ let lastRunAt: Date | null = null;
 let lastMidnightResetDate: string | null = null;  // Track last reset date (YYYY-MM-DD)
 let isRunning = false;
 let lastMarketStatus: Map<number, boolean> = new Map(); // Track market status changes to detect closures
-
-// Helper function to parse time string (HH:MM format)
-function parseTimeString(timeStr: string): { hours: number; minutes: number } {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  return { hours, minutes };
-}
 
 // Helper function to get current time in minutes since midnight (IST)
 function getCurrentTimeInMinutes(): number {

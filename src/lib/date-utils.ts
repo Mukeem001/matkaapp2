@@ -45,14 +45,41 @@ export function dateToISTString(date: Date): string {
   return format(istTime, "yyyy-MM-dd");
 }
 
+export function parseTimeString(time: string): { hours: number; minutes: number } {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]m)?$/i);
+  if (!match) throw new Error(`Invalid time: ${time}`);
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3]?.toLowerCase();
+
+  if (minutes > 59) throw new Error(`Invalid time: ${time}`);
+  if (period) {
+    if (hours < 1 || hours > 12) throw new Error(`Invalid time: ${time}`);
+    if (period === "pm" && hours !== 12) hours += 12;
+    if (period === "am" && hours === 12) hours = 0;
+  } else if (hours > 23) {
+    throw new Error(`Invalid time: ${time}`);
+  }
+
+  return { hours, minutes };
+}
+
+export function formatTimeForStorage(time: string): string {
+  const { hours, minutes } = parseTimeString(time);
+  const period = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;
+  return `${String(hour12).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
 /**
- * Check if market has closed based on closeTime (format: "HH:mm")
+ * Check if market has closed based on closeTime (format: "hh:mm AM/PM" or "HH:mm")
  * Returns true if current IST time >= market closeTime
  */
 export function isMarketClosed(marketCloseTime: string): boolean {
   try {
     const now = getNowIST();
-    const [closeHour, closeMinute] = marketCloseTime.split(":").map(Number);
+    const { hours: closeHour, minutes: closeMinute } = parseTimeString(marketCloseTime);
     
     const nowHour = now.getHours();
     const nowMinute = now.getMinutes();

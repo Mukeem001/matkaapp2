@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, marketsTable, bidsTable, resultsTable, scraperLogsTable } from "@workspace/db";
 import { CreateMarketBody, UpdateMarketParams, UpdateMarketBody, DeleteMarketParams, GetMarketByIdParams } from "@workspace/api-zod";
 import { authMiddleware, userAuthMiddleware } from "../middlewares/auth.js";
+import { formatTimeForStorage } from "../lib/date-utils.js";
 
 const router: IRouter = Router();
 
@@ -29,7 +30,7 @@ router.post("/markets", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [market] = await db.insert(marketsTable).values({ name: body.data.name ?? "", openTime: body.data.openTime ?? "", closeTime: body.data.closeTime ?? "", isActive: body.data.isActive ?? true }).returning();
+  const [market] = await db.insert(marketsTable).values({ name: body.data.name ?? "", openTime: formatTimeForStorage(body.data.openTime ?? ""), closeTime: formatTimeForStorage(body.data.closeTime ?? ""), isActive: body.data.isActive ?? true }).returning();
   res.status(201).json(formatMarket(market));
 });
 
@@ -63,6 +64,8 @@ router.put("/markets/:id", authMiddleware, async (req, res): Promise<void> => {
   const updateData = Object.fromEntries(
     Object.entries(body.data).filter(([, value]) => value !== undefined)
   );
+  if (typeof updateData.openTime === "string") updateData.openTime = formatTimeForStorage(updateData.openTime);
+  if (typeof updateData.closeTime === "string") updateData.closeTime = formatTimeForStorage(updateData.closeTime);
   
   if (Object.keys(updateData).length === 0) {
     res.status(400).json({ error: "No fields to update" });

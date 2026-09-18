@@ -5,7 +5,7 @@ import axios from "axios";
 import * as http from "http";
 import * as https from "https";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
-import { getTodayDateIST } from "./date-utils";
+import { getTodayDateIST, parseTimeString } from "./date-utils";
 
 let puppeteer: any = null;
 
@@ -307,11 +307,6 @@ export interface ScrapedResult {
 }
 
 // ================= HELPER FUNCTIONS =================
-function parseTimeString(timeStr: string): { hours: number; minutes: number } {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  return { hours, minutes };
-}
-
 function timeToMinutes(hours: number, minutes: number): number {
   return hours * 60 + minutes;
 }
