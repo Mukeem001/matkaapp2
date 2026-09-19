@@ -7,6 +7,7 @@ export const marketsTable = pgTable("markets", {
   name: text("name").notNull(),
   openTime: text("open_time").notNull(),
   closeTime: text("close_time").notNull(),
+  holidayDay: text("holiday_day"),
   isActive: boolean("is_active").notNull().default(true),
   openResult: text("open_result"),
   closeResult: text("close_result"),

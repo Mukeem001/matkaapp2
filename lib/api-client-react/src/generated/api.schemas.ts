@@ -103,6 +103,7 @@ export interface Market {
   name: string;
   openTime: string;
   closeTime: string;
+  holidayDay?: string | null;
   isActive: boolean;
   openResult?: string | null;
   closeResult?: string | null;
@@ -151,6 +152,7 @@ export interface CreateMarketRequest {
   name: string;
   openTime: string;
   closeTime: string;
+  holidayDay?: string | null;
   isActive: boolean;
 }
 

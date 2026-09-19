@@ -30,7 +30,7 @@ router.post("/markets", authMiddleware, async (req, res): Promise<void> => {
     return;
   }
 
-  const [market] = await db.insert(marketsTable).values({ name: body.data.name ?? "", openTime: formatTimeForStorage(body.data.openTime ?? ""), closeTime: formatTimeForStorage(body.data.closeTime ?? ""), isActive: body.data.isActive ?? true }).returning();
+  const [market] = await db.insert(marketsTable).values({ name: body.data.name ?? "", openTime: formatTimeForStorage(body.data.openTime ?? ""), closeTime: formatTimeForStorage(body.data.closeTime ?? ""), holidayDay: body.data.holidayDay ?? null, isActive: body.data.isActive ?? true }).returning();
   res.status(201).json(formatMarket(market));
 });
 

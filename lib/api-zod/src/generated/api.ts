@@ -165,6 +165,7 @@ export const GetMarketsResponseItem = zod.object({
   "name": zod.string(),
   "openTime": zod.string(),
   "closeTime": zod.string(),
+  "holidayDay": zod.string().nullable().optional(),
   "isActive": zod.boolean(),
   "openResult": zod.string().nullish(),
   "closeResult": zod.string().nullish(),
@@ -185,6 +186,7 @@ export const CreateMarketBody = zod.object({
   "name": zod.string(),
   "openTime": zod.string(),
   "closeTime": zod.string(),
+  "holidayDay": zod.string().nullable().optional(),
   "isActive": zod.boolean()
 })
 
@@ -203,6 +205,7 @@ export const GetMarketByIdResponse = zod.object({
   "name": zod.string(),
   "openTime": zod.string(),
   "closeTime": zod.string(),
+  "holidayDay": zod.string().nullable().optional(),
   "isActive": zod.boolean(),
   "openResult": zod.string().nullish(),
   "closeResult": zod.string().nullish(),
@@ -226,6 +229,7 @@ export const UpdateMarketBody = zod.object({
   "name": zod.string(),
   "openTime": zod.string(),
   "closeTime": zod.string(),
+  "holidayDay": zod.string().nullable().optional(),
   "isActive": zod.boolean()
 })
 
@@ -234,6 +238,7 @@ export const UpdateMarketResponse = zod.object({
   "name": zod.string(),
   "openTime": zod.string(),
   "closeTime": zod.string(),
+  "holidayDay": zod.string().nullable().optional(),
   "isActive": zod.boolean(),
   "openResult": zod.string().nullish(),
   "closeResult": zod.string().nullish(),

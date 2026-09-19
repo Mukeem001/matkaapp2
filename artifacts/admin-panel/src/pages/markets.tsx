@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Market } from "@workspace/api-client-react";
 import { formatTime12Hour, parseTimeTo24Hour } from "@/lib/time-utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -33,6 +34,7 @@ const marketSchema = z.object({
   name: z.string().min(1, "Name is required"),
   openTime: z.string().min(1, "Open time is required"),
   closeTime: z.string().min(1, "Close time is required"),
+  holidayDay: z.string().nullable(),
   isActive: z.boolean(),
 });
 
@@ -56,6 +58,7 @@ function MarketDialog({ market, open, setOpen }: { market?: Market | null; open:
       name: market?.name || "",
       openTime: market?.openTime || "09:00",
       closeTime: market?.closeTime || "21:00",
+      holidayDay: market?.holidayDay ?? null,
       isActive: market?.isActive ?? true,
     },
   });
@@ -113,6 +116,21 @@ function MarketDialog({ market, open, setOpen }: { market?: Market | null; open:
           <div className="flex items-center justify-between p-2 sm:p-4 rounded-xl border border-border/50 bg-muted/30">
             <Label className="cursor-pointer text-xs sm:text-sm">Active Status</Label>
             <Switch checked={form.watch("isActive")} onCheckedChange={(c) => form.setValue("isActive", c)} />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs sm:text-sm">Market Holiday</Label>
+            <Select
+              value={form.watch("holidayDay") ?? "none"}
+              onValueChange={(value) => form.setValue("holidayDay", value === "none" ? null : value, { shouldValidate: true })}
+            >
+              <SelectTrigger className="rounded-xl h-8 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select weekly holiday" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Holiday</SelectItem>
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                  <SelectItem key={day} value={day}>{day}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             type="submit"

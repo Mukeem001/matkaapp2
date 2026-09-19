@@ -1059,6 +1059,9 @@ components:
           type: string
         closeTime:
           type: string
+        holidayDay:
+          type: string
+          nullable: true
         isActive:
           type: boolean
         openResult:
@@ -1184,6 +1187,9 @@ components:
           type: string
         closeTime:
           type: string
+        holidayDay:
+          type: string
+          nullable: true
         isActive:
           type: boolean
       required:
