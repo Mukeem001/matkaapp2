@@ -12,6 +12,7 @@ let lastRunAt: Date | null = null;
 let lastMidnightResetDate: string | null = null;  // Track last reset date (YYYY-MM-DD)
 let isRunning = false;
 let lastMarketStatus: Map<number, boolean> = new Map(); // Track market status changes to detect closures
+const SCHEDULER_INTERVAL_MINUTES = 5;
 
 // Helper function to get current time in minutes since midnight (IST)
 function getCurrentTimeInMinutes(): number {
@@ -24,6 +25,35 @@ function getCurrentTimeInMinutes(): number {
 // Helper function to convert hours and minutes to minutes since midnight
 function timeToMinutes(hours: number, minutes: number): number {
   return hours * 60 + minutes;
+}
+
+function isMarketWithinResultWindow(market: { openTime: string; closeTime: string }): boolean {
+  const current = getCurrentTimeInMinutes();
+  const { hours: openHour, minutes: openMinute } = parseTimeString(market.openTime);
+  const { hours: closeHour, minutes: closeMinute } = parseTimeString(market.closeTime);
+  const open = timeToMinutes(openHour, openMinute);
+  const close = timeToMinutes(closeHour, closeMinute);
+
+  if (open <= close) {
+    return current >= open && current < close;
+  }
+
+  // Support markets whose close time is after midnight.
+  return current >= open || current < close;
+}
+
+function hasMarketClosedForResult(market: { openTime: string; closeTime: string }): boolean {
+  const current = getCurrentTimeInMinutes();
+  const { hours: openHour, minutes: openMinute } = parseTimeString(market.openTime);
+  const { hours: closeHour, minutes: closeMinute } = parseTimeString(market.closeTime);
+  const open = timeToMinutes(openHour, openMinute);
+  const close = timeToMinutes(closeHour, closeMinute);
+
+  if (open <= close) {
+    return current >= close;
+  }
+
+  return current >= close && current < open;
 }
 
 // Daily reset at midnight IST - set all markets to isActive = true
@@ -198,8 +228,9 @@ export function startScheduler() {
     return;
   }
 
-  // Run every minute
-  schedulerTask = cron.schedule("* * * * *", async () => {
+  // The scrape loop is heavy and can exceed a one-minute timer, so use a 5-minute cadence
+  // to avoid repeated missed-execution warnings and overlapping jobs.
+  schedulerTask = cron.schedule(`*/${SCHEDULER_INTERVAL_MINUTES} * * * *`, async () => {
     if (isRunning) {
       console.log("[Scheduler] Previous run still in progress, skipping...");
       return;
@@ -209,7 +240,6 @@ export function startScheduler() {
     lastRunAt = new Date();
     console.log(`[Scheduler] Running at ${lastRunAt.toISOString()}`);
 
-    // If DB is down (ECONNREFUSED), avoid spamming logs every minute.
     try {
       await db.execute?.('select 1');
     } catch {
@@ -219,44 +249,29 @@ export function startScheduler() {
     }
 
     try {
-      // Update market activity status (Market 1)
       await updateMarketActivityStatus();
-
-      // Update market2 activity status (Market 2)
       await updateMarket2ActivityStatus();
-
-      // Process today's pending bids for closed markets (auto-process when market closes and has result)
       await processTodaysPendingBidsForClosedMarkets();
 
-      // Get all markets with autoUpdate enabled and a source URL
       const markets = await db.select().from(marketsTable)
         .where(eq(marketsTable.autoUpdate, true));
 
-      // Detect recently closed markets and add them for immediate result fetching
       const justClosedMarkets: typeof markets = [];
       for (const market of markets) {
         const wasActive = lastMarketStatus.get(market.id);
         const isNowActive = market.isActive;
         
-        // If market just transitioned from active to closed
         if (wasActive === true && isNowActive === false) {
           console.log(`[Scheduler] 🔴 Market just closed: ${market.name} - fetching results immediately`);
           justClosedMarkets.push(market);
         }
         
-        // Update status tracking
         lastMarketStatus.set(market.id, isNowActive);
       }
 
-      // Combine active markets with just-closed markets for fetching
-      const autoUpdateMarkets = markets
-        .filter(m => m.sourceUrl && m.isActive)
-        .concat(justClosedMarkets.filter(m => m.sourceUrl));
-
-      // Get all markets2 with autoUpdate enabled
+      const autoUpdateMarkets = markets.filter(m => isMarketWithinResultWindow(m));
       const markets2 = await db.select().from(markets2Table)
         .where(eq(markets2Table.autoUpdate, true));
-
       const autoUpdateMarkets2 = markets2;
 
       if (autoUpdateMarkets.length === 0 && autoUpdateMarkets2.length === 0) {
@@ -265,10 +280,8 @@ export function startScheduler() {
         return;
       }
 
-      // Fetch results for Market 1
       if (autoUpdateMarkets.length > 0) {
         console.log(`\n[Scheduler] 📊 MARKETS1 - Fetching ${autoUpdateMarkets.length} market(s)...`);
-
         const results = await Promise.allSettled(
           autoUpdateMarkets.map(market => fetchAndUpdateMarketResult(market.id))
         );
@@ -283,9 +296,9 @@ export function startScheduler() {
         });
       }
 
-      // Also check closed markets for results they might be missing
       const closedMarkets = await db.select().from(marketsTable)
-        .where(eq(marketsTable.isActive, false));
+        .where(eq(marketsTable.isActive, false))
+        .where(eq(marketsTable.autoUpdate, true));
       
       console.log(`[Scheduler] 🔍 Total CLOSED markets in DB: ${closedMarkets.length}`);
       
@@ -293,25 +306,22 @@ export function startScheduler() {
         const todayDate = getTodayDateIST();
         console.log(`[Scheduler] 📅 Today's date: ${todayDate}`);
         
-        const marketsNeedingResults: typeof closedMarkets = [];
-        
-        // Check which closed markets don't have today's result
-        for (const market of closedMarkets) {
-          const todayResult = await db.select().from(resultsTable)
-            .where(eq(resultsTable.marketId, market.id))
-            .where(eq(resultsTable.resultDate, todayDate));
+        const todayResults = await db.select({
+          marketId: resultsTable.marketId,
+          resultDate: resultsTable.resultDate,
+        })
+          .from(resultsTable)
+          .where(eq(resultsTable.resultDate, todayDate));
           
-          console.log(`[Scheduler] ├─ ${market.name} (ID: ${market.id}): Has result = ${todayResult.length > 0}`);
+        const hasTodayResult = new Set(todayResults.map(r => r.marketId));
+        const marketsNeedingResults = closedMarkets.filter(m => hasMarketClosedForResult(m) && !hasTodayResult.has(m.id));
           
-          if (todayResult.length === 0) {
-            marketsNeedingResults.push(market);
-          }
-        }
+        marketsNeedingResults.forEach(market => {
+          console.log(`[Scheduler] ├─ ${market.name} (ID: ${market.id}): Has result = false`);
+        });
         
-        // Fetch results for closed markets missing today's results
         if (marketsNeedingResults.length > 0) {
           console.log(`\n[Scheduler] 🔒 CLOSED MARKETS1 - Fetching ${marketsNeedingResults.length} market(s) missing results...\n`);
-          
           const closedResults = await Promise.allSettled(
             marketsNeedingResults.map(market => fetchAndUpdateMarketResult(market.id))
           );
@@ -328,26 +338,25 @@ export function startScheduler() {
           console.log(`[Scheduler] ✅ All closed markets have today's results`);
         }
 
-        // 🎯 After fetching results, process bids automatically
-        console.log(`[Scheduler] Processing bids for ${autoUpdateMarkets.length} market(s)...`);
-        const bidResults = await Promise.allSettled(
-          autoUpdateMarkets.map(market => processMarketBidsPreClose(market.id))
-        );
+        if (autoUpdateMarkets.length > 0) {
+          console.log(`[Scheduler] Processing bids for ${autoUpdateMarkets.length} market(s)...`);
+          const bidResults = await Promise.allSettled(
+            autoUpdateMarkets.map(market => processMarketBidsPreClose(market.id))
+          );
 
-        bidResults.forEach((result, i) => {
-          const market = autoUpdateMarkets[i];
-          if (result.status === "fulfilled") {
-            console.log(`[Scheduler] ${market.name} bids: ${result.value.message}`);
-          } else {
-            console.error(`[Scheduler] ${market.name} bids: Failed - ${result.reason}`);
-          }
-        });
+          bidResults.forEach((result, i) => {
+            const market = autoUpdateMarkets[i];
+            if (result.status === "fulfilled") {
+              console.log(`[Scheduler] ${market.name} bids: ${result.value.message}`);
+            } else {
+              console.error(`[Scheduler] ${market.name} bids: Failed - ${result.reason}`);
+            }
+          });
+        }
       }
 
-      // Fetch results for Market 2
       if (autoUpdateMarkets2.length > 0) {
         console.log(`\n[Scheduler] 📈 MARKETS2 - Fetching ${autoUpdateMarkets2.length} market(s)...`);
-
         const results2 = await Promise.allSettled(
           autoUpdateMarkets2.map(market => fetchAndUpdateMarkets2Result(market.id))
         );
@@ -368,7 +377,7 @@ export function startScheduler() {
     }
   });
 
-  console.log("[Scheduler] Started — running every minute");
+  console.log(`[Scheduler] Started — running every ${SCHEDULER_INTERVAL_MINUTES} minutes`);
 
   // Register daily reset at midnight
   if (midnightResetTask) {

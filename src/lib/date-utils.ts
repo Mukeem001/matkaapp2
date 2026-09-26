@@ -14,17 +14,25 @@ export function getNowIST(): Date {
  * Get today's date in IST formatted as yyyy-MM-dd
  */
 export function getTodayDateIST(): string {
-  const now = getNowIST();
-  return format(now, "yyyy-MM-dd");
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 /**
  * Get yesterday's date in IST formatted as yyyy-MM-dd
  */
 export function getYesterdayDateIST(): string {
-  const now = getNowIST();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  return format(yesterday, "yyyy-MM-dd");
+  const today = getTodayDateIST();
+  const yesterday = new Date(`${today}T00:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  return yesterday.toISOString().slice(0, 10);
 }
 
 /**

@@ -1452,6 +1452,15 @@ components:
         supportPhone:
           type: string
           nullable: true
+        telegramLink:
+          type: string
+          nullable: true
+        downloadLink:
+          type: string
+          nullable: true
+        newVersionLink:
+          type: string
+          nullable: true
         upiId:
           type: string
           nullable: true

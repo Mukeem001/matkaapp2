@@ -5,7 +5,7 @@ import axios from "axios";
 import * as http from "http";
 import * as https from "https";
 import { db, marketsTable, scraperLogsTable, resultsTable } from "@workspace/db";
-import { getTodayDateIST, parseTimeString } from "./date-utils";
+import { getTodayDateIST, isMarketClosed, parseTimeString } from "./date-utils";
 
 let puppeteer: any = null;
 
@@ -420,10 +420,31 @@ function parseSattaMatkaComInNumber(value: string): ScrapedResult | undefined {
   return undefined;
 }
 
+function parseDpBossResult(value: string): ScrapedResult | undefined {
+  const cleaned = value.trim();
+  if (!cleaned || /^(?:loading\.\.\.|-+|\*+)$/.test(cleaned)) {
+    return undefined;
+  }
+
+  const match = cleaned.match(/^(\d{1,3})\s*-\s*(\d{1,3})(?:\s*-\s*(\d{1,3}))?$/);
+  if (!match) {
+    return undefined;
+  }
+
+  return {
+    openResult: match[1],
+    jodiResult: match[2],
+    ...(match[3] ? { closeResult: match[3] } : {}),
+  };
+}
 function normalizeMarketNameForMatch(name: string): string {
   return normalizeScrapeLine(name)
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeDpBossMarketName(name: string): string {
+  return normalizeMarketNameForMatch(name).replace(/\bMADHUR\b/g, "MADHURI");
 }
 
 function isSattaMatkaMarketMatch(cleanLine: string, cleanMarket: string): boolean {
@@ -431,6 +452,61 @@ function isSattaMatkaMarketMatch(cleanLine: string, cleanMarket: string): boolea
   // Do NOT allow partial matches like "KALYAN" matching "KALYAN MORNING"
   // This prevents duplicate results for different market variations
   return cleanLine === cleanMarket;
+}
+
+export async function scrapeDpBossTax(
+  marketName: string,
+  opts?: { forceProxy?: boolean; allowFinalResult?: boolean }
+): Promise<ScrapedResult> {
+  try {
+    logM1(`Scraping dpboss.tax for: "${marketName}"`);
+    const response = await fetchUrl("https://dpboss.tax/", opts);
+    const $ = cheerio.load(response.data);
+    const target = normalizeDpBossMarketName(marketName);
+
+    if (opts?.allowFinalResult) {
+      // After close, prefer DPBoss's full-result section over the live widget,
+      // which may still contain only the open-stage partial result.
+      for (const heading of $(".tkt-val h4").toArray()) {
+        if (normalizeDpBossMarketName($(heading).text()) !== target) {
+          continue;
+        }
+
+        const value = $(heading).nextAll("span").first().text().trim();
+        const parsed = parseDpBossResult(value);
+        if (parsed) {
+          logM1(`DPBOSS final result for ${marketName}: ${value}`);
+          return parsed;
+        }
+      }
+    }
+
+    // Only read the current live-result widget. The page also contains
+    // historical charts and guessing sections with older full results.
+    for (const row of $(".liv-rslt .h8").toArray()) {
+      const name = $(row).text().trim();
+      if (normalizeDpBossMarketName(name) !== target) {
+        continue;
+      }
+
+      const value = $(row).nextAll(".h9").first().text().trim();
+      const parsed = parseDpBossResult(value);
+      if (parsed) {
+        logM1(`DPBOSS live result for ${marketName}: ${value}`);
+        return parsed;
+      }
+
+      logM1(`DPBOSS live result for ${marketName} is not ready: ${value || "loading"}`);
+      return {};
+    }
+
+    logM1(`No current DPBOSS live row found for ${marketName}`);
+    return {};
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    errorM1(`Error fetching dpboss.tax for ${marketName}: ${errorMsg}`);
+    return {};
+  }
 }
 
 function findSattaKingFastMarketResult($: cheerio.CheerioAPI, marketName: string): ScrapedResult {
@@ -881,8 +957,10 @@ export async function fetchAndUpdateMarketResult(
   let scraped: ScrapedResult = {};
 
   try {
-    // MARKETS1 ALWAYS USES satkamatka.com.in - NEVER USE OTHER SOURCES
-    scraped = await scrapeSattaMatkaComIn(market.name);
+    // Market 1 uses DPBoss as its single result source.
+    scraped = await scrapeDpBossTax(market.name, {
+      allowFinalResult: isMarketClosed(market.closeTime),
+    });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     logM1(`❌ ERROR: ${errorMessage}`);
@@ -890,27 +968,13 @@ export async function fetchAndUpdateMarketResult(
     await db.insert(scraperLogsTable).values({
       marketId: market.id,
       marketName: market.name,
-      sourceUrl: "https://satkamatka.com.in/",
+      sourceUrl: "https://dpboss.tax/",
       success: false,
       errorMessage,
     });
 
     return { success: false, message: errorMessage };
   }
-
-  // ✅ Accept partial results - at least ONE field must be present
-  // Website may delay publishing all fields after market closes
-  if (!scraped.openResult && !scraped.closeResult && !scraped.jodiResult) {
-    logM1(`❌ No result found from satkamatka.com.in`);
-    return { success: false, message: "Result not found" };
-  }
-
-  // Clean/validate the results (remove empty strings, use "XX" for missing values)
-  const cleanedOpen = String(scraped.openResult || "XX").trim();
-  const cleanedJodi = String(scraped.jodiResult || "XX").trim();
-  const cleanedClose = String(scraped.closeResult || "XX").trim();
-
-  logM1(`✅ SCRAPED RESULT: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 
   const resultDateStr = getTodayDateIST();
 
@@ -923,6 +987,18 @@ export async function fetchAndUpdateMarketResult(
         eq(resultsTable.resultDate, resultDateStr)
       )
     );
+
+  // Never reuse an older database value when DPBoss has not published it yet.
+  // The placeholder is stored as XX-X-XX for the current fetch.
+  const cleanedOpen = String(scraped.openResult || "XX").trim();
+  const cleanedJodi = String(scraped.jodiResult || "X").trim();
+  const cleanedClose = String(scraped.closeResult || "XX").trim();
+
+  if (!scraped.openResult && !scraped.closeResult && !scraped.jodiResult) {
+    logM1(`⚠️ No latest result found from dpboss.tax; saving XX-X-XX for ${market.name}`);
+  }
+
+  logM1(`✅ SCRAPED RESULT: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 
   if (existingResult) {
     await db.update(resultsTable).set({
@@ -953,7 +1029,7 @@ export async function fetchAndUpdateMarketResult(
   await db.insert(scraperLogsTable).values({
     marketId: market.id,
     marketName: market.name,
-    sourceUrl: "https://satkamatka.com.in/",
+    sourceUrl: "https://dpboss.tax/",
     success: true,
     openResult: cleanedOpen,
     closeResult: cleanedClose,

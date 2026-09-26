@@ -20,6 +20,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const settingsSchema = z.object({
   appName: z.string().min(1),
   supportPhone: z.string().optional(),
+  telegramLink: z.string().optional(),
+  downloadLink: z.string().optional(),
+  newVersionLink: z.string().optional(),
   upiId: z.string().optional(),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
@@ -331,6 +334,9 @@ export default function Settings() {
       form.reset({
         appName: settings.appName,
         supportPhone: settings.supportPhone || "",
+        telegramLink: settings.telegramLink || "",
+        downloadLink: settings.downloadLink || "",
+        newVersionLink: settings.newVersionLink || "",
         upiId: settings.upiId || "",
         bankName: settings.bankName || "",
         bankAccountNumber: settings.bankAccountNumber || "",
@@ -586,6 +592,18 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Support WhatsApp/Phone</Label>
               <Input {...form.register("supportPhone")} className="rounded-xl bg-card" placeholder="+91 9999999999" />
+            </div>
+            <div className="space-y-2">
+              <Label>Telegram Link</Label>
+              <Input {...form.register("telegramLink")} className="rounded-xl bg-card" placeholder="https://t.me/your-channel" />
+            </div>
+            <div className="space-y-2">
+              <Label>Download Link</Label>
+              <Input {...form.register("downloadLink")} className="rounded-xl bg-card" placeholder="https://example.com/app.apk" />
+            </div>
+            <div className="space-y-2">
+              <Label>Update New Version Link</Label>
+              <Input {...form.register("newVersionLink")} className="rounded-xl bg-card" placeholder="https://example.com/latest-version" />
             </div>
           </CardContent>
         </Card>

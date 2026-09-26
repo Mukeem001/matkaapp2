@@ -10,6 +10,9 @@ export interface AppSettings {
   appName: string;
   logoUrl?: string | null;
   supportPhone?: string | null;
+  telegramLink?: string | null;
+  downloadLink?: string | null;
+  newVersionLink?: string | null;
   upiId?: string | null;
   bankName?: string | null;
   bankAccountNumber?: string | null;
