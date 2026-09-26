@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "PORT=3000 node --env-file=.env node_modules/tsx/dist/cli.mjs --watch src/index.ts",
     "build": "PUPPETEER_SKIP_DOWNLOAD=true npx tsc --build tsconfig.json",
-    "start": "PORT=3000 node --env-file=.env node_modules/tsx/dist/cli.mjs ./src/index.ts",
+    "start": "PORT=3000 node node_modules/tsx/dist/cli.mjs ./src/index.ts",
     "typecheck": "tsc --build tsconfig.json --noEmit"
   },
   "dependencies": {
