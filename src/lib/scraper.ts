@@ -112,6 +112,10 @@ export interface ScrapedResult {
   jodiResult?: string;
 }
 
+interface DpBossScrapedResult extends ScrapedResult {
+  source?: "final" | "live";
+}
+
 export interface ScrapedResultWithYesterday extends ScrapedResult {
   yesterdayOpenResult?: string;
   yesterdayCloseResult?: string;
@@ -457,7 +461,7 @@ function isSattaMatkaMarketMatch(cleanLine: string, cleanMarket: string): boolea
 export async function scrapeDpBossTax(
   marketName: string,
   opts?: { forceProxy?: boolean; allowFinalResult?: boolean }
-): Promise<ScrapedResult> {
+): Promise<DpBossScrapedResult> {
   try {
     logM1(`Scraping dpboss.tax for: "${marketName}"`);
     const response = await fetchUrl("https://dpboss.tax/", opts);
@@ -474,7 +478,7 @@ export async function scrapeDpBossTax(
         const parsed = parseDpBossResult(value);
         if (parsed) {
           logM1(`DPBOSS final result for ${marketName}: ${value}`);
-          return parsed;
+          return { ...parsed, source: "final" };
         }
       }
 
@@ -499,7 +503,7 @@ export async function scrapeDpBossTax(
       const parsed = parseDpBossResult(value);
       if (parsed) {
         logM1(`DPBOSS live result for ${marketName}: ${value}`);
-        return parsed;
+        return { ...parsed, source: "live" };
       }
 
       logM1(`DPBOSS live result for ${marketName} is not ready: ${value || "loading"}`);
@@ -982,12 +986,13 @@ export async function fetchAndUpdateMarketResult(
   }
 
 
-  let scraped: ScrapedResult = {};
+  const marketIsClosed = isMarketClosed(market.closeTime);
+  let scraped: DpBossScrapedResult = {};
 
   try {
     // Market 1 uses DPBoss as its single result source.
     scraped = await scrapeDpBossTax(market.name, {
-      allowFinalResult: isMarketClosed(market.closeTime),
+      allowFinalResult: marketIsClosed,
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -1038,6 +1043,25 @@ export async function fetchAndUpdateMarketResult(
   const cleanedOpen = normalizeResultField(scraped.openResult, { fallback: "XX", maxLength: 3 });
   const cleanedJodi = normalizeResultField(scraped.jodiResult, { fallback: "XX", maxLength: 2 });
   const cleanedClose = normalizeResultField(scraped.closeResult, { fallback: "XX", maxLength: 3 });
+
+  if (marketIsClosed && scraped.source === "final") {
+    const existingOpen = existingResult?.openResult?.trim();
+    const hasComparableLiveOpen = Boolean(existingOpen && /^\d{1,3}$/.test(existingOpen));
+    if (!hasComparableLiveOpen || cleanedOpen !== existingOpen) {
+      logM1(
+        `⚠️ Final result open panna ${cleanedOpen} does not match today's saved live open panna ${existingOpen ?? "unavailable"}; preserving database result for ${market.name}`
+      );
+      return {
+        success: false,
+        message: `Skipped mismatched final result for ${market.name}`,
+        data: {
+          openResult: existingResult?.openResult ?? "XX",
+          jodiResult: existingResult?.jodiResult ?? "XX",
+          closeResult: existingResult?.closeResult ?? "XX",
+        },
+      };
+    }
+  }
 
   logM1(`✅ SCRAPED RESULT: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 
