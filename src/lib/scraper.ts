@@ -464,21 +464,27 @@ export async function scrapeDpBossTax(
     const $ = cheerio.load(response.data);
     const target = normalizeDpBossMarketName(marketName);
 
-    if (opts?.allowFinalResult) {
-      // After close, prefer DPBoss's full-result section over the live widget,
-      // which may still contain only the open-stage partial result.
-      for (const heading of $(".tkt-val h4").toArray()) {
-        if (normalizeDpBossMarketName($(heading).text()) !== target) {
-          continue;
-        }
+    const parseFinalResultSection = () => {
+      const tktValBlocks = $(".tkt-val > div").toArray();
+      for (const block of tktValBlocks) {
+        const heading = $(block).find("h4").first().text().trim();
+        if (normalizeDpBossMarketName(heading) !== target) continue;
 
-        const value = $(heading).nextAll("span").first().text().trim();
+        const value = $(block).find("span").first().text().trim();
         const parsed = parseDpBossResult(value);
         if (parsed) {
           logM1(`DPBOSS final result for ${marketName}: ${value}`);
           return parsed;
         }
       }
+
+      return undefined;
+    };
+
+    if (opts?.allowFinalResult) {
+      const finalResult = parseFinalResultSection();
+      if (finalResult) return finalResult;
+      logM1(`No final result block found in dpboss.tkt-val for ${marketName}`);
     }
 
     // Only read the current live-result widget. The page also contains
@@ -940,6 +946,28 @@ export async function scrapeLiveResults(marketName: string, opts?: { forceProxy?
 }
 
 // ================= MAIN FUNCTION =================
+function normalizeResultField(value: unknown, options?: { fallback?: string; maxLength?: number }): string {
+  const fallback = options?.fallback ?? "XX";
+  const maxLength = options?.maxLength ?? 3;
+  const raw = String(value ?? "").trim();
+
+  if (!raw || /^x+$/i.test(raw) || /^xx+$/i.test(raw)) {
+    return fallback;
+  }
+
+  const digitsOnly = raw.replace(/\D+/g, "");
+  if (!digitsOnly) {
+    return fallback;
+  }
+
+  const normalized = digitsOnly.slice(0, maxLength);
+  if (normalized.length === 1 && maxLength > 1) {
+    return normalized.padStart(2, "0");
+  }
+
+  return normalized || fallback;
+}
+
 export async function fetchAndUpdateMarketResult(
   marketId: number
 ) {
@@ -988,15 +1016,28 @@ export async function fetchAndUpdateMarketResult(
       )
     );
 
-  // Never reuse an older database value when DPBoss has not published it yet.
-  // The placeholder is stored as XX-X-XX for the current fetch.
-  const cleanedOpen = String(scraped.openResult || "XX").trim();
-  const cleanedJodi = String(scraped.jodiResult || "X").trim();
-  const cleanedClose = String(scraped.closeResult || "XX").trim();
+  const hasAnyScrapedResult = Boolean(scraped.openResult || scraped.closeResult || scraped.jodiResult);
 
-  if (!scraped.openResult && !scraped.closeResult && !scraped.jodiResult) {
-    logM1(`⚠️ No latest result found from dpboss.tax; saving XX-X-XX for ${market.name}`);
+  // Keep a previously scraped partial result until the final result becomes available.
+  // A missing source row must never replace it with XX values or delete it.
+  if (!hasAnyScrapedResult) {
+    logM1(`⚠️ No result available for ${market.name}; preserving existing result and skipping write`);
+    return {
+      success: false,
+      message: `Skipped empty result write for ${market.name}`,
+      data: {
+        openResult: existingResult?.openResult ?? "XX",
+        jodiResult: existingResult?.jodiResult ?? "XX",
+        closeResult: existingResult?.closeResult ?? "XX",
+      },
+    };
   }
+
+  // Never reuse an older database value when DPBoss has not published it yet.
+  // The placeholder is stored as XX-XX-XX for the current fetch only for still-open markets.
+  const cleanedOpen = normalizeResultField(scraped.openResult, { fallback: "XX", maxLength: 3 });
+  const cleanedJodi = normalizeResultField(scraped.jodiResult, { fallback: "XX", maxLength: 2 });
+  const cleanedClose = normalizeResultField(scraped.closeResult, { fallback: "XX", maxLength: 3 });
 
   logM1(`✅ SCRAPED RESULT: ${cleanedOpen}-${cleanedJodi}-${cleanedClose}`);
 

@@ -56,6 +56,18 @@ function hasMarketClosedForResult(market: { openTime: string; closeTime: string 
   return current >= close && current < open;
 }
 
+function hasPlaceholderResultRow(result: { openResult?: string | null; closeResult?: string | null; jodiResult?: string | null }): boolean {
+  const values = [result.openResult, result.closeResult, result.jodiResult];
+  return values.some(value => {
+    if (value === null || value === undefined) return true;
+    const trimmed = String(value).trim();
+    if (!trimmed) return true;
+    if (/^[xX]+$/.test(trimmed)) return true;
+    if (/^[0-9]$/.test(trimmed)) return true;
+    return false;
+  });
+}
+
 // Daily reset at midnight IST - set all markets to isActive = true
 // This allows betting to start from 00:00 when new day begins
 // Also handles case where server restarts during the day - ensures reset runs at least once per day
@@ -309,12 +321,19 @@ export function startScheduler() {
         const todayResults = await db.select({
           marketId: resultsTable.marketId,
           resultDate: resultsTable.resultDate,
+          openResult: resultsTable.openResult,
+          closeResult: resultsTable.closeResult,
+          jodiResult: resultsTable.jodiResult,
         })
           .from(resultsTable)
           .where(eq(resultsTable.resultDate, todayDate));
           
-        const hasTodayResult = new Set(todayResults.map(r => r.marketId));
-        const marketsNeedingResults = closedMarkets.filter(m => hasMarketClosedForResult(m) && !hasTodayResult.has(m.id));
+        const validTodayResultMarketIds = new Set(
+          todayResults
+            .filter(r => !hasPlaceholderResultRow(r))
+            .map(r => r.marketId)
+        );
+        const marketsNeedingResults = closedMarkets.filter(m => hasMarketClosedForResult(m) && !validTodayResultMarketIds.has(m.id));
           
         marketsNeedingResults.forEach(market => {
           console.log(`[Scheduler] ├─ ${market.name} (ID: ${market.id}): Has result = false`);

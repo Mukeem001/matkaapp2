@@ -5,9 +5,31 @@ import { format } from "date-fns";
  */
 export function getNowIST(): Date {
   const now = new Date();
-  // Convert to IST by adding 5:30 hours
-  const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-  return istTime;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+
+  const values = Object.fromEntries(
+    parts
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+
+  const year = Number(values.year);
+  const month = Number(values.month) - 1;
+  const day = Number(values.day);
+  const hour = Number(values.hour);
+  const minute = Number(values.minute);
+  const second = Number(values.second);
+
+  return new Date(Date.UTC(year, month, day, hour, minute, second));
 }
 
 /**
@@ -89,8 +111,8 @@ export function isMarketClosed(marketCloseTime: string): boolean {
     const now = getNowIST();
     const { hours: closeHour, minutes: closeMinute } = parseTimeString(marketCloseTime);
     
-    const nowHour = now.getHours();
-    const nowMinute = now.getMinutes();
+    const nowHour = now.getUTCHours();
+    const nowMinute = now.getUTCMinutes();
     
     // Convert both times to minutes for easier comparison
     const currentTimeInMinutes = nowHour * 60 + nowMinute;
