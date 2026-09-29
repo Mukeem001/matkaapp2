@@ -114,6 +114,7 @@ export interface ScrapedResult {
 
 interface DpBossScrapedResult extends ScrapedResult {
   source?: "final" | "live";
+  state?: "loading";
 }
 
 export interface ScrapedResultWithYesterday extends ScrapedResult {
@@ -507,7 +508,10 @@ export async function scrapeDpBossTax(
       }
 
       logM1(`DPBOSS live result for ${marketName} is not ready: ${value || "loading"}`);
-      return {};
+      if (!value || /^(?:loading(?:\.{0,3})?|[-*]+)$/i.test(value)) {
+        return { source: "live", state: "loading" };
+      }
+      return { source: "live" };
     }
 
     logM1(`No current DPBOSS live row found for ${marketName}`);
@@ -1022,10 +1026,12 @@ export async function fetchAndUpdateMarketResult(
     );
 
   const hasAnyScrapedResult = Boolean(scraped.openResult || scraped.closeResult || scraped.jodiResult);
+  const shouldSaveLiveLoadingPlaceholder =
+    !marketIsClosed && scraped.source === "live" && scraped.state === "loading";
 
   // Keep a previously scraped partial result until the final result becomes available.
-  // A missing source row must never replace it with XX values or delete it.
-  if (!hasAnyScrapedResult) {
+  // Only a matched live row explicitly showing loading may create placeholders.
+  if (!hasAnyScrapedResult && !shouldSaveLiveLoadingPlaceholder) {
     logM1(`⚠️ No result available for ${market.name}; preserving existing result and skipping write`);
     return {
       success: false,
@@ -1040,9 +1046,15 @@ export async function fetchAndUpdateMarketResult(
 
   // Never reuse an older database value when DPBoss has not published it yet.
   // The placeholder is stored as XX-XX-XX for the current fetch only for still-open markets.
-  const cleanedOpen = normalizeResultField(scraped.openResult, { fallback: "XX", maxLength: 3 });
-  const cleanedJodi = normalizeResultField(scraped.jodiResult, { fallback: "XX", maxLength: 2 });
-  const cleanedClose = normalizeResultField(scraped.closeResult, { fallback: "XX", maxLength: 3 });
+  const cleanedOpen = shouldSaveLiveLoadingPlaceholder
+    ? "XX"
+    : normalizeResultField(scraped.openResult, { fallback: "XX", maxLength: 3 });
+  const cleanedJodi = shouldSaveLiveLoadingPlaceholder
+    ? "X"
+    : normalizeResultField(scraped.jodiResult, { fallback: "XX", maxLength: 2 });
+  const cleanedClose = shouldSaveLiveLoadingPlaceholder
+    ? "XX"
+    : normalizeResultField(scraped.closeResult, { fallback: "XX", maxLength: 3 });
 
   if (marketIsClosed && scraped.source === "final") {
     const existingOpen = existingResult?.openResult?.trim();
